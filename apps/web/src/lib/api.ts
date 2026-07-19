@@ -1,6 +1,6 @@
 /**
  * Studio HTTP client: live FastAPI preferred, offline fixtures as fallback.
- * Hides transport details from hooks/components. Provenance: #4, #27, D6.
+ * Hides transport details from hooks/components. Provenance: #4, #27, #44, D6.
  */
 import type {
   AnalysisReport,

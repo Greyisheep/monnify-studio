@@ -1,5 +1,6 @@
 /**
- * Canvas node chrome for React Flow. Provenance: #4, D14.
+ * Canvas node chrome. Selected nodes expand detail in-place (#44).
+ * Provenance: #4, #44, D14.
  */
 "use client";
 
@@ -21,11 +22,19 @@ export function StudioNode({ data, selected }: NodeProps<StudioFlowNode>) {
   const categoryClass = CATEGORY_CLASS[data.category] ?? "cat-application";
 
   return (
-    <div className={`studio-node ${categoryClass}${selected ? " is-selected" : ""}`}>
+    <div
+      className={`studio-node ${categoryClass}${selected ? " is-selected is-expanded" : ""}`}
+    >
       <Handle type="target" position={Position.Left} className="studio-handle" />
       <span className="studio-node__cat">{data.category}</span>
       <strong className="studio-node__label">{data.label}</strong>
       <span className="studio-node__type">{data.nodeType}</span>
+      {selected && (
+        <div className="studio-node__detail">
+          <span>{data.title || data.label}</span>
+          <span>Open panel for ports and config</span>
+        </div>
+      )}
       <Handle type="source" position={Position.Right} className="studio-handle" />
     </div>
   );
