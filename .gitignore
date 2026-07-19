@@ -1,0 +1,36 @@
+# Secrets — never commit real keys (D-security)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+dist/
+build/
+*.egg-info/
+
+# Node / Next
+node_modules/
+.next/
+out/
+.turbo/
+npm-debug.log*
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.log
+
+# Local data
+*.sqlite3
+postgres-data/
