@@ -126,3 +126,27 @@ def test_unknown_adapter_is_400():
     workflow = client.get("/workflows/marketplace-unsafe").json()["workflow"]
     res = client.post("/executions", json={"workflow": workflow, "adapter": "paystack"})
     assert res.status_code == 400
+
+
+def test_executor_run_opens_otel_span():
+    """D15: completed runs emit logs under an executor.run span (#8 follow-up)."""
+    import io
+    import json
+
+    from monnify_studio.observability import configure_logging, configure_tracing, get_logger
+
+    configure_tracing(console=False)
+    buf = io.StringIO()
+    configure_logging(stream=buf)
+    # Rebind module logger so the run's completed line hits our buffer.
+    import monnify_studio.executor.engine as engine_mod
+
+    engine_mod.log = get_logger("executor")
+
+    run = run_workflow(safe_marketplace(), adapter=MockAdapter())
+    assert run.status.value == "completed"
+    lines = [json.loads(line) for line in buf.getvalue().splitlines() if line.strip()]
+    completed = [line for line in lines if line.get("event") == "executor.run.completed"]
+    assert completed
+    assert len(completed[-1]["trace_id"]) == 32
+    assert len(completed[-1]["span_id"]) == 16
