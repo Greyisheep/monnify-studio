@@ -99,16 +99,10 @@ export function ReviewPanel({
                 : `Show only ${label} findings`
             }
           >
-            <strong>{severityCount(report, severity)}</strong>
-            <span>{label}</span>
+            {severityCount(report, severity)} {label}
           </button>
         ))}
       </div>
-      {severityFilter && (
-        <p className="studio-counts__hint">
-          Showing {severityFilter} only · click again to clear
-        </p>
-      )}
       <ul className="studio-findings">
         {visibleFindings.length === 0 && !loading && (
           <li className="studio-clean">
@@ -152,16 +146,14 @@ function FindingCard({
   onApplyFix,
 }: FindingCardProps) {
   return (
-    <li
-      className={`finding-card${selected ? " is-selected-finding" : ""}`}
-      data-sev={finding.severity}
-    >
+    <li className={selected ? "is-selected-finding" : ""}>
       <button type="button" className="finding-hit" onClick={onSelect}>
         <div className="finding-top">
           <span className={`sev sev-${finding.severity}`}>{finding.severity}</span>
-          <code className="finding-rule">{finding.rule_id}</code>
+          <strong>
+            [{finding.rule_id}] {finding.title}
+          </strong>
         </div>
-        <strong className="finding-title">{finding.title}</strong>
         <p>{finding.message}</p>
         {finding.path.length > 0 && (
           <code className="finding-path">{finding.path.join(" → ")}</code>
