@@ -50,7 +50,7 @@ MONNIFY_NODE_TYPES: list[NodeTypeDef] = [
         category=C.MONNIFY,
         title="Initiate Transfer (Disbursement)",
         description="Move money out to a beneficiary — e.g. the provider payout.",
-        default_tags=[T.EXTERNAL_CALL, T.MONEY_MOVEMENT, T.SECRET_BOUNDARY],
+        default_tags=[T.EXTERNAL_CALL, T.MONEY_MOVEMENT, T.BENEFICIARY_TRANSFER, T.SECRET_BOUNDARY],
         inputs=[
             PortSpec(name="account_number", type=D.ACCOUNT_NUMBER),
             PortSpec(name="amount", type=D.MONEY),
@@ -74,6 +74,15 @@ MONNIFY_NODE_TYPES: list[NodeTypeDef] = [
         # The primitive MON009 warns against for payout-after-fulfilment (D10).
         default_tags=[T.EXTERNAL_CALL, T.IMMEDIATE_SPLIT, T.MONEY_MOVEMENT, T.SECRET_BOUNDARY],
         inputs=[PortSpec(name="amount", type=D.MONEY)],
+    ),
+    NodeTypeDef(
+        type="monnify.validate_bank_account",
+        category=C.MONNIFY,
+        title="Validate Bank Account (Name Enquiry)",
+        description="KYC Match — resolve and confirm a beneficiary account name before paying it.",
+        default_tags=[T.EXTERNAL_CALL, T.BENEFICIARY_VALIDATION, T.SECRET_BOUNDARY],
+        inputs=[PortSpec(name="account_number", type=D.ACCOUNT_NUMBER)],
+        outputs=[PortSpec(name="account_name", type=D.ANY)],
     ),
     NodeTypeDef(
         type="monnify.create_reserved_account",

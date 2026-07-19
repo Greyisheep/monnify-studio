@@ -162,10 +162,45 @@ def mon009_immediate_split_before_conditional_payout(a: Analysis) -> list[Findin
     ]
 
 
+def mon011_beneficiary_not_validated(a: Analysis) -> list[Finding]:
+    """A transfer to a beneficiary is reachable without validating the account first.
+
+    From the Monnify cheat sheet: the Verification/KYC APIs exist for "validating
+    payout account names before initiating a transfer" (#24)."""
+    findings: list[Finding] = []
+    is_transfer = a.has_pred(T.BENEFICIARY_TRANSFER)
+    is_validation = a.has_pred(T.BENEFICIARY_VALIDATION)
+    reported: set[str] = set()
+    for root in a.wf.roots():
+        for path in a.unguarded_targets(root, is_transfer, is_validation):
+            target = path[-1]
+            if target in reported:
+                continue
+            reported.add(target)
+            findings.append(
+                Finding(
+                    rule_id="MON011",
+                    severity=Severity.HIGH,
+                    title="Beneficiary account not validated before transfer",
+                    message="Funds could be disbursed to an unverified or incorrect account.",
+                    node_ids=[target],
+                    path=path,
+                    explanation=(
+                        "Validate the beneficiary account (Name Enquiry / KYC Match) before "
+                        "initiating a transfer, to prevent misdirected or fraudulent payouts."
+                    ),
+                    remediation="Insert Validate Bank Account before the transfer.",
+                    doc_url=DOCS_API,
+                )
+            )
+    return findings
+
+
 RULES: list[Rule] = [
     mon001_client_callback_as_truth,
     mon002_missing_signature_check,
     mon003_missing_idempotency,
     mon004_amount_not_validated,
     mon009_immediate_split_before_conditional_payout,
+    mon011_beneficiary_not_validated,
 ]

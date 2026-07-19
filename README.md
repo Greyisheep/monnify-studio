@@ -35,6 +35,7 @@ correctness **visible and checkable** before it ever touches real money.
   | MON003 | Missing idempotency boundary before a financial effect |
   | MON004 | Amount paid never validated against expected |
   | MON009 | Immediate split used where payout must wait for fulfilment |
+  | MON011 | Beneficiary account not validated before a transfer |
 - **The marketplace hero** in unsafe and safe forms, with the analyzer proving
   the difference.
 - **Apply-Fix remediation** — each finding is an IR rewrite that removes it;
