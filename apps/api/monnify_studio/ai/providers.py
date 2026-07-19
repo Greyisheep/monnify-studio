@@ -63,23 +63,32 @@ class KeywordFallback:
         )
 
 
+def _anthropic_key() -> str | None:
+    # The key may live under either name; CLAUDE_API_KEY is how it is provisioned here.
+    return os.getenv("ANTHROPIC_API_KEY") or os.getenv("CLAUDE_API_KEY")
+
+
+def _google_key() -> str | None:
+    return os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
+
+
 class AnthropicProvider:
     name = "anthropic"
 
     def __init__(self) -> None:
-        register_secret(os.getenv("ANTHROPIC_API_KEY"))
+        register_secret(_anthropic_key())
 
     def available(self) -> bool:
         try:
             import anthropic  # noqa: F401
         except ImportError:
             return False
-        return bool(os.getenv("ANTHROPIC_API_KEY"))
+        return bool(_anthropic_key())
 
     def infer(self, *, system: str, user: str, message: str) -> MoniIntent:
         import anthropic
 
-        client = anthropic.Anthropic()
+        client = anthropic.Anthropic(api_key=_anthropic_key())
         resp = client.messages.parse(
             model=_ANTHROPIC_MODEL,
             max_tokens=1024,
@@ -119,30 +128,37 @@ class OpenAIProvider:
 
 
 class GoogleProvider:
+    """Uses the current google-genai SDK (successor to google-generativeai)."""
+
     name = "google"
 
     def __init__(self) -> None:
-        register_secret(os.getenv("GOOGLE_API_KEY"))
+        register_secret(_google_key())
 
     def available(self) -> bool:
         try:
-            import google.generativeai  # noqa: F401
+            from google import genai  # noqa: F401
         except ImportError:
             return False
-        return bool(os.getenv("GOOGLE_API_KEY"))
+        return bool(_google_key())
 
     def infer(self, *, system: str, user: str, message: str) -> MoniIntent:
-        import google.generativeai as genai
+        from google import genai
 
-        genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
-        model = genai.GenerativeModel(os.getenv("GOOGLE_MODEL", "gemini-2.5-pro"))
-        resp = model.generate_content(
-            f"{system}\n\n{user}",
-            generation_config={
+        client = genai.Client(api_key=_google_key())
+        resp = client.models.generate_content(
+            # Verified live against this key: gemini-3.1-pro-preview is the top
+            # available Pro model (#15).
+            model=os.getenv("GOOGLE_MODEL", "gemini-3.1-pro-preview"),
+            contents=f"{system}\n\n{user}",
+            config={
                 "response_mime_type": "application/json",
                 "response_schema": MoniIntent,
             },
         )
+        parsed = getattr(resp, "parsed", None)
+        if isinstance(parsed, MoniIntent):
+            return parsed
         return MoniIntent.model_validate_json(resp.text)
 
 

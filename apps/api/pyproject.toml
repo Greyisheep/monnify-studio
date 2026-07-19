@@ -26,7 +26,7 @@ api = [
 ai = [
     "anthropic>=0.40",
     "openai>=1.40",
-    "google-generativeai>=0.7",
+    "google-genai>=1.0",
 ]
 dev = [
     "pytest>=8.0",

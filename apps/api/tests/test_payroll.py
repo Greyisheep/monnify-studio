@@ -14,7 +14,11 @@ client = TestClient(app)
 
 
 def _no_keys(monkeypatch) -> None:
-    for k in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GOOGLE_API_KEY", "AI_PROVIDER"):
+    keys = (
+        "ANTHROPIC_API_KEY", "CLAUDE_API_KEY", "OPENAI_API_KEY",
+        "GOOGLE_API_KEY", "GEMINI_API_KEY", "AI_PROVIDER",
+    )
+    for k in keys:
         monkeypatch.delenv(k, raising=False)
 
 
