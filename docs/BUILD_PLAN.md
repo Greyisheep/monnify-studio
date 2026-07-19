@@ -26,6 +26,8 @@ Deadline: **12:00 WAT, 21 July 2026** · Team: 3 builders · Hero workflow: **Ma
 | D12 | **Position Studio one layer above Monnify's MCP server**; codegen can target it | MCP server = correct API *call*. Studio = correct *system* (idempotency, verification, reconciliation, failure recovery) - correctness that lives *between* calls. Building on Monnify's own tooling is a judging plus. |
 | D13 | **Provider-agnostic core; Monnify is a rich "provider pack"** | We intend to pitch this to other DevRel teams. IR/executor/analyzer engine stay provider-neutral; Monnify = node catalog + adapter + rule pack. Monnify-deep first, but no core hardcoding - new provider = new pack, not a rewrite. |
 | D14 | **Design craft is a feature, not polish** | "Beautiful working tool." Cohesive design system + considered canvas/trace/review UI from commit #1, not a prototype look. |
+| D15 | **Observability from day one** (structlog JSON logs + OpenTelemetry tracing, context propagation, secret redaction) | Owner priority, and on-theme: this product makes payment flows legible, so tracing executions is both good engineering and a demo asset. Trace id on every log line; secrets never logged. Tracked in #32. |
+| D16 | **AI layer supports the top 3 providers behind one interface** (Anthropic, OpenAI, Google), tester-selectable via `AI_PROVIDER` (default Claude) | Provider-agnostic like D13. Every provider output is schema-validated and re-run through the analyzer, so a weaker model cannot introduce an unsafe design. Tracked in #15. |
 
 **Eligibility:** ✅ **Team of 3 confirmed by organizer** (Auwal, in-channel: "You can have 3"). Keep a screenshot regardless. In-person attendance requirement still being contested in-channel - watch that thread for any teammate outside Lagos.
 
