@@ -17,6 +17,7 @@ from fastapi.responses import HTMLResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from monnify_studio.ai import classify_intent
 from monnify_studio.analysis import Report, analyze
 from monnify_studio.artifacts import (
     ArtifactConfig,
@@ -237,6 +238,49 @@ def health() -> dict:
 @app.get("/catalog", response_model=dict[str, NodeMeta])
 def get_catalog() -> dict[str, NodeMeta]:
     return _catalog_metas()
+
+
+class AssistantRequest(BaseModel):
+    message: str
+    provider: str | None = None  # anthropic | openai | google; None = auto
+
+
+class AssistantResponse(BaseModel):
+    template_id: str
+    confidence: float
+    config: dict
+    explanation: str
+    clarifying_question: str
+    provider: str
+
+
+@app.post("/assistant/intent", response_model=AssistantResponse)
+def assistant_intent(body: AssistantRequest) -> AssistantResponse:
+    """Moni maps a plain-language need onto a vetted template (#15, D16, D18).
+
+    Moni never designs a flow; the frontend takes template_id + config into the
+    existing from-template + generate path (human stays in the loop for money).
+    """
+    with correlation(request_id=new_id("moni")):
+        intent, provider = classify_intent(body.message, provider=body.provider)
+        config = {
+            k: v
+            for k, v in {
+                "business_name": intent.business_name,
+                "product_name": intent.product_name,
+                "price_ngn": intent.price_ngn,
+            }.items()
+            if v
+        }
+        log.info("assistant.intent", template=intent.template_id, provider=provider)
+        return AssistantResponse(
+            template_id=intent.template_id,
+            confidence=intent.confidence,
+            config=config,
+            explanation=intent.explanation,
+            clarifying_question=intent.clarifying_question,
+            provider=provider,
+        )
 
 
 @app.get("/templates", response_model=list[TemplateInfo])
