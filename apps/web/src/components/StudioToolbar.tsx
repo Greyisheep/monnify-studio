@@ -1,6 +1,6 @@
 /**
  * Slim action bar + panel toggles. Palette is a vertical overlay (#44).
- * Provenance: #4, #27, #44.
+ * Provenance: #4, #27, #28, #44.
  */
 "use client";
 
@@ -11,12 +11,16 @@ export interface StudioToolbarProps {
   hasFindings: boolean;
   paletteOpen: boolean;
   reviewOpen: boolean;
+  traceOpen: boolean;
+  running: boolean;
   onTogglePalette: () => void;
   onToggleReview: () => void;
+  onToggleTrace: () => void;
   onDelete: () => void;
   onReanalyze: () => void;
   onSave: () => void;
   onApplyAll: () => void;
+  onRun: () => void;
 }
 
 export function StudioToolbar({
@@ -26,12 +30,16 @@ export function StudioToolbar({
   hasFindings,
   paletteOpen,
   reviewOpen,
+  traceOpen,
+  running,
   onTogglePalette,
   onToggleReview,
+  onToggleTrace,
   onDelete,
   onReanalyze,
   onSave,
   onApplyAll,
+  onRun,
 }: StudioToolbarProps) {
   return (
     <div className="studio-toolbar">
@@ -49,6 +57,13 @@ export function StudioToolbar({
           onClick={onToggleReview}
         >
           Review
+        </button>
+        <button
+          type="button"
+          className={traceOpen ? "is-active" : ""}
+          onClick={onToggleTrace}
+        >
+          Trace
         </button>
       </div>
       <div className="toolbar-actions">
@@ -68,6 +83,14 @@ export function StudioToolbar({
           onClick={onApplyAll}
         >
           Apply Fix (all)
+        </button>
+        <button
+          type="button"
+          className="primary-btn"
+          disabled={busy || running || !canAct}
+          onClick={onRun}
+        >
+          {running ? "Running…" : "Run (mock)"}
         </button>
       </div>
     </div>

@@ -1,11 +1,14 @@
 /**
  * Studio HTTP client: live FastAPI preferred, offline fixtures as fallback.
- * Hides transport details from hooks/components. Provenance: #4, #27, #44, D6.
+ * Hides transport details from hooks/components. Provenance: #4, #27, #28, #44, D6.
  */
 import type {
   AnalysisReport,
+  ExecutionEvent,
+  ExecutionRun,
   NodeMeta,
   RemediateResult,
+  StartExecutionResult,
   Workflow,
   WorkflowPayload,
 } from "@/types";
@@ -141,6 +144,74 @@ export async function remediateWorkflow(
     workflow,
     rule_id: ruleId ?? "ALL",
   });
+}
+
+/** Start a mock IR run (#8). Live API required; no fixture fallback. */
+export async function startExecution(
+  workflow: Workflow,
+  adapter: "mock" = "mock",
+): Promise<StartExecutionResult> {
+  return postJson<StartExecutionResult>("/executions", { workflow, adapter });
+}
+
+export async function fetchExecution(runId: string): Promise<ExecutionRun> {
+  const live = await tryGetJson<ExecutionRun>(`/executions/${runId}`);
+  if (!live) throw new Error(`Unknown run: ${runId}`);
+  return live;
+}
+
+export async function fetchExecutionEvents(
+  runId: string,
+): Promise<ExecutionEvent[]> {
+  const live = await tryGetJson<ExecutionEvent[]>(`/executions/${runId}/events`);
+  if (!live) throw new Error(`Unknown run events: ${runId}`);
+  return live;
+}
+
+/**
+ * Consume the SSE execution stream (#8 / #28). Calls `onEvent` for each
+ * ExecutionEvent payload, then resolves when `event: done` arrives.
+ */
+export async function streamExecutionEvents(
+  runId: string,
+  onEvent: (event: ExecutionEvent) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  const response = await fetch(`${API_BASE}/executions/${runId}/events/stream`, {
+    headers: { Accept: "text/event-stream" },
+    signal,
+    cache: "no-store",
+  });
+  if (!response.ok || !response.body) {
+    throw new Error(`${response.status} /executions/${runId}/events/stream`);
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const chunks = buffer.split("\n\n");
+    buffer = chunks.pop() ?? "";
+
+    for (const chunk of chunks) {
+      const lines = chunk.split("\n");
+      let eventName = "message";
+      const dataLines: string[] = [];
+      for (const line of lines) {
+        if (line.startsWith("event:")) eventName = line.slice(6).trim();
+        if (line.startsWith("data:")) dataLines.push(line.slice(5).trim());
+      }
+      if (eventName === "done") return;
+      if (dataLines.length === 0) continue;
+      const payload = dataLines.join("\n");
+      if (!payload || payload === "{}") continue;
+      onEvent(JSON.parse(payload) as ExecutionEvent);
+    }
+  }
 }
 
 export { API_BASE };
