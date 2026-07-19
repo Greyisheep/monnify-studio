@@ -4,6 +4,8 @@ The engine reasons ONLY over capability tags — never node `type` strings — s
 every rule is provider-agnostic. The workhorse is `unguarded_targets`: "can I
 reach a dangerous node from this source without passing a protective node?"
 That single primitive expresses most payment-correctness rules.
+
+Traceability: #5 (P1.3 — static analysis engine); decision D3.
 """
 
 from __future__ import annotations

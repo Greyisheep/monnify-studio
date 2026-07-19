@@ -3,6 +3,8 @@
 These carry the correctness semantics that make Studio more than a diagram.
 Crucially, the *safety* nodes are first-class and visible (D9) — Apply-Fix
 inserts these exact boxes into the graph.
+
+Traceability: #3 (P1.1 — node catalog); decisions D9, D1.
 """
 
 from __future__ import annotations
