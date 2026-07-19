@@ -6,12 +6,24 @@ Run from apps/api:
 
 from __future__ import annotations
 
+import asyncio
+import json
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from monnify_studio.analysis import Report, analyze
+from monnify_studio.executor import (
+    ExecutionEvent,
+    ExecutionRun,
+    MockAdapter,
+    RunStatus,
+    execution_store,
+    run_workflow,
+)
 from monnify_studio.fixtures import safe_marketplace, unsafe_marketplace
 from monnify_studio.ir.models import Workflow
 from monnify_studio.ir.typing import control_edge_type_hint, validate_port_connection
@@ -50,7 +62,10 @@ log = get_logger("api")
 app = FastAPI(
     title="Monnify Studio API",
     version="0.1.0",
-    description="IR + architecture review + remediation surface for the Studio canvas.",
+    description=(
+        "IR + architecture review + remediation + execution-trace surface "
+        "for the Studio canvas (#8)."
+    ),
 )
 
 app.add_middleware(
@@ -136,6 +151,16 @@ class RemediateResult(BaseModel):
     node_types: dict[str, NodeMeta]
     analysis: Report
     diff: GraphDiff
+
+
+class StartExecutionRequest(BaseModel):
+    workflow: Workflow
+    adapter: str = "mock"  # mock today; monnify later (#9)
+
+
+class StartExecutionResponse(BaseModel):
+    run: ExecutionRun
+    event_count: int
 
 
 def _meta_from_def(defn) -> NodeMeta:
@@ -300,4 +325,86 @@ def remediate(body: RemediateRequest) -> RemediateResult:
         node_types=payload.node_types,
         analysis=analysis,
         diff=_graph_diff(before, saved, steps),
+    )
+
+
+@app.post("/executions", response_model=StartExecutionResponse)
+def start_execution(body: StartExecutionRequest) -> StartExecutionResponse:
+    """Start an IR run and buffer a redacted event trace (#8, D2).
+
+    MockAdapter is the default so #28 can consume a complete stream without
+    sandbox credentials (D11).
+    """
+    if not settings.allow_production_execution and body.adapter == "monnify":
+        raise HTTPException(
+            status_code=403,
+            detail="production/sandbox adapter disabled (ALLOW_PRODUCTION_EXECUTION=false)",
+        )
+    if body.adapter != "mock":
+        raise HTTPException(status_code=400, detail=f"unknown adapter: {body.adapter}")
+
+    with correlation(request_id=new_id("exec")):
+        run = run_workflow(body.workflow, adapter=MockAdapter())
+        events = execution_store.list_events(run.id)
+        log.info(
+            "api.execution.started",
+            run_id=run.id,
+            status=run.status.value,
+            events=len(events),
+        )
+        return StartExecutionResponse(run=run, event_count=len(events))
+
+
+@app.get("/executions/{run_id}", response_model=ExecutionRun)
+def get_execution(run_id: str) -> ExecutionRun:
+    run = execution_store.get(run_id)
+    if run is None:
+        raise HTTPException(status_code=404, detail=f"unknown run: {run_id}")
+    return run
+
+
+@app.get("/executions/{run_id}/events", response_model=list[ExecutionEvent])
+def list_execution_events(run_id: str) -> list[ExecutionEvent]:
+    """Snapshot of the buffered trace (handy for tests and first paint)."""
+    if execution_store.get(run_id) is None:
+        raise HTTPException(status_code=404, detail=f"unknown run: {run_id}")
+    return execution_store.list_events(run_id)
+
+
+@app.get("/executions/{run_id}/events/stream")
+async def stream_execution_events(run_id: str) -> StreamingResponse:
+    """SSE stream of ExecutionEvents for the #28 viewer (#8).
+
+    Replays buffered events first, then hearts until the run is terminal.
+    MVP runs complete synchronously before the stream opens, so clients usually
+    get the full trace on connect.
+    """
+    if execution_store.get(run_id) is None:
+        raise HTTPException(status_code=404, detail=f"unknown run: {run_id}")
+
+    async def event_generator():
+        last_seq = -1
+        terminal = {RunStatus.COMPLETED, RunStatus.FAILED}
+        while True:
+            run = execution_store.get(run_id)
+            if run is None:
+                break
+            batch = execution_store.list_events(run_id, after_seq=last_seq)
+            for event in batch:
+                last_seq = event.seq
+                payload = event.model_dump(mode="json")
+                yield f"id: {event.seq}\nevent: {event.type.value}\ndata: {json.dumps(payload)}\n\n"
+            if run.status in terminal:
+                yield "event: done\ndata: {}\n\n"
+                break
+            await asyncio.sleep(0.25)
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
     )
