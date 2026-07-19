@@ -111,7 +111,38 @@ Issue-first, branch-per-issue, reviewed PRs.
 
 ---
 
-## 4. Python standards
+## 4. Traceability — full idea tracing
+
+Anyone reading a line of code should be able to recover **why it exists** without
+asking. We keep the whole chain navigable *from the code itself*:
+
+```
+code comment  →  issue/PR number  →  decision (D#)  →  rationale
+```
+
+Rules:
+
+- **Put the issue/PR number in the code.** When a line encodes a non-obvious
+  choice, cite its origin in the comment — the issue (`#6`) and the decision
+  (`D10`) that motivated it. E.g.:
+  ```python
+  # Split settles immediately, so it's wrong for payout-after-fulfilment (#6, D10).
+  ```
+- **Module docstrings name the decisions — and issues — they implement**, so a
+  file's provenance is visible at the top. (Our core modules already cite `D#`;
+  add the originating issue alongside.)
+- **Close the loop from both ends.** Commits/PRs carry `Closes #N` (issue ← code);
+  code carries `#N` / `D#` (code → issue → why). With `git blame`, every line then
+  reaches its PR, its discussion, and its decision.
+- **The bar:** if a reviewer asks "why is this here?", the trace is missing — add
+  the reference, don't just answer in the thread.
+
+This is not comment noise. Cite the *why* and the *source of the decision*; never
+restate the code (APOSD §7). One good reference beats a paragraph.
+
+---
+
+## 5. Python standards
 
 - **Module layering is one-directional:** `ir` → `providers` → `analysis` /
   `fixtures`. Never import "up" the stack. This keeps `ir` provider-agnostic.
@@ -127,7 +158,7 @@ Issue-first, branch-per-issue, reviewed PRs.
   callers must remember to check.
 - **Dependencies** are managed with `uv`; commit `uv.lock`.
 
-## 5. Frontend standards (when `apps/web` lands)
+## 6. Frontend standards (when `apps/web` lands)
 
 - TypeScript strict; IR types are **generated** from the backend JSON Schema —
   never hand-duplicated (single source of truth).
@@ -138,7 +169,7 @@ Issue-first, branch-per-issue, reviewed PRs.
 
 ---
 
-## 6. Testing & CI
+## 7. Testing & CI
 
 - **Behaviour, not implementation.** Tests assert the contract (e.g. *which* MON
   rules fire on the unsafe hero), so refactors don't churn the suite.
@@ -147,7 +178,7 @@ Issue-first, branch-per-issue, reviewed PRs.
 - Fast by default: unit/deterministic tests need no network. Sandbox-touching
   tests are opt-in and clearly marked.
 
-## 7. Security & secrets
+## 8. Security & secrets
 
 - **Sandbox only.** Production execution is refused by default
   (`ALLOW_PRODUCTION_EXECUTION=false`); never enabled in the challenge build.
@@ -158,13 +189,15 @@ Issue-first, branch-per-issue, reviewed PRs.
 
 ---
 
-## 8. Definition of Done
+## 9. Definition of Done
 
 A change is done when:
 
 1. It closes a specific issue and the PR says `Closes #N`.
 2. It reduces or holds complexity — a reviewer finds it obvious.
 3. Public interfaces are documented (the *why*, per APOSD).
-4. Tests cover the new behaviour and the suite is green.
-5. No secrets, no root-level clutter, no dead files left behind.
-6. Decisions that shaped it are recorded (link the `D#` or add one to `docs/`).
+4. It is **fully traceable**: the code carries its issue/PR + decision references,
+   so the "why" is answerable from the source alone (§4).
+5. Tests cover the new behaviour and the suite is green.
+6. No secrets, no root-level clutter, no dead files left behind.
+7. Decisions that shaped it are recorded (link the `D#` or add one to `docs/`).
