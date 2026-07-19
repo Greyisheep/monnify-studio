@@ -1,3 +1,1 @@
-from .app import app, create_app
-
-__all__ = ["app", "create_app"]
+"""HTTP surface for Studio (FastAPI). Thin — correctness stays in IR/analysis."""

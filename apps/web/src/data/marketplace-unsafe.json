@@ -1,0 +1,39 @@
+{
+  "workflow": {
+    "id": "marketplace-unsafe",
+    "name": "Marketplace - Unsafe",
+    "version": 1,
+    "provider": "monnify",
+    "description": "Naive payout-after-fulfilment marketplace with unsafe integration patterns.",
+    "variables": {
+      "order_id": { "name": "order_id", "type": "Any", "description": "" },
+      "expected_amount": { "name": "expected_amount", "type": "Any", "description": "" }
+    },
+    "nodes": [
+      { "id": "init", "type": "monnify.initialize_transaction", "label": "Initialize Payment", "config": {}, "inputs": {}, "extra_tags": [], "position": { "x": 0, "y": 0 } },
+      { "id": "split", "type": "monnify.transaction_split", "label": "Split to Provider (5%/95%)", "config": {}, "inputs": {}, "extra_tags": [], "position": { "x": 220, "y": 0 } },
+      { "id": "callback", "type": "event.client_callback", "label": "Customer Returns (callback)", "config": {}, "inputs": {}, "extra_tags": [], "position": { "x": 440, "y": 0 } },
+      { "id": "webhook", "type": "event.payment_webhook", "label": "Payment Webhook", "config": {}, "inputs": {}, "extra_tags": [], "position": { "x": 440, "y": 160 } },
+      { "id": "fulfil", "type": "app.mark_order_paid", "label": "Mark Booking Funded", "config": {}, "inputs": {}, "extra_tags": [], "position": { "x": 700, "y": 80 } },
+      { "id": "confirm", "type": "event.fulfilment_confirmed", "label": "Customer Confirms Job", "config": {}, "inputs": {}, "extra_tags": [], "position": { "x": 0, "y": 300 } },
+      { "id": "payout", "type": "app.release_payout", "label": "Release Provider Payout", "config": {}, "inputs": {}, "extra_tags": [], "position": { "x": 260, "y": 300 } }
+    ],
+    "edges": [
+      { "source": "init", "target": "split", "kind": "control", "condition": null },
+      { "source": "split", "target": "callback", "kind": "control", "condition": null },
+      { "source": "callback", "target": "fulfil", "kind": "event", "condition": null },
+      { "source": "webhook", "target": "fulfil", "kind": "event", "condition": null },
+      { "source": "confirm", "target": "payout", "kind": "event", "condition": null }
+    ],
+    "entrypoint": "init"
+  },
+  "node_types": {
+    "monnify.initialize_transaction": { "type": "monnify.initialize_transaction", "category": "monnify", "title": "Initialize Transaction" },
+    "monnify.transaction_split": { "type": "monnify.transaction_split", "category": "monnify", "title": "Transaction Split" },
+    "event.client_callback": { "type": "event.client_callback", "category": "event", "title": "Client Callback" },
+    "event.payment_webhook": { "type": "event.payment_webhook", "category": "event", "title": "Payment Webhook" },
+    "app.mark_order_paid": { "type": "app.mark_order_paid", "category": "application", "title": "Mark Order Paid / Fulfil" },
+    "event.fulfilment_confirmed": { "type": "event.fulfilment_confirmed", "category": "event", "title": "Fulfilment Confirmed" },
+    "app.release_payout": { "type": "app.release_payout", "category": "application", "title": "Release Provider Payout" }
+  }
+}
