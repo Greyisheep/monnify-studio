@@ -1,5 +1,6 @@
 /**
- * Top chrome: brand, live/fixture source, unsafe/safe hero switch. Provenance: #4, D14.
+ * Top chrome: brand, live/fixture source, unsafe/safe hero switch.
+ * Provenance: #4, #44, D14.
  */
 "use client";
 

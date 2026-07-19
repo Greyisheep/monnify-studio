@@ -1,5 +1,5 @@
 /**
- * Node config drawer (business fields + advanced JSON). Provenance: #4.
+ * Node config overlay (business fields + advanced JSON). Provenance: #4, #44.
  */
 "use client";
 

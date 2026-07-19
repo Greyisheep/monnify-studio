@@ -1,6 +1,6 @@
 /**
  * Architecture Review panel: findings list, explain, Apply Fix.
- * Provenance: #27.
+ * Floats as an overlay over the canvas (#44). Provenance: #27, #44.
  */
 "use client";
 
@@ -17,6 +17,7 @@ export interface ReviewPanelProps {
   selectedFindingIndex: number | null;
   onSelectFinding: (index: number | null) => void;
   onApplyFix: (ruleId: string) => void;
+  onClose?: () => void;
 }
 
 export interface FindingCardProps {
@@ -37,14 +38,22 @@ export function ReviewPanel({
   selectedFindingIndex,
   onSelectFinding,
   onApplyFix,
+  onClose,
 }: ReviewPanelProps) {
   const [expandedExplain, setExpandedExplain] = useState<number | null>(null);
 
   return (
     <aside className="studio-review">
       <div className="studio-review__head">
-        <h2>Architecture Review</h2>
-        <p>{workflowName || "-"}</p>
+        <div>
+          <h2>Architecture Review</h2>
+          <p>{workflowName || "-"}</p>
+        </div>
+        {onClose && (
+          <button type="button" className="ghost-btn" onClick={onClose}>
+            Close
+          </button>
+        )}
       </div>
       <div className="studio-counts">
         <span data-sev="critical">{severityCount(report, "critical")} Critical</span>

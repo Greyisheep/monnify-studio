@@ -1,11 +1,12 @@
 /**
  * Canvas graph mutations: connect (typed), add, delete, update selection.
- * Provenance: #4.
+ * Connection aliveness: green valid / red invalid (#44). Provenance: #4, #44.
  */
 "use client";
 
 import {
   useCallback,
+  useState,
   type Dispatch,
   type SetStateAction,
 } from "react";
@@ -29,6 +30,7 @@ import type {
 } from "@/types";
 
 export type StudioFlowNode = Node<StudioNodeData, "studio">;
+export type ConnectionFeedback = "valid" | "invalid" | null;
 
 export interface UseStudioGraphOptions {
   nodes: Node<StudioNodeData>[];
@@ -58,6 +60,13 @@ export function useStudioGraph({
   setWorkflow,
 }: UseStudioGraphOptions) {
   const { screenToFlowPosition, setCenter } = useReactFlow();
+  const [connectionFeedback, setConnectionFeedback] =
+    useState<ConnectionFeedback>(null);
+
+  const flashConnection = useCallback((feedback: ConnectionFeedback) => {
+    setConnectionFeedback(feedback);
+    window.setTimeout(() => setConnectionFeedback(null), 1600);
+  }, []);
 
   const onConnect = useCallback(
     async (connection: Connection) => {
@@ -72,9 +81,11 @@ export function useStudioGraph({
       });
       if (!check.ok) {
         setTypeError(check.message || "TYPE ERROR");
+        flashConnection("invalid");
         return;
       }
       setTypeError(null);
+      flashConnection("valid");
       const sourceMeta =
         catalog[sourceNode.data.nodeType] ?? nodeTypesMeta[sourceNode.data.nodeType];
       const kind = sourceMeta?.category === "event" ? "event" : "control";
@@ -94,7 +105,15 @@ export function useStudioGraph({
       );
       setDirty(true);
     },
-    [catalog, nodeTypesMeta, nodes, setDirty, setEdges, setTypeError],
+    [
+      catalog,
+      flashConnection,
+      nodeTypesMeta,
+      nodes,
+      setDirty,
+      setEdges,
+      setTypeError,
+    ],
   );
 
   const onSelectionChange = useCallback(
@@ -206,5 +225,6 @@ export function useStudioGraph({
     addNode,
     deleteSelected,
     updateSelectedNode,
+    connectionFeedback,
   };
 }

@@ -1,19 +1,18 @@
 /**
- * Palette + Save / Re-analyze / Apply Fix actions. Provenance: #4, #27.
+ * Slim action bar + panel toggles. Palette is a vertical overlay (#44).
+ * Provenance: #4, #27, #44.
  */
 "use client";
 
-import { NODE_PALETTE } from "@/lib/constants";
-import type { NodeMeta } from "@/types";
-
 export interface StudioToolbarProps {
-  catalog: Record<string, NodeMeta>;
-  nodeTypesMeta: Record<string, NodeMeta>;
   canDelete: boolean;
   busy: boolean;
   canAct: boolean;
   hasFindings: boolean;
-  onAdd: (typeKey: string) => void;
+  paletteOpen: boolean;
+  reviewOpen: boolean;
+  onTogglePalette: () => void;
+  onToggleReview: () => void;
   onDelete: () => void;
   onReanalyze: () => void;
   onSave: () => void;
@@ -21,13 +20,14 @@ export interface StudioToolbarProps {
 }
 
 export function StudioToolbar({
-  catalog,
-  nodeTypesMeta,
   canDelete,
   busy,
   canAct,
   hasFindings,
-  onAdd,
+  paletteOpen,
+  reviewOpen,
+  onTogglePalette,
+  onToggleReview,
   onDelete,
   onReanalyze,
   onSave,
@@ -35,19 +35,21 @@ export function StudioToolbar({
 }: StudioToolbarProps) {
   return (
     <div className="studio-toolbar">
-      <div className="palette">
-        <span className="palette__label">Add</span>
-        {NODE_PALETTE.map((paletteItem) => (
-          <button
-            key={paletteItem.type}
-            type="button"
-            onClick={() => onAdd(paletteItem.type)}
-          >
-            +{" "}
-            {(catalog[paletteItem.type] ?? nodeTypesMeta[paletteItem.type])?.title ??
-              paletteItem.type}
-          </button>
-        ))}
+      <div className="toolbar-panels">
+        <button
+          type="button"
+          className={paletteOpen ? "is-active" : ""}
+          onClick={onTogglePalette}
+        >
+          Nodes
+        </button>
+        <button
+          type="button"
+          className={reviewOpen ? "is-active" : ""}
+          onClick={onToggleReview}
+        >
+          Review
+        </button>
       </div>
       <div className="toolbar-actions">
         <button type="button" disabled={!canDelete} onClick={onDelete}>

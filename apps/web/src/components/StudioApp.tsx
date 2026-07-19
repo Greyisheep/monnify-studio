@@ -1,10 +1,10 @@
 /**
- * Studio shell composer: wires session + graph hooks into chrome panels.
- * Keep this thin; behaviour lives in hooks/lib. Provenance: #4, #27, D14.
+ * Studio shell: full-bleed canvas with overlay panels (#44).
+ * Panels float and must not shrink the diagram. Provenance: #4, #27, #44, D14.
  */
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ReactFlowProvider,
   useEdgesState,
@@ -23,6 +23,7 @@ import {
 } from "@/lib/findings";
 import { flowToWorkflow } from "@/lib/flowIo";
 import { ConfigPanel } from "./ConfigPanel";
+import { NodePalette } from "./NodePalette";
 import { ReviewPanel } from "./ReviewPanel";
 import { StudioHeader } from "./StudioHeader";
 import { StudioToolbar } from "./StudioToolbar";
@@ -31,6 +32,8 @@ import { WorkflowCanvas } from "./WorkflowCanvas";
 function CanvasInner() {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<StudioNodeData>>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
+  const [paletteOpen, setPaletteOpen] = useState(true);
+  const [reviewOpen, setReviewOpen] = useState(true);
 
   const session = useStudioSession({ setNodes, setEdges });
   const graph = useStudioGraph({
@@ -78,6 +81,13 @@ function CanvasInner() {
     );
   }, [currentIr, session.selectedNodeId]);
 
+  // Selecting a node opens config overlay without compressing the canvas (#44).
+  const configOpen = !!selectedIrNode;
+
+  useEffect(() => {
+    if (session.selectedFindingIndex != null) setReviewOpen(true);
+  }, [session.selectedFindingIndex]);
+
   return (
     <div className="studio-shell">
       <StudioHeader
@@ -89,33 +99,21 @@ function CanvasInner() {
       />
 
       <StudioToolbar
-        catalog={session.catalog}
-        nodeTypesMeta={session.nodeTypesMeta}
         canDelete={!!session.selectedNodeId}
         busy={session.busy}
         canAct={!!currentIr}
         hasFindings={(session.report?.findings.length ?? 0) > 0}
-        onAdd={graph.addNode}
+        paletteOpen={paletteOpen}
+        reviewOpen={reviewOpen}
+        onTogglePalette={() => setPaletteOpen((open) => !open)}
+        onToggleReview={() => setReviewOpen((open) => !open)}
         onDelete={graph.deleteSelected}
         onReanalyze={() => currentIr && void session.runAnalyze(currentIr)}
         onSave={() => currentIr && void session.save(currentIr)}
         onApplyAll={() => currentIr && void session.applyFix(currentIr, "ALL")}
       />
 
-      <div className="studio-body studio-body--3">
-        <ConfigPanel
-          node={selectedIrNode}
-          meta={
-            selectedIrNode
-              ? session.catalog[selectedIrNode.type] ??
-                session.nodeTypesMeta[selectedIrNode.type]
-              : undefined
-          }
-          selectedFinding={selectedFinding}
-          onChange={graph.updateSelectedNode}
-          onClose={() => session.setSelectedNodeId(null)}
-        />
-
+      <div className="studio-stage">
         <WorkflowCanvas
           nodes={displayNodes}
           edges={displayEdges}
@@ -123,6 +121,7 @@ function CanvasInner() {
           busy={session.busy}
           typeError={session.typeError}
           diffNote={session.diffNote}
+          connectionFeedback={graph.connectionFeedback}
           layoutNonce={session.layoutNonce}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
@@ -131,15 +130,48 @@ function CanvasInner() {
           onGraphDirty={() => session.setDirty(true)}
         />
 
-        <ReviewPanel
-          workflowName={session.workflow?.name ?? ""}
-          report={session.report}
-          loading={session.loading}
-          busy={session.busy}
-          selectedFindingIndex={session.selectedFindingIndex}
-          onSelectFinding={session.setSelectedFindingIndex}
-          onApplyFix={(ruleId) => currentIr && void session.applyFix(currentIr, ruleId)}
+        <NodePalette
+          catalog={{ ...session.nodeTypesMeta, ...session.catalog }}
+          open={paletteOpen}
+          onClose={() => setPaletteOpen(false)}
+          onAdd={(typeKey) => {
+            graph.addNode(typeKey);
+          }}
         />
+
+        {configOpen && (
+          <div className="studio-overlay studio-overlay--config">
+            <ConfigPanel
+              node={selectedIrNode}
+              meta={
+                selectedIrNode
+                  ? session.catalog[selectedIrNode.type] ??
+                    session.nodeTypesMeta[selectedIrNode.type]
+                  : undefined
+              }
+              selectedFinding={selectedFinding}
+              onChange={graph.updateSelectedNode}
+              onClose={() => session.setSelectedNodeId(null)}
+            />
+          </div>
+        )}
+
+        {reviewOpen && (
+          <div className="studio-overlay studio-overlay--review">
+            <ReviewPanel
+              workflowName={session.workflow?.name ?? ""}
+              report={session.report}
+              loading={session.loading}
+              busy={session.busy}
+              selectedFindingIndex={session.selectedFindingIndex}
+              onSelectFinding={session.setSelectedFindingIndex}
+              onApplyFix={(ruleId) =>
+                currentIr && void session.applyFix(currentIr, ruleId)
+              }
+              onClose={() => setReviewOpen(false)}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

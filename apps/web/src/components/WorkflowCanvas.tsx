@@ -1,5 +1,6 @@
 /**
- * React Flow surface for the Studio canvas. Provenance: #4, #37, D14.
+ * React Flow surface: full-bleed canvas under overlay panels (#44).
+ * Fit-view after dagre layout when structure changes (#37). Provenance: #4, #37, #44, D14.
  */
 "use client";
 
@@ -21,6 +22,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
+import type { ConnectionFeedback } from "@/hooks/useStudioGraph";
 import type { StudioNodeData } from "@/types";
 import { StudioNode } from "./StudioNode";
 
@@ -33,6 +35,7 @@ export interface WorkflowCanvasProps {
   busy: boolean;
   typeError: string | null;
   diffNote: string | null;
+  connectionFeedback: ConnectionFeedback;
   layoutNonce: number;
   onNodesChange: OnNodesChange<Node<StudioNodeData>>;
   onEdgesChange: OnEdgesChange<Edge>;
@@ -62,6 +65,7 @@ export function WorkflowCanvas({
   busy,
   typeError,
   diffNote,
+  connectionFeedback,
   layoutNonce,
   onNodesChange,
   onEdgesChange,
@@ -69,13 +73,29 @@ export function WorkflowCanvas({
   onSelectionChange,
   onGraphDirty,
 }: WorkflowCanvasProps) {
+  const connectionStroke =
+    connectionFeedback === "valid"
+      ? "var(--accent)"
+      : connectionFeedback === "invalid"
+        ? "var(--danger)"
+        : "var(--edge-control)";
+
   return (
-    <main className="studio-canvas">
+    <main
+      className={`studio-canvas${
+        connectionFeedback ? ` is-connection-${connectionFeedback}` : ""
+      }`}
+    >
       {(loading || busy) && (
         <div className="studio-banner">{loading ? "Loading IR…" : "Working…"}</div>
       )}
-      {typeError && <div className="studio-banner studio-banner--error">{typeError}</div>}
-      {diffNote && !typeError && (
+      {typeError && (
+        <div className="studio-banner studio-banner--error">{typeError}</div>
+      )}
+      {connectionFeedback === "valid" && !typeError && (
+        <div className="studio-banner studio-banner--ok">Connection valid</div>
+      )}
+      {diffNote && !typeError && connectionFeedback !== "valid" && (
         <div className="studio-banner studio-banner--ok">{diffNote}</div>
       )}
       <ReactFlow
@@ -96,6 +116,7 @@ export function WorkflowCanvas({
         minZoom={0.3}
         deleteKeyCode={["Backspace", "Delete"]}
         proOptions={{ hideAttribution: true }}
+        connectionLineStyle={{ stroke: connectionStroke, strokeWidth: 2 }}
       >
         <FitViewOnLayout layoutNonce={layoutNonce} />
         <Background variant={BackgroundVariant.Dots} gap={18} size={1} />
