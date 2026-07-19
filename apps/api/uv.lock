@@ -454,9 +454,11 @@ name = "monnify-studio"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "httpx" },
     { name = "opentelemetry-api" },
     { name = "opentelemetry-sdk" },
     { name = "pydantic" },
+    { name = "pydantic-settings" },
     { name = "structlog" },
 ]
 
@@ -464,12 +466,10 @@ dependencies = [
 api = [
     { name = "alembic" },
     { name = "fastapi" },
-    { name = "httpx" },
     { name = "opentelemetry-exporter-otlp-proto-http" },
     { name = "opentelemetry-instrumentation-fastapi" },
     { name = "opentelemetry-instrumentation-httpx" },
     { name = "psycopg", extra = ["binary"] },
-    { name = "pydantic-settings" },
     { name = "sqlalchemy" },
     { name = "uvicorn", extra = ["standard"] },
 ]
@@ -482,7 +482,7 @@ dev = [
 requires-dist = [
     { name = "alembic", marker = "extra == 'api'", specifier = ">=1.13" },
     { name = "fastapi", marker = "extra == 'api'", specifier = ">=0.110" },
-    { name = "httpx", marker = "extra == 'api'", specifier = ">=0.27" },
+    { name = "httpx", specifier = ">=0.27" },
     { name = "opentelemetry-api", specifier = ">=1.24" },
     { name = "opentelemetry-exporter-otlp-proto-http", marker = "extra == 'api'", specifier = ">=1.24" },
     { name = "opentelemetry-instrumentation-fastapi", marker = "extra == 'api'", specifier = ">=0.45b0" },
@@ -490,7 +490,7 @@ requires-dist = [
     { name = "opentelemetry-sdk", specifier = ">=1.24" },
     { name = "psycopg", extras = ["binary"], marker = "extra == 'api'", specifier = ">=3.1" },
     { name = "pydantic", specifier = ">=2.6" },
-    { name = "pydantic-settings", marker = "extra == 'api'", specifier = ">=2.2" },
+    { name = "pydantic-settings", specifier = ">=2.2" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.4" },
     { name = "sqlalchemy", marker = "extra == 'api'", specifier = ">=2.0" },

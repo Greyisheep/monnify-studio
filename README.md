@@ -41,6 +41,10 @@ correctness **visible and checkable** before it ever touches real money.
 - **Apply-Fix remediation** - each finding is an IR rewrite that removes it;
   `remediate_all` runs detect → fix → re-analyze until the graph is clean,
   inserting the safety nodes as visible boxes.
+- **Live Monnify sandbox call** - authenticate and initialize a transaction,
+  returning a real checkout URL, fully traced with secrets redacted.
+- **Observability** - structured JSON logs plus OpenTelemetry tracing with
+  context propagation and secret redaction, used by everything above.
 
 See [`docs/BUILD_PLAN.md`](docs/BUILD_PLAN.md) for the full epic → phase → issue
 plan and the locked architecture decisions, and
@@ -61,6 +65,9 @@ uv run python scripts/demo_remediate.py
 
 # See structured, traced, redacted logs around an analysis run:
 uv run python scripts/demo_observability.py
+
+# Make one real Monnify sandbox call (needs MONNIFY_* keys in .env):
+uv run python scripts/demo_sandbox.py
 
 # Run the tests:
 uv run pytest -q
