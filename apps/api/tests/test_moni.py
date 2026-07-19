@@ -24,7 +24,7 @@ class _FakeProvider:
     def available(self) -> bool:
         return True
 
-    def infer(self, *, system, user, message) -> MoniIntent:
+    def structured(self, **kwargs) -> MoniIntent:
         return self._intent
 
 
@@ -66,7 +66,7 @@ def test_provider_error_degrades_to_keyword(monkeypatch):
         def available(self):
             return True
 
-        def infer(self, **_):
+        def structured(self, **_):
             raise RuntimeError("provider exploded")
 
     monkeypatch.setattr(moni_mod, "select_provider", lambda p=None: _Boom())

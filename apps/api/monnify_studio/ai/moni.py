@@ -31,11 +31,11 @@ def classify_intent(message: str, *, provider: str | None = None) -> tuple[MoniI
     chosen: AIProvider = select_provider(provider)
     user = f"{_template_menu()}\n\nUser: {message.strip()}"
     try:
-        intent = chosen.infer(system=_SYSTEM, user=user, message=message)
+        intent = chosen.structured(system=_SYSTEM, user=user, message=message)
     except Exception as exc:  # noqa: BLE001 - never let a provider error break Chat (D11)
         from .providers import KeywordFallback
 
-        intent = KeywordFallback().infer(system=_SYSTEM, user=user, message=message)
+        intent = KeywordFallback().structured(system=_SYSTEM, user=user, message=message)
         return _sanitize(intent), f"{chosen.name}->keyword ({type(exc).__name__})"
     return _sanitize(intent), chosen.name
 

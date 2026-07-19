@@ -20,3 +20,32 @@ class MoniIntent(BaseModel):
     price_ngn: int | None = None
     explanation: str = ""
     clarifying_question: str = ""
+
+
+class MoniFlowNode(BaseModel):
+    """One node in a composed flow. `type` must be a real catalog node type;
+    the composer rejects anything else (D18: catalog-constrained creativity)."""
+
+    id: str
+    type: str
+    label: str = ""
+
+
+class MoniFlowEdge(BaseModel):
+    source: str
+    target: str
+    kind: str = "control"  # "control" | "event" (event = async wait boundary, D1)
+
+
+class MoniFlow(BaseModel):
+    """A full flow Moni composes for the ceiling path (#15, D18).
+
+    This is a proposal, never a product: it must survive catalog validation,
+    the analyzer, and Apply-Fix before it reaches the canvas.
+    """
+
+    name: str
+    description: str = ""
+    explanation: str = ""
+    nodes: list[MoniFlowNode] = Field(default_factory=list)
+    edges: list[MoniFlowEdge] = Field(default_factory=list)
