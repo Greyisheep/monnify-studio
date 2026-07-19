@@ -1,16 +1,17 @@
 "use client";
 
-// The canvas (#4): render the hero IR, highlight what the analyzer flags, and let
-// Apply-Fix rewrite the unsafe graph into a clean one, in front of your eyes.
+// The canvas (#4, #38): render the hero IR, highlight what the analyzer flags,
+// and let Apply-Fix rewrite the unsafe graph into a clean one in front of you.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import ReactFlow, { Background, Controls, type Edge, type Node } from "reactflow";
+import ReactFlow, { Background, BackgroundVariant, Controls, type Edge, type Node } from "reactflow";
 import "reactflow/dist/style.css";
 
 import { FindingsPanel } from "@/components/FindingsPanel";
 import { StudioNode } from "@/components/StudioNode";
 import { api } from "@/lib/api";
 import { toFlow, type StudioNodeData } from "@/lib/graph";
+import { theme } from "@/lib/theme";
 import type { Report, Workflow } from "@/lib/types";
 
 const HEROES = [
@@ -36,7 +37,7 @@ export default function Page() {
       setWorkflow(wf);
       setReport(rep);
     } catch (e) {
-      setError(`Cannot reach the API. Is it running on :8000? (${String(e)})`);
+      setError(`Cannot reach the API on :8000. Is it running? (${String(e)})`);
     }
   }, []);
 
@@ -69,25 +70,49 @@ export default function Page() {
   const canFix = heroId === "marketplace-unsafe" && !remediated && (report?.findings.length ?? 0) > 0;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
+    <div style={{ display: "flex", flexDirection: "column", height: "100vh", background: theme.bg }}>
       <header
         style={{
           display: "flex",
           alignItems: "center",
           gap: 16,
-          padding: "12px 20px",
-          background: "#0b1120",
-          borderBottom: "1px solid #1e293b",
+          padding: "12px 22px",
+          background: theme.panel,
+          borderBottom: `1px solid ${theme.panelBorder}`,
         }}
       >
+        <div
+          style={{
+            width: 34,
+            height: 34,
+            borderRadius: 9,
+            background: `linear-gradient(135deg, ${theme.accent}, #4f7bff)`,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontWeight: 800,
+            color: "#fff",
+            fontSize: 18,
+          }}
+        >
+          M
+        </div>
         <div style={{ marginRight: "auto" }}>
-          <div style={{ fontWeight: 700, fontSize: 16 }}>Monnify Studio</div>
-          <div style={{ fontSize: 11, color: "#64748b" }}>
+          <div style={{ fontWeight: 700, fontSize: 16, color: theme.text }}>Monnify Studio</div>
+          <div style={{ fontSize: 11, color: theme.textFaint }}>
             An endpoint returning 200 does not mean the integration is correct.
           </div>
         </div>
 
-        <div style={{ display: "flex", background: "#0f172a", borderRadius: 8, padding: 3, border: "1px solid #1e293b" }}>
+        <div
+          style={{
+            display: "flex",
+            background: theme.card,
+            borderRadius: 9,
+            padding: 3,
+            border: `1px solid ${theme.cardBorder}`,
+          }}
+        >
           {HEROES.map((h) => (
             <button
               key={h.id}
@@ -95,10 +120,10 @@ export default function Page() {
               style={{
                 border: "none",
                 borderRadius: 6,
-                padding: "6px 14px",
+                padding: "6px 16px",
                 fontSize: 13,
-                color: heroId === h.id ? "#0f172a" : "#94a3b8",
-                background: heroId === h.id ? "#e2e8f0" : "transparent",
+                color: heroId === h.id ? "#08080c" : theme.textDim,
+                background: heroId === h.id ? theme.text : "transparent",
                 fontWeight: 600,
               }}
             >
@@ -111,13 +136,14 @@ export default function Page() {
           onClick={applyFix}
           disabled={!canFix || busy}
           style={{
-            borderRadius: 8,
-            padding: "8px 16px",
+            borderRadius: 9,
+            padding: "9px 18px",
             fontSize: 13,
             fontWeight: 600,
-            color: canFix ? "#052e16" : "#475569",
-            background: canFix ? "#22c55e" : "#0f172a",
-            border: canFix ? "none" : "1px solid #1e293b",
+            color: canFix ? "#052e16" : theme.textFaint,
+            background: canFix ? "linear-gradient(135deg, #34d399, #22c55e)" : theme.card,
+            border: canFix ? "none" : `1px solid ${theme.cardBorder}`,
+            boxShadow: canFix ? "0 6px 16px rgba(34,197,94,0.3)" : "none",
           }}
         >
           {busy ? "Fixing..." : remediated ? "Remediated" : "Apply Fix"}
@@ -125,10 +151,21 @@ export default function Page() {
       </header>
 
       {error && (
-        <div style={{ padding: 10, background: "#450a0a", color: "#fca5a5", fontSize: 13 }}>{error}</div>
+        <div style={{ padding: 10, background: "#3b0a0a", color: "#fca5a5", fontSize: 13, textAlign: "center" }}>
+          {error}
+        </div>
       )}
       {remediated && (
-        <div style={{ padding: 8, background: "#052e16", color: "#86efac", fontSize: 12, textAlign: "center" }}>
+        <div
+          style={{
+            padding: 9,
+            background: "rgba(34,197,94,0.1)",
+            color: "#86efac",
+            fontSize: 12,
+            textAlign: "center",
+            borderBottom: "1px solid #14532d",
+          }}
+        >
           Apply-Fix inserted the missing safety nodes. Critical findings: {criticals}.
         </div>
       )}
@@ -140,10 +177,10 @@ export default function Page() {
             edges={edges}
             nodeTypes={nodeTypes}
             fitView
-            fitViewOptions={{ padding: 0.2 }}
+            fitViewOptions={{ padding: 0.25 }}
             proOptions={{ hideAttribution: true }}
           >
-            <Background color="#1e293b" gap={20} />
+            <Background variant={BackgroundVariant.Dots} color={theme.dot} gap={22} size={1.5} />
             <Controls showInteractive={false} />
           </ReactFlow>
         </div>

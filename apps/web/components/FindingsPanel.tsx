@@ -1,15 +1,8 @@
-// Architecture review sidebar: severity counts and one card per finding (#4).
-// The full-featured panel is #27 (frontend); this is the canvas-side summary.
+// Architecture review sidebar (#4, #38): severity counts and one card per
+// finding. The fuller panel is #27; this is the canvas-side summary.
 
+import { SEVERITY_COLOR, theme } from "@/lib/theme";
 import type { Finding, Report, Severity } from "@/lib/types";
-
-const SEVERITY_COLOR: Record<Severity, string> = {
-  critical: "#ef4444",
-  high: "#f97316",
-  medium: "#eab308",
-  low: "#3b82f6",
-  info: "#94a3b8",
-};
 
 function counts(findings: Finding[]) {
   const c: Record<string, number> = { critical: 0, high: 0, medium: 0, low: 0 };
@@ -24,33 +17,35 @@ export function FindingsPanel({ report }: { report: Report | null }) {
   return (
     <aside
       style={{
-        width: 340,
+        width: 350,
         flexShrink: 0,
-        background: "#0b1120",
-        borderLeft: "1px solid #1e293b",
-        padding: 16,
+        background: theme.panel,
+        borderLeft: `1px solid ${theme.panelBorder}`,
+        padding: 18,
         overflowY: "auto",
-        color: "#e2e8f0",
+        color: theme.text,
       }}
     >
-      <h2 style={{ fontSize: 13, textTransform: "uppercase", letterSpacing: 1, color: "#94a3b8" }}>
+      <h2 style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: 1.2, color: theme.textDim, margin: 0 }}>
         Architecture Review
       </h2>
-      <div style={{ display: "flex", gap: 8, margin: "10px 0 18px" }}>
+      <div style={{ display: "flex", gap: 8, margin: "12px 0 18px" }}>
         {(["critical", "high", "medium", "low"] as Severity[]).map((s) => (
           <div
             key={s}
             style={{
               flex: 1,
               textAlign: "center",
-              background: "#0f172a",
-              border: "1px solid #1e293b",
-              borderRadius: 8,
-              padding: "8px 0",
+              background: theme.card,
+              border: `1px solid ${theme.cardBorder}`,
+              borderRadius: theme.radiusSm,
+              padding: "10px 0",
             }}
           >
-            <div style={{ fontSize: 20, fontWeight: 700, color: SEVERITY_COLOR[s] }}>{c[s] ?? 0}</div>
-            <div style={{ fontSize: 9, textTransform: "uppercase", color: "#64748b" }}>{s}</div>
+            <div style={{ fontSize: 22, fontWeight: 700, color: (c[s] ?? 0) > 0 ? SEVERITY_COLOR[s] : theme.textFaint }}>
+              {c[s] ?? 0}
+            </div>
+            <div style={{ fontSize: 9, textTransform: "uppercase", color: theme.textFaint, marginTop: 2 }}>{s}</div>
           </div>
         ))}
       </div>
@@ -59,11 +54,12 @@ export function FindingsPanel({ report }: { report: Report | null }) {
         <div
           style={{
             border: "1px solid #14532d",
-            background: "#052e16",
-            borderRadius: 8,
+            background: "rgba(34, 197, 94, 0.08)",
+            borderRadius: theme.radiusSm,
             padding: 14,
             color: "#86efac",
             fontSize: 13,
+            lineHeight: 1.5,
           }}
         >
           No architectural findings. This design is safe to ship.
@@ -73,24 +69,26 @@ export function FindingsPanel({ report }: { report: Report | null }) {
           <div
             key={f.rule_id + f.node_ids.join()}
             style={{
-              border: "1px solid #1e293b",
+              border: `1px solid ${theme.cardBorder}`,
               borderLeft: `3px solid ${SEVERITY_COLOR[f.severity]}`,
-              borderRadius: 8,
-              padding: 12,
+              borderRadius: theme.radiusSm,
+              padding: 13,
               marginBottom: 10,
-              background: "#0f172a",
+              background: theme.card,
             }}
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontSize: 12, fontWeight: 700, fontFamily: "monospace" }}>{f.rule_id}</span>
-              <span style={{ fontSize: 9, textTransform: "uppercase", color: SEVERITY_COLOR[f.severity] }}>
+              <span style={{ fontSize: 12, fontWeight: 700, fontFamily: "ui-monospace, monospace", color: theme.text }}>
+                {f.rule_id}
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 600, textTransform: "uppercase", color: SEVERITY_COLOR[f.severity] }}>
                 {f.severity}
               </span>
             </div>
-            <div style={{ fontSize: 13, fontWeight: 600, marginTop: 4 }}>{f.title}</div>
-            <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 4, lineHeight: 1.4 }}>{f.message}</div>
-            <div style={{ fontSize: 11, color: "#64748b", marginTop: 6 }}>
-              <span style={{ color: "#22c55e" }}>fix:</span> {f.remediation}
+            <div style={{ fontSize: 13, fontWeight: 600, marginTop: 5 }}>{f.title}</div>
+            <div style={{ fontSize: 12, color: theme.textDim, marginTop: 4, lineHeight: 1.45 }}>{f.message}</div>
+            <div style={{ fontSize: 11, color: theme.textFaint, marginTop: 7, lineHeight: 1.4 }}>
+              <span style={{ color: "#2fd28a", fontWeight: 600 }}>fix:</span> {f.remediation}
             </div>
           </div>
         ))

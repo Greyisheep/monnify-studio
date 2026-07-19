@@ -1,7 +1,8 @@
 // Map the IR into React Flow nodes and edges, and derive per-node flags from the
-// analysis so the canvas can make correctness visible (#4, D9).
+// analysis so the canvas makes correctness visible (#4, #38, D9).
 
 import type { Edge, Node } from "reactflow";
+import { CATEGORY } from "./theme";
 import type { Report, Severity, Workflow } from "./types";
 
 export interface StudioNodeData {
@@ -17,14 +18,6 @@ const SEVERITY_RANK: Record<Severity, number> = {
   medium: 2,
   low: 1,
   info: 0,
-};
-
-export const CATEGORY_COLOR: Record<string, string> = {
-  monnify: "#3b82f6",
-  safety: "#22c55e",
-  event: "#f59e0b",
-  control: "#94a3b8",
-  app: "#a855f7",
 };
 
 export function categoryOf(nodeType: string): string {
@@ -59,15 +52,17 @@ export function toFlow(
     },
   }));
 
+  const eventColor = CATEGORY.event.color;
   const edges: Edge[] = workflow.edges.map((e, i) => {
     const isEvent = e.kind === "event";
     return {
       id: `e-${i}-${e.source}-${e.target}`,
       source: e.source,
       target: e.target,
+      type: "default",
       animated: isEvent,
       style: {
-        stroke: isEvent ? "#f59e0b" : "#475569",
+        stroke: isEvent ? eventColor : "#3a3a4a",
         strokeWidth: 1.5,
         strokeDasharray: isEvent ? "6 4" : undefined,
       },
