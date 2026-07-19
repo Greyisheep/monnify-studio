@@ -5,6 +5,8 @@ mapping the concrete API onto the neutral capability vocabulary. This is the
 only file that must be re-authored to add another payment provider.
 
 References: https://developers.monnify.com/api
+
+Traceability: #3 (P1.1 — node catalog); decision D13.
 """
 
 from __future__ import annotations

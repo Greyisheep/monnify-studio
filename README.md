@@ -37,6 +37,9 @@ correctness **visible and checkable** before it ever touches real money.
   | MON009 | Immediate split used where payout must wait for fulfilment |
 - **The marketplace hero** in unsafe and safe forms, with the analyzer proving
   the difference.
+- **Apply-Fix remediation** — each finding is an IR rewrite that removes it;
+  `remediate_all` runs detect → fix → re-analyze until the graph is clean,
+  inserting the safety nodes as visible boxes.
 
 See [`docs/BUILD_PLAN.md`](docs/BUILD_PLAN.md) for the full epic → phase → issue
 plan and the locked architecture decisions, and
@@ -51,6 +54,9 @@ uv venv && uv pip install pydantic pytest
 
 # Prove the thesis — analyze the unsafe hero, then the safe one:
 uv run python scripts/demo_analyze.py
+
+# Watch Apply-Fix drive the unsafe hero to zero findings:
+uv run python scripts/demo_remediate.py
 
 # Run the tests:
 uv run pytest -q

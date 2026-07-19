@@ -3,6 +3,8 @@
 Nothing in this module mentions Monnify. The engine reasons in terms of
 *capabilities* and *domain types*; providers (Monnify, and later others) map
 their concrete endpoints onto this vocabulary via a node catalog.
+
+Traceability: #3 (P1.1 — The IR); decisions D1, D9, D13.
 """
 
 from __future__ import annotations

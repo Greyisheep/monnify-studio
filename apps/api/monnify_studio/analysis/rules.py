@@ -3,6 +3,8 @@
 Each rule is a small function over an `Analysis`. They are deliberately
 explicit and provider-agnostic: no rule reads a node's type, only its
 capability tags. Adding a rule is adding a function to `RULES`.
+
+Traceability: #5 (P1.3 — static analysis engine); decisions D3, D10 (MON009).
 """
 
 from __future__ import annotations
@@ -51,7 +53,9 @@ def mon001_client_callback_as_truth(a: Analysis) -> list[Finding]:
 def mon002_missing_signature_check(a: Analysis) -> list[Finding]:
     """Webhook payload reaches business logic without signature verification."""
     findings: list[Finding] = []
-    is_effect = lambda nid: a.has_tag(nid, T.FINANCIAL_FULFILMENT) or a.has_tag(nid, T.MUTATES_LEDGER)
+    def is_effect(nid: str) -> bool:
+        return a.has_tag(nid, T.FINANCIAL_FULFILMENT) or a.has_tag(nid, T.MUTATES_LEDGER)
+
     is_sig = a.has_pred(T.SIGNATURE_CHECK)
     for src in a.nodes_with(T.WEBHOOK_EVENT):
         for path in a.unguarded_targets(src, is_effect, is_sig):
@@ -77,7 +81,9 @@ def mon002_missing_signature_check(a: Analysis) -> list[Finding]:
 def mon003_missing_idempotency(a: Analysis) -> list[Finding]:
     """A repeatable event reaches a financial effect with no idempotency boundary."""
     findings: list[Finding] = []
-    is_effect = lambda nid: a.has_tag(nid, T.FINANCIAL_FULFILMENT) or a.has_tag(nid, T.MUTATES_LEDGER)
+    def is_effect(nid: str) -> bool:
+        return a.has_tag(nid, T.FINANCIAL_FULFILMENT) or a.has_tag(nid, T.MUTATES_LEDGER)
+
     is_idem = a.has_pred(T.IDEMPOTENCY_BOUNDARY)
     for src in a.nodes_with(T.WEBHOOK_EVENT):
         for path in a.unguarded_targets(src, is_effect, is_idem):

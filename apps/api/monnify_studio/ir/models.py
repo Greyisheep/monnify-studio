@@ -12,6 +12,8 @@ Two orthogonal concerns, two mechanisms (kept deliberately separate):
     async event transitions). The analyzer walks edges for reachability.
   * **Data references** (`${node.port}` / `${var.name}` inside `Node.inputs`)
     describe *typed data flow*. The type checker validates these.
+
+Traceability: #3 (P1.1 — The IR); decisions D1, D9, D13.
 """
 
 from __future__ import annotations

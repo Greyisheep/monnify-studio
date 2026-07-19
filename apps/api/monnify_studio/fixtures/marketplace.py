@@ -11,6 +11,8 @@ paid only after the customer confirms the job. Two versions:
 
 Keeping both as code (rather than only JSON) makes the intended contrast
 executable and lets tests assert exactly which rules should fire.
+
+Traceability: #3 (P1.1 — hero fixtures); decisions D7, D10.
 """
 
 from __future__ import annotations
