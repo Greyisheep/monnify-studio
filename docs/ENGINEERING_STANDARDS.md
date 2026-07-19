@@ -213,3 +213,17 @@ A change is done when:
   docs in the same PR.
 - Write plainly. State the "why", not just the "what" (this pairs with the
   traceability rule in section 4).
+
+---
+
+## 11. Observability (D15)
+
+- Structured JSON logs only (structlog), one JSON object per line. No stray
+  `print` debugging left in code.
+- Every request and execution gets a correlation id; every log line emitted
+  inside a span carries the OpenTelemetry trace id, so logs and traces line up.
+- Trace context propagates across the API, executor, and provider adapters.
+- Secrets are always redacted from logs, key-based and value-based
+  (`observability/redaction.py`). Register secret values with `register_secret`.
+- Reach for `get_logger()` and `traced(...)` from `monnify_studio.observability`
+  rather than ad hoc logging.

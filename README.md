@@ -59,6 +59,9 @@ uv run python scripts/demo_analyze.py
 # Watch Apply-Fix drive the unsafe hero to zero findings:
 uv run python scripts/demo_remediate.py
 
+# See structured, traced, redacted logs around an analysis run:
+uv run python scripts/demo_observability.py
+
 # Run the tests:
 uv run pytest -q
 ```
