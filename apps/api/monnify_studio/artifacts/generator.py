@@ -14,7 +14,7 @@ from __future__ import annotations
 from uuid import uuid4
 
 from jinja2 import Environment, PackageLoader, select_autoescape
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from ..analysis import analyze
 from ..ir.models import Workflow
@@ -37,6 +37,17 @@ class ArtifactConfig(BaseModel):
     price_ngn: int = Field(default=5000, ge=100)
     accent_color: str = "#0f6b57"
     tagline: str = "Pay securely. Every order is verified with Monnify."
+    # Seller branding (#61): hosted image URL, or a data URL produced client-side
+    # from a file upload (#55). Empty keeps the letter mark. Capped so a data
+    # URL stays a reasonable logo, not an accidental video.
+    logo_url: str = Field(default="", max_length=400_000)
+
+    @field_validator("logo_url")
+    @classmethod
+    def _safe_logo_scheme(cls, v: str) -> str:
+        if v and not (v.startswith("https://") or v.startswith("data:image/")):
+            raise ValueError("logo_url must start with https:// or data:image/")
+        return v
 
 
 class GeneratedArtifact(BaseModel):

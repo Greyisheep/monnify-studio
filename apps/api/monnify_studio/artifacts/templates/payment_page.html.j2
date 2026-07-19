@@ -12,7 +12,11 @@
 <body>
   <main class="page">
     <header class="brand">
+      {% if config.logo_url %}
+      <img class="brand-logo" src="{{ config.logo_url }}" alt="{{ config.business_name }} logo" />
+      {% else %}
       <div class="brand-mark" aria-hidden="true">{{ config.business_name[:1] }}</div>
+      {% endif %}
       <div>
         <h1>{{ config.business_name }}</h1>
         <p class="tagline">{{ config.tagline }}</p>

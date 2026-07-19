@@ -12,7 +12,11 @@
 <body>
   <main class="page wide">
     <header class="brand">
+      {% if config.logo_url %}
+      <img class="brand-logo" src="{{ config.logo_url }}" alt="{{ config.business_name }} logo" />
+      {% else %}
       <div class="brand-mark" aria-hidden="true">{{ config.business_name[:1] }}</div>
+      {% endif %}
       <div>
         <h1>{{ config.business_name }} orders</h1>
         <p class="tagline">An order is only marked paid after Monnify confirms the money.</p>
