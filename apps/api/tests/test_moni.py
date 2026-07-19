@@ -95,7 +95,14 @@ def test_extracted_config_flows_to_a_real_template(monkeypatch):
     assert analysis["findings"] == []
 
 
-def test_assistant_endpoint_smoke():
+def test_assistant_endpoint_smoke(monkeypatch):
+    # Neutralize any real keys so this test never makes a network call.
+    keys = (
+        "ANTHROPIC_API_KEY", "CLAUDE_API_KEY", "OPENAI_API_KEY",
+        "GOOGLE_API_KEY", "GEMINI_API_KEY", "AI_PROVIDER",
+    )
+    for k in keys:
+        monkeypatch.delenv(k, raising=False)
     res = client.post("/assistant/intent", json={"message": "I run a small online shop"})
     assert res.status_code == 200
     assert "provider" in res.json()
