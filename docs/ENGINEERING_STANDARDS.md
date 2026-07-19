@@ -100,10 +100,15 @@ Rules:
 
 Issue-first, branch-per-issue, reviewed PRs.
 
-- **Every change traces to an issue.** No issue → open one first.
-- **Branch naming:** `<type>/<slug>-<issue#>`, e.g. `feat/remediation-6`,
+**Branch model:** `dev` is the integration branch and the repo default; `main` is
+the user-tested, stable branch. Cut every feature branch from `dev`, open the PR
+against `dev`, and promote `dev` -> `main` only after the change is user-tested.
+
+- **Every change traces to an issue.** No issue -> open one first.
+- **Branch from `dev`.** Naming: `<type>/<slug>-<issue#>`, e.g. `feat/remediation-6`,
   `docs/engineering-standards-21`, `fix/webhook-idempotency-33`.
-- **`main` is protected in spirit:** no direct pushes. Land work through a PR.
+- **`dev` and `main` take no direct pushes.** Land work through a PR into `dev`;
+  `main` only receives user-tested `dev` via a promotion PR.
 - **PRs reference the issue:** put `Closes #N` in the description so merging
   closes it. Keep PRs scoped to one issue where possible.
 - **Review before merge.** At least one teammate approves. Self-merge only when
