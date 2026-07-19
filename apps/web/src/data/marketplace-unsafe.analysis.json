@@ -1,0 +1,49 @@
+{
+  "workflow_id": "marketplace-unsafe",
+  "findings": [
+    {
+      "rule_id": "MON001",
+      "severity": "critical",
+      "title": "Client callback used as financial truth",
+      "message": "Value is granted based on client-controlled state that can be forged.",
+      "node_ids": ["callback", "fulfil"],
+      "path": ["callback", "fulfil"],
+      "explanation": "A browser redirect or client callback can be manipulated by the payer.",
+      "remediation": "Insert Verify Transaction → Validate Amount → Idempotency Guard before the fulfilment step.",
+      "doc_url": "https://developers.monnify.com/docs/collections"
+    },
+    {
+      "rule_id": "MON002",
+      "severity": "critical",
+      "title": "Missing webhook signature verification",
+      "message": "An attacker could forge a payment event and trigger business logic.",
+      "node_ids": ["webhook", "fulfil"],
+      "path": ["webhook", "fulfil"],
+      "explanation": "Webhooks are unauthenticated until you validate the signature.",
+      "remediation": "Insert Verify Webhook Signature immediately after the webhook node.",
+      "doc_url": "https://developers.monnify.com/docs/collections"
+    },
+    {
+      "rule_id": "MON009",
+      "severity": "critical",
+      "title": "Immediate split contradicts payout-after-fulfilment",
+      "message": "Transaction split settles to the provider at payment time — before fulfilment is confirmed.",
+      "node_ids": ["split", "confirm"],
+      "path": [],
+      "explanation": "Split disburses immediately; this workflow also gates payout on fulfilment.",
+      "remediation": "Replace Transaction Split with: Hold Funds → wait for Fulfilment → Initiate Transfer.",
+      "doc_url": "https://developers.monnify.com/api"
+    },
+    {
+      "rule_id": "MON003",
+      "severity": "high",
+      "title": "Missing idempotency boundary",
+      "message": "A duplicate webhook or retry could create a duplicate financial effect.",
+      "node_ids": ["webhook", "fulfil"],
+      "path": ["webhook", "fulfil"],
+      "explanation": "Providers may deliver a webhook more than once.",
+      "remediation": "Insert an Idempotency Guard keyed on the payment reference before the effect.",
+      "doc_url": "https://developers.monnify.com/docs/collections"
+    }
+  ]
+}

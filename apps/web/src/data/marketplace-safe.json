@@ -1,0 +1,65 @@
+{
+  "workflow": {
+    "id": "marketplace-safe",
+    "name": "Marketplace — Safe",
+    "version": 1,
+    "provider": "monnify",
+    "description": "Payout-after-fulfilment marketplace with verification, idempotency, conditional payout via Transfer, and reconciliation.",
+    "variables": {
+      "order_id": { "name": "order_id", "type": "Any", "description": "" },
+      "expected_amount": { "name": "expected_amount", "type": "Any", "description": "" }
+    },
+    "nodes": [
+      { "id": "init", "type": "monnify.initialize_transaction", "label": "Initialize Payment", "config": {}, "inputs": {}, "extra_tags": [], "position": { "x": 0, "y": 0 } },
+      { "id": "callback", "type": "event.client_callback", "label": "Customer Returns (callback)", "config": {}, "inputs": {}, "extra_tags": [], "position": { "x": 240, "y": 0 } },
+      { "id": "notify", "type": "app.notify", "label": "Show 'Processing' (no value granted)", "config": {}, "inputs": {}, "extra_tags": [], "position": { "x": 480, "y": 0 } },
+      { "id": "webhook", "type": "event.payment_webhook", "label": "Payment Webhook", "config": {}, "inputs": {}, "extra_tags": [], "position": { "x": 0, "y": 160 } },
+      { "id": "vsig", "type": "safety.verify_signature", "label": "Verify Signature", "config": {}, "inputs": {}, "extra_tags": [], "position": { "x": 240, "y": 160 } },
+      { "id": "verify", "type": "monnify.verify_transaction", "label": "Verify Transaction", "config": {}, "inputs": {}, "extra_tags": [], "position": { "x": 480, "y": 160 } },
+      { "id": "vamt", "type": "safety.validate_amount", "label": "Validate Amount", "config": {}, "inputs": {}, "extra_tags": [], "position": { "x": 720, "y": 160 } },
+      { "id": "idem", "type": "safety.idempotency_guard", "label": "Idempotency Guard", "config": {}, "inputs": {}, "extra_tags": [], "position": { "x": 960, "y": 160 } },
+      { "id": "fulfil", "type": "app.mark_order_paid", "label": "Mark Booking Funded", "config": {}, "inputs": {}, "extra_tags": [], "position": { "x": 1200, "y": 160 } },
+      { "id": "confirm", "type": "event.fulfilment_confirmed", "label": "Customer Confirms Job", "config": {}, "inputs": {}, "extra_tags": [], "position": { "x": 0, "y": 340 } },
+      { "id": "idem2", "type": "safety.idempotency_guard", "label": "Idempotency Guard (payout)", "config": {}, "inputs": {}, "extra_tags": [], "position": { "x": 260, "y": 340 } },
+      { "id": "transfer", "type": "monnify.initiate_transfer", "label": "Transfer to Provider (minus 5%)", "config": {}, "inputs": {}, "extra_tags": [], "position": { "x": 520, "y": 340 } },
+      { "id": "qstatus", "type": "monnify.query_transfer_status", "label": "Query Transfer Status", "config": {}, "inputs": {}, "extra_tags": [], "position": { "x": 800, "y": 340 } },
+      { "id": "audit", "type": "safety.audit_event", "label": "Audit", "config": {}, "inputs": {}, "extra_tags": [], "position": { "x": 1060, "y": 340 } },
+      { "id": "sched", "type": "event.scheduled", "label": "Nightly Reconciliation", "config": {}, "inputs": {}, "extra_tags": [], "position": { "x": 0, "y": 500 } },
+      { "id": "recon", "type": "safety.reconciliation", "label": "Reconcile", "config": {}, "inputs": {}, "extra_tags": [], "position": { "x": 240, "y": 500 } },
+      { "id": "audit2", "type": "safety.audit_event", "label": "Audit", "config": {}, "inputs": {}, "extra_tags": [], "position": { "x": 480, "y": 500 } }
+    ],
+    "edges": [
+      { "source": "init", "target": "callback", "kind": "control", "condition": null },
+      { "source": "callback", "target": "notify", "kind": "event", "condition": null },
+      { "source": "webhook", "target": "vsig", "kind": "event", "condition": null },
+      { "source": "vsig", "target": "verify", "kind": "control", "condition": null },
+      { "source": "verify", "target": "vamt", "kind": "control", "condition": null },
+      { "source": "vamt", "target": "idem", "kind": "control", "condition": null },
+      { "source": "idem", "target": "fulfil", "kind": "control", "condition": null },
+      { "source": "confirm", "target": "idem2", "kind": "event", "condition": null },
+      { "source": "idem2", "target": "transfer", "kind": "control", "condition": null },
+      { "source": "transfer", "target": "qstatus", "kind": "control", "condition": null },
+      { "source": "qstatus", "target": "audit", "kind": "control", "condition": null },
+      { "source": "sched", "target": "recon", "kind": "event", "condition": null },
+      { "source": "recon", "target": "audit2", "kind": "control", "condition": null }
+    ],
+    "entrypoint": "init"
+  },
+  "node_types": {
+    "monnify.initialize_transaction": { "type": "monnify.initialize_transaction", "category": "monnify", "title": "Initialize Transaction" },
+    "event.client_callback": { "type": "event.client_callback", "category": "event", "title": "Client Callback" },
+    "app.notify": { "type": "app.notify", "category": "application", "title": "Send Notification" },
+    "event.payment_webhook": { "type": "event.payment_webhook", "category": "event", "title": "Payment Webhook" },
+    "safety.verify_signature": { "type": "safety.verify_signature", "category": "safety", "title": "Verify Webhook Signature" },
+    "monnify.verify_transaction": { "type": "monnify.verify_transaction", "category": "monnify", "title": "Verify Transaction" },
+    "safety.validate_amount": { "type": "safety.validate_amount", "category": "safety", "title": "Validate Amount" },
+    "safety.idempotency_guard": { "type": "safety.idempotency_guard", "category": "safety", "title": "Idempotency Guard" },
+    "app.mark_order_paid": { "type": "app.mark_order_paid", "category": "application", "title": "Mark Order Paid / Fulfil" },
+    "event.fulfilment_confirmed": { "type": "event.fulfilment_confirmed", "category": "event", "title": "Fulfilment Confirmed" },
+    "monnify.initiate_transfer": { "type": "monnify.initiate_transfer", "category": "monnify", "title": "Initiate Transfer" },
+    "monnify.query_transfer_status": { "type": "monnify.query_transfer_status", "category": "monnify", "title": "Query Transfer Status" },
+    "safety.audit_event": { "type": "safety.audit_event", "category": "safety", "title": "Audit Event" },
+    "event.scheduled": { "type": "event.scheduled", "category": "event", "title": "Scheduled Trigger" },
+    "safety.reconciliation": { "type": "safety.reconciliation", "category": "safety", "title": "Reconciliation" }
+  }
+}
