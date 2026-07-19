@@ -453,7 +453,7 @@ body {
   min-height: 180px;
   font-family: var(--font-mono);
   font-size: 0.72rem;
-  resize: vertical;
+  resize: none;
 }
 
 .port-list {
