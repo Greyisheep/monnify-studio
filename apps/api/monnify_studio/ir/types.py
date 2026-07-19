@@ -42,11 +42,13 @@ class CapabilityTag(str, Enum):
     AMOUNT_VALIDATION = "amount_validation"
     REFERENCE_VALIDATION = "reference_validation"
     IDEMPOTENCY_BOUNDARY = "idempotency_boundary"
+    BENEFICIARY_VALIDATION = "beneficiary_validation"  # confirmed payout account (Name Enquiry/KYC)
 
     # --- money & effects ---
     FINANCIAL_FULFILMENT = "financial_fulfilment"  # grants value / marks paid
     MUTATES_LEDGER = "mutates_ledger"
     MONEY_MOVEMENT = "money_movement"  # payout / transfer / refund
+    BENEFICIARY_TRANSFER = "beneficiary_transfer"  # outbound transfer to a specified account
     IMMEDIATE_SPLIT = "immediate_split"  # settles to sub-parties AT payment time
     CONDITIONAL_PAYOUT = "conditional_payout"  # payout is gated by a later event
 

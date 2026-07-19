@@ -111,12 +111,23 @@ def _fix_mon009(wf: Workflow, finding: Finding, catalog: Catalog) -> Remediation
     )
 
 
+def _fix_mon011(wf: Workflow, finding: Finding, catalog: Catalog) -> RemediationStep:
+    src, dst = _final_edge(finding)
+    ids = insert_chain_on_edge(
+        wf, src, dst, [("monnify.validate_bank_account", "Validate Bank Account")]
+    )
+    return RemediationStep(
+        rule_id="MON011", action=f"Inserted beneficiary validation before '{dst}'", added_nodes=ids
+    )
+
+
 REMEDIATIONS: dict[str, Callable[[Workflow, Finding, Catalog], RemediationStep]] = {
     "MON001": _fix_mon001,
     "MON002": _fix_mon002,
     "MON003": _fix_mon003,
     "MON004": _fix_mon004,
     "MON009": _fix_mon009,
+    "MON011": _fix_mon011,
 }
 
 

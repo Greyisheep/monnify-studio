@@ -73,10 +73,11 @@ def safe_marketplace() -> Workflow:
         _n("fulfil", "app.mark_order_paid", "Mark Booking Funded", 1200, 160),
         # Payout waits for fulfilment, then moves money via Transfer.
         _n("confirm", "event.fulfilment_confirmed", "Customer Confirms Job", 0, 340),
-        _n("idem2", "safety.idempotency_guard", "Idempotency Guard (payout)", 260, 340),
-        _n("transfer", "monnify.initiate_transfer", "Transfer to Provider (minus 5%)", 520, 340),
-        _n("qstatus", "monnify.query_transfer_status", "Query Transfer Status", 800, 340),
-        _n("audit", "safety.audit_event", "Audit", 1060, 340),
+        _n("idem2", "safety.idempotency_guard", "Idempotency Guard (payout)", 240, 340),
+        _n("validate", "monnify.validate_bank_account", "Validate Provider Account", 480, 340),
+        _n("transfer", "monnify.initiate_transfer", "Transfer to Provider (minus 5%)", 720, 340),
+        _n("qstatus", "monnify.query_transfer_status", "Query Transfer Status", 960, 340),
+        _n("audit", "safety.audit_event", "Audit", 1200, 340),
         # Reconciliation catches provider/local divergence.
         _n("sched", "event.scheduled", "Nightly Reconciliation", 0, 500),
         _n("recon", "safety.reconciliation", "Reconcile", 240, 500),
@@ -91,7 +92,8 @@ def safe_marketplace() -> Workflow:
         Edge(source="vamt", target="idem"),
         Edge(source="idem", target="fulfil"),
         Edge(source="confirm", target="idem2", kind="event"),
-        Edge(source="idem2", target="transfer"),
+        Edge(source="idem2", target="validate"),
+        Edge(source="validate", target="transfer"),
         Edge(source="transfer", target="qstatus"),
         Edge(source="qstatus", target="audit"),
         Edge(source="sched", target="recon", kind="event"),
@@ -102,7 +104,7 @@ def safe_marketplace() -> Workflow:
         name="Marketplace — Safe",
         provider="monnify",
         description="Payout-after-fulfilment marketplace with verification, idempotency, "
-        "conditional payout via Transfer, and reconciliation.",
+        "beneficiary validation, conditional payout via Transfer, and reconciliation.",
         variables={
             "order_id": Variable(name="order_id"),
             "expected_amount": Variable(name="expected_amount"),
