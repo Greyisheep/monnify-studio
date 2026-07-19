@@ -44,8 +44,8 @@ def main() -> int:
     unsafe = analyze(unsafe_marketplace(), catalog)
     safe = analyze(safe_marketplace(), catalog)
 
-    print_report("MARKETPLACE — UNSAFE (what a naive integration ships)", unsafe)
-    print_report("MARKETPLACE — SAFE (after Apply-Fix remediation)", safe)
+    print_report("MARKETPLACE - UNSAFE (what a naive integration ships)", unsafe)
+    print_report("MARKETPLACE - SAFE (after Apply-Fix remediation)", safe)
 
     # Exit non-zero if the invariant we designed for is violated.
     ok = unsafe.criticals >= 1 and safe.criticals == 0

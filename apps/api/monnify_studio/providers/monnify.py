@@ -6,7 +6,7 @@ only file that must be re-authored to add another payment provider.
 
 References: https://developers.monnify.com/api
 
-Traceability: #3 (P1.1 — node catalog); decision D13.
+Traceability: #3 (P1.1 - node catalog); decision D13.
 """
 
 from __future__ import annotations
@@ -37,7 +37,7 @@ MONNIFY_NODE_TYPES: list[NodeTypeDef] = [
         category=C.MONNIFY,
         title="Verify Transaction",
         description="Server-side query of authoritative payment status and amount paid.",
-        # This IS the authoritative check — the antidote to trusting a callback.
+        # This IS the authoritative check - the antidote to trusting a callback.
         default_tags=[T.EXTERNAL_CALL, T.AUTHORITATIVE_VERIFICATION, T.SECRET_BOUNDARY],
         inputs=[PortSpec(name="payment_reference", type=D.PAYMENT_REFERENCE)],
         outputs=[
@@ -49,7 +49,7 @@ MONNIFY_NODE_TYPES: list[NodeTypeDef] = [
         type="monnify.initiate_transfer",
         category=C.MONNIFY,
         title="Initiate Transfer (Disbursement)",
-        description="Move money out to a beneficiary — e.g. the provider payout.",
+        description="Move money out to a beneficiary - e.g. the provider payout.",
         default_tags=[T.EXTERNAL_CALL, T.MONEY_MOVEMENT, T.BENEFICIARY_TRANSFER, T.SECRET_BOUNDARY],
         inputs=[
             PortSpec(name="account_number", type=D.ACCOUNT_NUMBER),
@@ -61,7 +61,7 @@ MONNIFY_NODE_TYPES: list[NodeTypeDef] = [
         type="monnify.query_transfer_status",
         category=C.MONNIFY,
         title="Query Transfer Status",
-        description="Authoritative status of a disbursement — required before retrying one.",
+        description="Authoritative status of a disbursement - required before retrying one.",
         default_tags=[T.EXTERNAL_CALL, T.SECRET_BOUNDARY],
         inputs=[PortSpec(name="transfer_reference", type=D.TRANSFER_REFERENCE)],
         outputs=[PortSpec(name="status", type=D.TRANSACTION_STATUS)],
@@ -79,7 +79,7 @@ MONNIFY_NODE_TYPES: list[NodeTypeDef] = [
         type="monnify.validate_bank_account",
         category=C.MONNIFY,
         title="Validate Bank Account (Name Enquiry)",
-        description="KYC Match — resolve and confirm a beneficiary account name before paying it.",
+        description="KYC Match - resolve and confirm a beneficiary account name before paying it.",
         default_tags=[T.EXTERNAL_CALL, T.BENEFICIARY_VALIDATION, T.SECRET_BOUNDARY],
         inputs=[PortSpec(name="account_number", type=D.ACCOUNT_NUMBER)],
         outputs=[PortSpec(name="account_name", type=D.ANY)],

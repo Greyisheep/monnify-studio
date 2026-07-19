@@ -4,10 +4,10 @@ Small, deep operations that mutate a workflow in place: splice a chain of nodes
 onto an edge, or remove a node and bridge its neighbours. `apply_fix` deep-copies
 the workflow before calling these, so callers here mutate freely.
 
-These are the mechanism behind D9 — remediation inserts *visible safety nodes*,
+These are the mechanism behind D9 - remediation inserts *visible safety nodes*,
 so the fix shows up on the canvas as boxes, not as hidden edge metadata.
 
-Traceability: #6 (P1.4 — Remediation); decision D9.
+Traceability: #6 (P1.4 - Remediation); decision D9.
 """
 
 from __future__ import annotations

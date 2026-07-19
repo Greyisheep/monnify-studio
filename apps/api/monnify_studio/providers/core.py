@@ -1,10 +1,10 @@
 """Provider-neutral node types: events, safety steps, control flow, application.
 
 These carry the correctness semantics that make Studio more than a diagram.
-Crucially, the *safety* nodes are first-class and visible (D9) — Apply-Fix
+Crucially, the *safety* nodes are first-class and visible (D9) - Apply-Fix
 inserts these exact boxes into the graph.
 
-Traceability: #3 (P1.1 — node catalog); decisions D9, D1.
+Traceability: #3 (P1.1 - node catalog); decisions D9, D1.
 """
 
 from __future__ import annotations
@@ -40,7 +40,7 @@ CORE_NODE_TYPES: list[NodeTypeDef] = [
         type="event.fulfilment_confirmed",
         category=C.EVENT,
         title="Fulfilment Confirmed",
-        description="Customer/admin confirms the job is done — the gate a payout must wait behind.",
+        description="Customer/admin confirms the job is done - the gate a payout must wait behind.",
         default_tags=[T.WAIT_EVENT, T.CONDITIONAL_PAYOUT],
     ),
     NodeTypeDef(
@@ -123,7 +123,7 @@ CORE_NODE_TYPES: list[NodeTypeDef] = [
         type="app.mark_order_paid",
         category=C.APPLICATION,
         title="Mark Order Paid / Fulfil",
-        description="Grant value to the customer — the point of no return.",
+        description="Grant value to the customer - the point of no return.",
         default_tags=[T.FINANCIAL_FULFILMENT],
     ),
     NodeTypeDef(
@@ -137,7 +137,7 @@ CORE_NODE_TYPES: list[NodeTypeDef] = [
         type="app.release_payout",
         category=C.APPLICATION,
         title="Release Provider Payout",
-        description="Authorise paying the provider — must wait for fulfilment.",
+        description="Authorise paying the provider - must wait for fulfilment.",
         default_tags=[T.FINANCIAL_FULFILMENT],
     ),
     NodeTypeDef(

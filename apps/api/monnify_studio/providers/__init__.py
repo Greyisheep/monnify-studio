@@ -6,7 +6,7 @@ from .monnify import MONNIFY_NODE_TYPES
 def default_catalog() -> Catalog:
     """Core (provider-neutral) types + the Monnify pack.
 
-    To support another provider later, register its pack here — the engine,
+    To support another provider later, register its pack here - the engine,
     analyzer and IR need no changes (D13).
     """
     return Catalog(CORE_NODE_TYPES).register_pack(MONNIFY_NODE_TYPES)

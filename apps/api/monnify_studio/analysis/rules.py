@@ -1,10 +1,10 @@
-"""The payment-correctness rule set (MON001–MON009).
+"""The payment-correctness rule set (MON001-MON009).
 
 Each rule is a small function over an `Analysis`. They are deliberately
 explicit and provider-agnostic: no rule reads a node's type, only its
 capability tags. Adding a rule is adding a function to `RULES`.
 
-Traceability: #5 (P1.3 — static analysis engine); decisions D3, D10 (MON009).
+Traceability: #5 (P1.3 - static analysis engine); decisions D3, D10 (MON009).
 """
 
 from __future__ import annotations
@@ -147,7 +147,7 @@ def mon009_immediate_split_before_conditional_payout(a: Analysis) -> list[Findin
             rule_id="MON009",
             severity=Severity.CRITICAL,
             title="Immediate split contradicts payout-after-fulfilment",
-            message="Transaction split settles to the provider at payment time — before fulfilment "
+            message="Transaction split settles to the provider at payment time - before fulfilment "
             "is confirmed, so the provider is paid for work not yet done.",
             node_ids=split_nodes + gate_nodes,
             explanation=(
