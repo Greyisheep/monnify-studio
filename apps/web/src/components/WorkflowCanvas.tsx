@@ -1,14 +1,16 @@
 /**
- * React Flow surface for the Studio canvas. Provenance: #4, D14.
+ * React Flow surface for the Studio canvas. Provenance: #4, #37, D14.
  */
 "use client";
 
+import { useEffect } from "react";
 import {
   Background,
   BackgroundVariant,
   Controls,
   MiniMap,
   ReactFlow,
+  useReactFlow,
   type Connection,
   type Edge,
   type Node,
@@ -31,11 +33,26 @@ export interface WorkflowCanvasProps {
   busy: boolean;
   typeError: string | null;
   diffNote: string | null;
+  layoutNonce: number;
   onNodesChange: OnNodesChange<Node<StudioNodeData>>;
   onEdgesChange: OnEdgesChange<Edge>;
   onConnect: (connection: Connection) => void;
   onSelectionChange: OnSelectionChangeFunc;
   onGraphDirty: () => void;
+}
+
+function FitViewOnLayout({ layoutNonce }: { layoutNonce: number }) {
+  const { fitView } = useReactFlow();
+
+  useEffect(() => {
+    if (layoutNonce === 0) return;
+    const frame = requestAnimationFrame(() => {
+      void fitView({ padding: 0.2, duration: 220 });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [layoutNonce, fitView]);
+
+  return null;
 }
 
 export function WorkflowCanvas({
@@ -45,6 +62,7 @@ export function WorkflowCanvas({
   busy,
   typeError,
   diffNote,
+  layoutNonce,
   onNodesChange,
   onEdgesChange,
   onConnect,
@@ -79,6 +97,7 @@ export function WorkflowCanvas({
         deleteKeyCode={["Backspace", "Delete"]}
         proOptions={{ hideAttribution: true }}
       >
+        <FitViewOnLayout layoutNonce={layoutNonce} />
         <Background variant={BackgroundVariant.Dots} gap={18} size={1} />
         <Controls />
         <MiniMap pannable zoomable />

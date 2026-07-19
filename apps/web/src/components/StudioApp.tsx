@@ -123,6 +123,7 @@ function CanvasInner() {
           busy={session.busy}
           typeError={session.typeError}
           diffNote={session.diffNote}
+          layoutNonce={session.layoutNonce}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={graph.onConnect}

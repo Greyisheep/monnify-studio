@@ -15,6 +15,7 @@ Tracks Epic 1 Lane C work: canvas + typed editing (#4), Architecture Review UI
 | Config | Business fields + advanced JSON for the selected node |
 | Review | Severity counts, finding cards, path highlight, Explain / Docs |
 | Remediate | Apply Fix (one rule or all) via the backend remediation engine |
+| Layout | Dagre re-layout after Apply Fix when the graph structure changes (#37) |
 | Offline | Local fixtures in `src/data/` if the API is down |
 
 ## Quickstart
@@ -60,6 +61,7 @@ src/
 ├── lib/
 │   ├── api.ts                # FastAPI client + fixture fallback
 │   ├── flowIo.ts             # IR <-> React Flow
+│   ├── layout.ts             # Dagre auto-layout after structure changes (#37)
 │   ├── findings.ts           # highlight + diff copy helpers
 │   └── constants.ts          # heroes + palette
 ├── types/               # Interim hand ports of IR/analysis (see D6)
