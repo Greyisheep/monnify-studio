@@ -55,10 +55,19 @@ export function ReviewPanel({
           </button>
         )}
       </div>
-      <div className="studio-counts">
-        <span data-sev="critical">{severityCount(report, "critical")} Critical</span>
-        <span data-sev="high">{severityCount(report, "high")} High</span>
-        <span data-sev="medium">{severityCount(report, "medium")} Medium</span>
+      <div className="studio-counts" aria-label="Finding severity counts">
+        <div className="studio-count" data-sev="critical">
+          <strong>{severityCount(report, "critical")}</strong>
+          <span>Critical</span>
+        </div>
+        <div className="studio-count" data-sev="high">
+          <strong>{severityCount(report, "high")}</strong>
+          <span>High</span>
+        </div>
+        <div className="studio-count" data-sev="medium">
+          <strong>{severityCount(report, "medium")}</strong>
+          <span>Medium</span>
+        </div>
       </div>
       <ul className="studio-findings">
         {(report?.findings ?? []).length === 0 && !loading && (
