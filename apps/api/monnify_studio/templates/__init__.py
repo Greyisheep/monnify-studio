@@ -16,6 +16,7 @@ from typing import Callable
 from pydantic import BaseModel
 
 from ..ir.models import Workflow
+from .payroll import payroll
 from .sell_online import sell_online
 
 
@@ -46,6 +47,19 @@ _TEMPLATES: dict[str, TemplateDef] = {
             ),
         ),
         builder=sell_online,
+    ),
+    "payroll": TemplateDef(
+        info=TemplateInfo(
+            id="payroll",
+            title="Pay staff salaries (payroll)",
+            persona="Small business paying staff every month",
+            description=(
+                "Employee list in, salaries out. Every account number is validated "
+                "with Name Enquiry before any money moves, and the whole batch is "
+                "reconciled after, so a typo never sends a salary to a stranger."
+            ),
+        ),
+        builder=payroll,
     ),
 }
 
