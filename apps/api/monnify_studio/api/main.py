@@ -38,6 +38,7 @@ from monnify_studio.providers import default_catalog
 from monnify_studio.remediation import apply_fix, remediate_all
 from monnify_studio.remediation.engine import RemediationStep
 from monnify_studio.store import store
+from monnify_studio.templates import TemplateInfo, build_template, list_templates
 
 HERO_FACTORIES = {
     "marketplace-unsafe": unsafe_marketplace,
@@ -226,6 +227,31 @@ def health() -> dict:
 @app.get("/catalog", response_model=dict[str, NodeMeta])
 def get_catalog() -> dict[str, NodeMeta]:
     return _catalog_metas()
+
+
+@app.get("/templates", response_model=list[TemplateInfo])
+def get_templates() -> list[TemplateInfo]:
+    """Product templates for the picker ("What do you want to set up?") (#51, D17)."""
+    return list_templates()
+
+
+@app.post("/workflows/from-template/{template_id}", response_model=WorkflowPayload)
+def create_from_template(template_id: str) -> WorkflowPayload:
+    """Instantiate a template as a fresh, editable workflow (#51, #55 contract).
+
+    Each pick gets a unique workflow id so two sessions never clobber each
+    other in the store; the canvas then works with it like any workflow.
+    """
+    try:
+        wf = build_template(template_id)
+    except KeyError:
+        raise HTTPException(
+            status_code=404, detail=f"unknown template: {template_id}"
+        ) from None
+    wf.id = f"{template_id}-{new_id('wf').split('_')[1]}"
+    saved = store.save(wf)
+    log.info("api.template.instantiated", template=template_id, workflow=saved.id)
+    return _enrich(saved)
 
 
 @app.get("/workflows")
