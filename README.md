@@ -39,7 +39,9 @@ correctness **visible and checkable** before it ever touches real money.
   the difference.
 
 See [`docs/BUILD_PLAN.md`](docs/BUILD_PLAN.md) for the full epic → phase → issue
-plan and the locked architecture decisions.
+plan and the locked architecture decisions, and
+[`docs/ENGINEERING_STANDARDS.md`](docs/ENGINEERING_STANDARDS.md) for how we build
+(APOSD design philosophy, repo layout, git workflow, testing).
 
 ## Quickstart
 
