@@ -13,12 +13,14 @@ import os
 from typing import Protocol
 
 from ..observability import get_logger, register_secret
+from pydantic import BaseModel
+
 from .schema import MoniIntent
 
 log = get_logger("ai")
 
 # Default model per the Claude API guidance; overridable via env for testing.
-_ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-opus-4-8")
+_ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-5")
 
 
 class AIProvider(Protocol):
@@ -26,7 +28,10 @@ class AIProvider(Protocol):
 
     def available(self) -> bool: ...
 
-    def infer(self, *, system: str, user: str, message: str) -> MoniIntent: ...
+    def structured(
+        self, *, system: str, user: str, message: str = "",
+        schema: type[BaseModel] = MoniIntent, max_tokens: int = 1024,
+    ) -> BaseModel: ...
 
 
 class KeywordFallback:
@@ -37,7 +42,13 @@ class KeywordFallback:
     def available(self) -> bool:
         return True
 
-    def infer(self, *, system: str, user: str, message: str) -> MoniIntent:
+    def structured(
+        self, *, system: str, user: str, message: str = "",
+        schema: type[BaseModel] = MoniIntent, max_tokens: int = 1024,
+    ) -> BaseModel:
+        if schema is not MoniIntent:
+            # Composition needs a real model; the fallback only classifies (D18).
+            raise NotImplementedError("keyword fallback cannot compose flows")
         text = message.lower()
         sell = ("sell", "instagram", "whatsapp", "thrift", "store", "shop", "boutique")
         payroll = ("payroll", "salary", "salaries", "staff", "employee", "wages", "pay my")
@@ -85,18 +96,23 @@ class AnthropicProvider:
             return False
         return bool(_anthropic_key())
 
-    def infer(self, *, system: str, user: str, message: str) -> MoniIntent:
+    def structured(
+        self, *, system: str, user: str, message: str = "",
+        schema: type[BaseModel] = MoniIntent, max_tokens: int = 1024,
+    ) -> BaseModel:
         import anthropic
 
         client = anthropic.Anthropic(api_key=_anthropic_key())
         resp = client.messages.parse(
             model=_ANTHROPIC_MODEL,
-            max_tokens=1024,
+            max_tokens=max_tokens,
             system=system,
             messages=[{"role": "user", "content": user}],
-            output_format=MoniIntent,
+            output_format=schema,
         )
-        return resp.parsed_output or MoniIntent(template_id="unknown")
+        if resp.parsed_output is None:
+            raise ValueError("empty structured output")
+        return resp.parsed_output
 
 
 class OpenAIProvider:
@@ -112,19 +128,25 @@ class OpenAIProvider:
             return False
         return bool(os.getenv("OPENAI_API_KEY"))
 
-    def infer(self, *, system: str, user: str, message: str) -> MoniIntent:
+    def structured(
+        self, *, system: str, user: str, message: str = "",
+        schema: type[BaseModel] = MoniIntent, max_tokens: int = 1024,
+    ) -> BaseModel:
         from openai import OpenAI
 
         client = OpenAI()
         completion = client.beta.chat.completions.parse(
-            model=os.getenv("OPENAI_MODEL", "gpt-5"),
+            model=os.getenv("OPENAI_MODEL", "gpt-5-mini"),
             messages=[
                 {"role": "system", "content": system},
                 {"role": "user", "content": user},
             ],
-            response_format=MoniIntent,
+            response_format=schema,
         )
-        return completion.choices[0].message.parsed or MoniIntent(template_id="unknown")
+        parsed = completion.choices[0].message.parsed
+        if parsed is None:
+            raise ValueError("empty structured output")
+        return parsed
 
 
 class GoogleProvider:
@@ -142,24 +164,26 @@ class GoogleProvider:
             return False
         return bool(_google_key())
 
-    def infer(self, *, system: str, user: str, message: str) -> MoniIntent:
+    def structured(
+        self, *, system: str, user: str, message: str = "",
+        schema: type[BaseModel] = MoniIntent, max_tokens: int = 1024,
+    ) -> BaseModel:
         from google import genai
 
         client = genai.Client(api_key=_google_key())
         resp = client.models.generate_content(
-            # Verified live against this key: gemini-3.1-pro-preview is the top
-            # available Pro model (#15).
-            model=os.getenv("GOOGLE_MODEL", "gemini-3.1-pro-preview"),
+            # gemini-flash-latest tracks the newest Flash on this key (#15).
+            model=os.getenv("GOOGLE_MODEL", "gemini-flash-latest"),
             contents=f"{system}\n\n{user}",
             config={
                 "response_mime_type": "application/json",
-                "response_schema": MoniIntent,
+                "response_schema": schema,
             },
         )
         parsed = getattr(resp, "parsed", None)
-        if isinstance(parsed, MoniIntent):
+        if isinstance(parsed, schema):
             return parsed
-        return MoniIntent.model_validate_json(resp.text)
+        return schema.model_validate_json(resp.text)
 
 
 _ORDER = ["anthropic", "openai", "google"]

@@ -17,7 +17,12 @@ from fastapi.responses import HTMLResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from monnify_studio.ai import classify_intent
+from monnify_studio.ai import (
+    ComposeError,
+    ComposeUnavailable,
+    classify_intent,
+    compose_flow,
+)
 from monnify_studio.analysis import Report, analyze
 from monnify_studio.artifacts import (
     ArtifactConfig,
@@ -280,6 +285,53 @@ def assistant_intent(body: AssistantRequest) -> AssistantResponse:
             explanation=intent.explanation,
             clarifying_question=intent.clarifying_question,
             provider=provider,
+        )
+
+
+class ComposeResponse(BaseModel):
+    workflow: Workflow
+    node_types: dict[str, NodeMeta]
+    analysis: Report  # final state, after Apply-Fix
+    findings_caught: list[str] = Field(default_factory=list)  # rule ids Moni tripped
+    steps: list[RemediationStep] = Field(default_factory=list)
+    provider: str
+    explanation: str = ""
+
+
+@app.post("/assistant/compose", response_model=ComposeResponse)
+def assistant_compose(body: AssistantRequest) -> ComposeResponse:
+    """Moni composes a full flow from the catalog; the analyzer disposes (#15, D18).
+
+    The result is saved to the store and returned in the same shape the canvas
+    already loads, so it appears as a normal, fully editable workflow.
+    """
+    with correlation(request_id=new_id("moni")):
+        try:
+            outcome = compose_flow(body.message, provider=body.provider)
+        except ComposeUnavailable as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from None
+        except ComposeError as exc:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Moni could not produce a valid flow: {'; '.join(exc.errors)}",
+            ) from None
+        saved = store.save(outcome.workflow)
+        payload = _enrich(saved)
+        log.info(
+            "assistant.compose",
+            workflow=saved.id,
+            provider=outcome.provider,
+            caught=len(outcome.report_before.findings),
+            remaining=len(outcome.report_after.findings),
+        )
+        return ComposeResponse(
+            workflow=payload.workflow,
+            node_types=payload.node_types,
+            analysis=outcome.report_after,
+            findings_caught=[f.rule_id for f in outcome.report_before.findings],
+            steps=outcome.steps,
+            provider=outcome.provider,
+            explanation=outcome.explanation,
         )
 
 
