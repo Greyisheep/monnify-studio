@@ -1,15 +1,17 @@
 /**
  * React Flow surface: full-bleed canvas under overlay panels (#44).
- * Provenance: #4, #44, D14.
+ * Fit-view after dagre layout when structure changes (#37). Provenance: #4, #37, #44, D14.
  */
 "use client";
 
+import { useEffect } from "react";
 import {
   Background,
   BackgroundVariant,
   Controls,
   MiniMap,
   ReactFlow,
+  useReactFlow,
   type Connection,
   type Edge,
   type Node,
@@ -34,11 +36,26 @@ export interface WorkflowCanvasProps {
   typeError: string | null;
   diffNote: string | null;
   connectionFeedback: ConnectionFeedback;
+  layoutNonce: number;
   onNodesChange: OnNodesChange<Node<StudioNodeData>>;
   onEdgesChange: OnEdgesChange<Edge>;
   onConnect: (connection: Connection) => void;
   onSelectionChange: OnSelectionChangeFunc;
   onGraphDirty: () => void;
+}
+
+function FitViewOnLayout({ layoutNonce }: { layoutNonce: number }) {
+  const { fitView } = useReactFlow();
+
+  useEffect(() => {
+    if (layoutNonce === 0) return;
+    const frame = requestAnimationFrame(() => {
+      void fitView({ padding: 0.2, duration: 220 });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [layoutNonce, fitView]);
+
+  return null;
 }
 
 export function WorkflowCanvas({
@@ -49,6 +66,7 @@ export function WorkflowCanvas({
   typeError,
   diffNote,
   connectionFeedback,
+  layoutNonce,
   onNodesChange,
   onEdgesChange,
   onConnect,
@@ -100,6 +118,7 @@ export function WorkflowCanvas({
         proOptions={{ hideAttribution: true }}
         connectionLineStyle={{ stroke: connectionStroke, strokeWidth: 2 }}
       >
+        <FitViewOnLayout layoutNonce={layoutNonce} />
         <Background variant={BackgroundVariant.Dots} gap={18} size={1} />
         <Controls />
         <MiniMap pannable zoomable />
