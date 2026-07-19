@@ -407,7 +407,16 @@ body {
 }
 
 .studio-switch--compact {
+  display: flex;
+  width: calc(100% - 2rem);
   margin: 0.75rem 1rem 0;
+  box-sizing: border-box;
+}
+
+.studio-switch--compact button {
+  flex: 1;
+  text-align: center;
+  justify-content: center;
 }
 
 .studio-config__body {
@@ -415,6 +424,10 @@ body {
   display: flex;
   flex-direction: column;
   gap: 0.65rem;
+}
+
+.studio-config__apply {
+  width: 100%;
 }
 
 .studio-config__body label {
