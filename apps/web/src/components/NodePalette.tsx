@@ -1,5 +1,6 @@
 /**
  * Left API catalog sidebar matched to Figma Main (15:742).
+ * Panel icon collapses the catalog for more canvas room.
  * Provenance: #44, Figma Monnify-challenge.
  */
 "use client";
@@ -7,13 +8,16 @@
 import Image from "next/image";
 
 import type { NodeMeta } from "@/types";
+import { ChatPanel } from "./ChatPanel";
 
 export interface NodePaletteProps {
   catalog: Record<string, NodeMeta>;
   workflowName: string;
   teamLabel: string;
   leftTab: "api" | "chat";
+  collapsed: boolean;
   onLeftTabChange: (tab: "api" | "chat") => void;
+  onToggleCollapsed: () => void;
   onAdd: (typeKey: string) => void;
 }
 
@@ -44,10 +48,45 @@ export function NodePalette({
   workflowName,
   teamLabel,
   leftTab,
+  collapsed,
   onLeftTabChange,
+  onToggleCollapsed,
   onAdd,
 }: NodePaletteProps) {
   const groups = groupByCategory(catalog);
+
+  if (collapsed) {
+    return (
+      <aside
+        className="studio-sidebar studio-sidebar--left is-collapsed"
+        aria-label="API catalog collapsed"
+      >
+        <button
+          type="button"
+          className="studio-sidebar__expand"
+          onClick={onToggleCollapsed}
+          title="Expand API catalog"
+          aria-label="Expand API catalog"
+        >
+          <Image
+            src="/figma/monnify-logo.svg"
+            alt="Monnify"
+            width={21}
+            height={13}
+            unoptimized
+          />
+          <Image
+            src="/figma/icon-panel-left.svg"
+            alt=""
+            width={16}
+            height={16}
+            unoptimized
+            className="studio-sidebar__icon"
+          />
+        </button>
+      </aside>
+    );
+  }
 
   return (
     <aside className="studio-sidebar studio-sidebar--left" aria-label="API catalog">
@@ -65,14 +104,22 @@ export function NodePalette({
             <span>{teamLabel}</span>
           </div>
         </div>
-        <Image
-          src="/figma/icon-panel-left.svg"
-          alt=""
-          width={16}
-          height={16}
-          unoptimized
-          className="studio-sidebar__icon"
-        />
+        <button
+          type="button"
+          className="studio-sidebar__collapse"
+          onClick={onToggleCollapsed}
+          title="Collapse API catalog"
+          aria-label="Collapse API catalog"
+        >
+          <Image
+            src="/figma/icon-panel-left.svg"
+            alt=""
+            width={16}
+            height={16}
+            unoptimized
+            className="studio-sidebar__icon"
+          />
+        </button>
       </div>
 
       <div className="studio-tabs" role="tablist" aria-label="Left panel">
@@ -98,9 +145,7 @@ export function NodePalette({
 
       <div className="studio-sidebar__scroll">
         {leftTab === "chat" ? (
-          <p className="studio-sidebar__empty">
-            Ask AI lands with #15. Use the analyzer and Run for now.
-          </p>
+          <ChatPanel />
         ) : (
           <>
             {groups.length === 0 && (

@@ -1,13 +1,13 @@
 /**
- * Architecture Review panel: findings list, explain, Apply Fix.
- * Floats as an overlay over the canvas (#44). Provenance: #27, #44.
+ * Architecture Review panel: findings list, severity filter, Apply Fix.
+ * Provenance: #27, #44.
  */
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { findingKey, severityCount } from "@/lib/findings";
-import type { AnalysisReport, Finding } from "@/types";
+import type { AnalysisReport, Finding, Severity } from "@/types";
 
 export interface ReviewPanelProps {
   workflowName: string;
@@ -30,6 +30,8 @@ export interface FindingCardProps {
   onApplyFix: () => void;
 }
 
+type SeverityFilter = Severity | null;
+
 export function ReviewPanel({
   workflowName,
   report,
@@ -41,6 +43,25 @@ export function ReviewPanel({
   onClose,
 }: ReviewPanelProps) {
   const [expandedExplain, setExpandedExplain] = useState<number | null>(null);
+  const [severityFilter, setSeverityFilter] = useState<SeverityFilter>(null);
+
+  const indexedFindings = useMemo(() => {
+    const findings = report?.findings ?? [];
+    return findings.map((finding, index) => ({ finding, index }));
+  }, [report]);
+
+  const visibleFindings = useMemo(() => {
+    if (!severityFilter) return indexedFindings;
+    return indexedFindings.filter(
+      ({ finding }) => finding.severity === severityFilter,
+    );
+  }, [indexedFindings, severityFilter]);
+
+  function toggleSeverity(severity: Severity) {
+    setSeverityFilter((current) => (current === severity ? null : severity));
+    onSelectFinding(null);
+    setExpandedExplain(null);
+  }
 
   return (
     <aside className="studio-review">
@@ -55,25 +76,48 @@ export function ReviewPanel({
           </button>
         )}
       </div>
-      <div className="studio-counts" aria-label="Finding severity counts">
-        <div className="studio-count" data-sev="critical">
-          <strong>{severityCount(report, "critical")}</strong>
-          <span>Critical</span>
-        </div>
-        <div className="studio-count" data-sev="high">
-          <strong>{severityCount(report, "high")}</strong>
-          <span>High</span>
-        </div>
-        <div className="studio-count" data-sev="medium">
-          <strong>{severityCount(report, "medium")}</strong>
-          <span>Medium</span>
-        </div>
+      <div className="studio-counts" aria-label="Finding severity filters">
+        {(
+          [
+            ["critical", "Critical"],
+            ["high", "High"],
+            ["medium", "Medium"],
+          ] as const
+        ).map(([severity, label]) => (
+          <button
+            key={severity}
+            type="button"
+            className={`studio-count${
+              severityFilter === severity ? " is-active" : ""
+            }`}
+            data-sev={severity}
+            aria-pressed={severityFilter === severity}
+            onClick={() => toggleSeverity(severity)}
+            title={
+              severityFilter === severity
+                ? `Clear ${label} filter`
+                : `Show only ${label} findings`
+            }
+          >
+            <strong>{severityCount(report, severity)}</strong>
+            <span>{label}</span>
+          </button>
+        ))}
       </div>
+      {severityFilter && (
+        <p className="studio-counts__hint">
+          Showing {severityFilter} only · click again to clear
+        </p>
+      )}
       <ul className="studio-findings">
-        {(report?.findings ?? []).length === 0 && !loading && (
-          <li className="studio-clean">No architectural findings. Ship it.</li>
+        {visibleFindings.length === 0 && !loading && (
+          <li className="studio-clean">
+            {severityFilter
+              ? `No ${severityFilter} findings.`
+              : "No architectural findings. Ship it."}
+          </li>
         )}
-        {(report?.findings ?? []).map((finding, findingIndex) => (
+        {visibleFindings.map(({ finding, index: findingIndex }) => (
           <FindingCard
             key={findingKey(finding, findingIndex)}
             finding={finding}
@@ -108,14 +152,16 @@ function FindingCard({
   onApplyFix,
 }: FindingCardProps) {
   return (
-    <li className={selected ? "is-selected-finding" : ""}>
+    <li
+      className={`finding-card${selected ? " is-selected-finding" : ""}`}
+      data-sev={finding.severity}
+    >
       <button type="button" className="finding-hit" onClick={onSelect}>
         <div className="finding-top">
           <span className={`sev sev-${finding.severity}`}>{finding.severity}</span>
-          <strong>
-            [{finding.rule_id}] {finding.title}
-          </strong>
+          <code className="finding-rule">{finding.rule_id}</code>
         </div>
+        <strong className="finding-title">{finding.title}</strong>
         <p>{finding.message}</p>
         {finding.path.length > 0 && (
           <code className="finding-path">{finding.path.join(" → ")}</code>

@@ -34,6 +34,7 @@ function CanvasInner() {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<StudioNodeData>>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [leftTab, setLeftTab] = useState<"api" | "chat">("api");
+  const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [rightTab, setRightTab] = useState<"preview" | "code">("preview");
   const [previewMode, setPreviewMode] = useState<"review" | "trace">("review");
 
@@ -106,7 +107,9 @@ function CanvasInner() {
   }, [selectedIrNode?.id]);
 
   return (
-    <div className="studio-shell">
+    <div
+      className={`studio-shell${leftCollapsed ? " is-left-collapsed" : ""}`}
+    >
       <NodePalette
         catalog={{ ...session.nodeTypesMeta, ...session.catalog }}
         workflowName={session.workflow?.name ?? "Workflow"}
@@ -118,7 +121,9 @@ function CanvasInner() {
               : "Connecting…"
         }
         leftTab={leftTab}
+        collapsed={leftCollapsed}
         onLeftTabChange={setLeftTab}
+        onToggleCollapsed={() => setLeftCollapsed((value) => !value)}
         onAdd={(typeKey) => graph.addNode(typeKey)}
       />
 

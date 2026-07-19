@@ -30,15 +30,7 @@ export function RightSidebar({
 }: RightSidebarProps) {
   return (
     <aside className="studio-sidebar studio-sidebar--right" aria-label="Inspect">
-      <div className="studio-sidebar__actions">
-        <Image
-          src="/figma/icon-moon.svg"
-          alt=""
-          width={16}
-          height={16}
-          unoptimized
-          className="studio-sidebar__icon"
-        />
+      <div className="studio-sidebar__actions studio-sidebar__actions--end">
         <div className="studio-sidebar__action-row">
           <button
             type="button"
