@@ -1,6 +1,6 @@
 /**
  * Session orchestration: load hero, save, analyze, Apply Fix.
- * Hides API/fixture source from the UI tree. Provenance: #4, #27, #6.
+ * Hides API/fixture source from the UI tree. Provenance: #4, #27, #6, #37.
  */
 "use client";
 
@@ -20,6 +20,11 @@ import {
 import type { HeroId } from "@/lib/constants";
 import { formatGraphDiff } from "@/lib/findings";
 import { workflowToFlow } from "@/lib/flowIo";
+import {
+  applyLayoutToWorkflow,
+  graphDiffChangesStructure,
+  layoutFlowElements,
+} from "@/lib/layout";
 import type { AnalysisReport, NodeMeta, StudioNodeData, Workflow } from "@/types";
 
 export interface UseStudioSessionOptions {
@@ -41,15 +46,27 @@ export function useStudioSession({ setNodes, setEdges }: UseStudioSessionOptions
   const [dirty, setDirty] = useState(false);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedFindingIndex, setSelectedFindingIndex] = useState<number | null>(null);
+  const [layoutNonce, setLayoutNonce] = useState(0);
 
   const applyPayload = useCallback(
     (
       nextWorkflow: Workflow,
       nodeMetas: Record<string, NodeMeta>,
       analysis: AnalysisReport,
+      options?: { relayout?: boolean },
     ) => {
-      const flow = workflowToFlow(nextWorkflow, nodeMetas);
-      setWorkflow(nextWorkflow);
+      let flow = workflowToFlow(nextWorkflow, nodeMetas);
+      let workflowToStore = nextWorkflow;
+      if (options?.relayout) {
+        const layouted = layoutFlowElements(flow.nodes, flow.edges);
+        flow = {
+          nodes: layouted.nodes as typeof flow.nodes,
+          edges: layouted.edges,
+        };
+        workflowToStore = applyLayoutToWorkflow(nextWorkflow, flow.nodes);
+        setLayoutNonce((nonce) => nonce + 1);
+      }
+      setWorkflow(workflowToStore);
       setNodeTypesMeta(nodeMetas);
       setNodes(flow.nodes);
       setEdges(flow.edges);
@@ -121,13 +138,19 @@ export function useStudioSession({ setNodes, setEdges }: UseStudioSessionOptions
       setTypeError(null);
       try {
         const result = await remediateWorkflow(current, ruleId ?? "ALL");
+        const shouldRelayout = graphDiffChangesStructure(result.diff);
         applyPayload(
           result.workflow,
           { ...catalog, ...result.node_types },
           result.analysis,
+          { relayout: shouldRelayout },
         );
         setSource("api");
-        setDiffNote(`Apply Fix (${ruleId ?? "ALL"}): ${formatGraphDiff(result.diff)}`);
+        setDiffNote(
+          `Apply Fix (${ruleId ?? "ALL"}): ${formatGraphDiff(result.diff)}${
+            shouldRelayout ? " · re-laid out" : ""
+          }`,
+        );
       } catch (error) {
         setTypeError(error instanceof Error ? error.message : "Remediate failed");
       } finally {
@@ -174,6 +197,7 @@ export function useStudioSession({ setNodes, setEdges }: UseStudioSessionOptions
     setSelectedNodeId,
     selectedFindingIndex,
     setSelectedFindingIndex,
+    layoutNonce,
     save,
     applyFix,
     runAnalyze,
