@@ -1,0 +1,79 @@
+/* The artifact skin (#52). ONE file owns the whole look so design (#59 item 1)
+   can be applied without touching generated structure. Accent comes from the
+   seller's config. */
+:root {
+  --accent: {{ config.accent_color }};
+  --ink: #17211d;
+  --muted: #5c6a63;
+  --paper: #fafaf7;
+  --card: #ffffff;
+  --line: #e5e7e3;
+  --ok: #0f6b57;
+  --wait: #9a6b00;
+  --bad: #b3261e;
+}
+* { box-sizing: border-box; margin: 0; }
+body {
+  font: 16px/1.5 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: var(--paper); color: var(--ink);
+  display: flex; justify-content: center; min-height: 100vh; padding: 32px 16px;
+}
+.page { width: 100%; max-width: 440px; }
+.page.wide { max-width: 760px; }
+.brand { display: flex; gap: 14px; align-items: center; margin-bottom: 20px; }
+.brand h1 { font-size: 1.25rem; }
+.brand .tagline { color: var(--muted); font-size: 0.85rem; }
+.brand-mark {
+  width: 44px; height: 44px; border-radius: 12px; flex: none;
+  background: var(--accent); color: #fff; font-weight: 700; font-size: 1.3rem;
+  display: flex; align-items: center; justify-content: center;
+}
+.brand .btn-ghost { margin-left: auto; }
+.card {
+  background: var(--card); border: 1px solid var(--line); border-radius: 16px;
+  padding: 24px; box-shadow: 0 1px 2px rgba(23, 33, 29, 0.04);
+}
+.product h2 { font-size: 1.05rem; margin-bottom: 6px; }
+.price { font-size: 2rem; font-weight: 700; margin-bottom: 18px; }
+.price .naira { font-size: 0.9rem; font-weight: 600; color: var(--muted); vertical-align: middle; }
+.btn-primary {
+  width: 100%; padding: 13px 16px; border: 0; border-radius: 12px; cursor: pointer;
+  background: var(--accent); color: #fff; font-size: 1rem; font-weight: 600;
+}
+.btn-primary:disabled { opacity: 0.6; cursor: wait; }
+.btn-ghost {
+  padding: 8px 14px; border: 1px solid var(--line); border-radius: 10px;
+  background: transparent; color: var(--ink); font-size: 0.85rem;
+  text-decoration: none; cursor: pointer;
+}
+.status { min-height: 1.2em; margin-top: 10px; font-size: 0.85rem; color: var(--muted); }
+.trust {
+  margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--line);
+  font-size: 0.8rem; color: var(--muted);
+}
+.trust .dot {
+  display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+  background: var(--ok); margin-right: 6px;
+}
+.table-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.table-head h2 { font-size: 1rem; }
+table.orders { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+table.orders th {
+  text-align: left; color: var(--muted); font-weight: 600; font-size: 0.78rem;
+  text-transform: uppercase; letter-spacing: 0.04em;
+  padding: 8px 10px; border-bottom: 1px solid var(--line);
+}
+table.orders td { padding: 10px; border-bottom: 1px solid var(--line); }
+.badge {
+  display: inline-block; padding: 3px 10px; border-radius: 999px;
+  font-size: 0.75rem; font-weight: 600;
+}
+.badge.ok { background: color-mix(in srgb, var(--ok) 12%, white); color: var(--ok); }
+.badge.wait { background: color-mix(in srgb, var(--wait) 14%, white); color: var(--wait); }
+.badge.bad { background: color-mix(in srgb, var(--bad) 10%, white); color: var(--bad); }
+.empty { color: var(--muted); font-size: 0.9rem; padding: 18px 4px 4px; }
+.foot {
+  display: flex; justify-content: space-between; margin-top: 18px;
+  font-size: 0.78rem; color: var(--muted);
+}
+.foot a { color: var(--accent); }

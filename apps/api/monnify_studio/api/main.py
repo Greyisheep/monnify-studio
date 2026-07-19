@@ -9,13 +9,22 @@ from __future__ import annotations
 import asyncio
 import json
 
+from uuid import uuid4
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import HTMLResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from monnify_studio.analysis import Report, analyze
+from monnify_studio.artifacts import (
+    ArtifactConfig,
+    artifact_store,
+    generate_artifact,
+)
+from monnify_studio.config import Settings as StudioSettings
+from monnify_studio.integrations.monnify import MonnifyError, MonnifySandboxClient
 from monnify_studio.executor import (
     ExecutionEvent,
     ExecutionRun,
@@ -352,6 +361,87 @@ def remediate(body: RemediateRequest) -> RemediateResult:
         analysis=analysis,
         diff=_graph_diff(before, saved, steps),
     )
+
+
+class GenerateRequest(BaseModel):
+    config: ArtifactConfig = Field(default_factory=ArtifactConfig)
+
+
+class GenerateResponse(BaseModel):
+    artifact_id: str
+    preview_url: str
+    dashboard_url: str
+
+
+@app.post("/workflows/{workflow_id}/generate", response_model=GenerateResponse)
+def generate(workflow_id: str, body: GenerateRequest) -> GenerateResponse:
+    """Generate the seller artifact from a workflow (#52, D17, #55 contract).
+
+    Refuses workflows with critical findings: the artifact's promise is
+    "paid means verified", so the graph must be able to keep it.
+    """
+    wf = store.get(workflow_id)
+    if wf is None:
+        raise HTTPException(status_code=404, detail=f"unknown workflow: {workflow_id}")
+    try:
+        artifact = generate_artifact(wf, body.config)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
+    return GenerateResponse(
+        artifact_id=artifact.artifact_id,
+        preview_url=f"/preview/{artifact.artifact_id}",
+        dashboard_url=f"/preview/{artifact.artifact_id}/dashboard",
+    )
+
+
+def _artifact_or_404(artifact_id: str):
+    artifact = artifact_store.get(artifact_id)
+    if artifact is None:
+        raise HTTPException(status_code=404, detail=f"unknown artifact: {artifact_id}")
+    return artifact
+
+
+@app.get("/preview/{artifact_id}", response_class=HTMLResponse)
+def preview_payment_page(artifact_id: str) -> HTMLResponse:
+    return HTMLResponse(_artifact_or_404(artifact_id).payment_page_html)
+
+
+@app.get("/preview/{artifact_id}/dashboard", response_class=HTMLResponse)
+def preview_dashboard(artifact_id: str) -> HTMLResponse:
+    return HTMLResponse(_artifact_or_404(artifact_id).dashboard_html)
+
+
+@app.get("/preview/{artifact_id}/skin.css")
+def preview_skin(artifact_id: str) -> Response:
+    return Response(_artifact_or_404(artifact_id).skin_css, media_type="text/css")
+
+
+@app.post("/preview/{artifact_id}/pay")
+def preview_pay(artifact_id: str) -> dict:
+    """Create a REAL sandbox checkout for the artifact's product (#52).
+
+    Order persistence and verification arrive with #53; this returns the live
+    checkout so the Pay button is never a mock.
+    """
+    artifact = _artifact_or_404(artifact_id)
+    reference = f"ord-{uuid4().hex[:10]}"
+    try:
+        with MonnifySandboxClient(StudioSettings()) as client:
+            tx = client.initialize_transaction(
+                amount=float(artifact.config.price_ngn),
+                customer_name="Studio Demo Customer",
+                customer_email="customer@example.com",
+                reference=reference,
+                description=f"{artifact.config.product_name} ({artifact.config.business_name})",
+            )
+    except MonnifyError as exc:
+        raise HTTPException(status_code=502, detail=f"Monnify sandbox error: {exc}") from None
+    log.info("artifact.pay.initialized", artifact_id=artifact_id, order=reference)
+    return {
+        "order_reference": reference,
+        "payment_reference": tx["payment_reference"],
+        "checkout_url": tx["checkout_url"],
+    }
 
 
 @app.post("/executions", response_model=StartExecutionResponse)
