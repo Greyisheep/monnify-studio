@@ -88,6 +88,7 @@ export interface GraphDiff {
   removed_nodes: string[];
   added_edges: string[];
   removed_edges: string[];
+  steps?: { rule_id: string; action: string; added_nodes: string[]; removed_nodes: string[] }[];
 }
 
 export interface RemediateResult {

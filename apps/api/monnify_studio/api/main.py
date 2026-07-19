@@ -1,4 +1,4 @@
-"""Minimal FastAPI skeleton so the canvas can load, edit, analyze, and remediate IR.
+"""HTTP surface for the Studio canvas: IR load/edit, analyze, typed wiring, Apply-Fix.
 
 Run from apps/api:
     .venv/bin/uvicorn monnify_studio.api.main:app --reload --port 8010 --host 127.0.0.1
@@ -16,7 +16,8 @@ from monnify_studio.fixtures import safe_marketplace, unsafe_marketplace
 from monnify_studio.ir.models import Workflow
 from monnify_studio.ir.typing import control_edge_type_hint, validate_port_connection
 from monnify_studio.providers import default_catalog
-from monnify_studio.remediation import GraphDiff, apply_all_fixes, apply_fix, diff_workflows
+from monnify_studio.remediation import apply_fix, remediate_all
+from monnify_studio.remediation.engine import RemediationStep
 from monnify_studio.store import store
 
 HERO_FACTORIES = {
@@ -86,8 +87,16 @@ class TypeCheckResult(BaseModel):
 
 class RemediateRequest(BaseModel):
     workflow: Workflow
-    rule_id: str | None = None  # None / "ALL" → apply all
+    rule_id: str | None = None  # None / "ALL" → remediate_all
     finding_path: list[str] = Field(default_factory=list)
+
+
+class GraphDiff(BaseModel):
+    added_nodes: list[str] = Field(default_factory=list)
+    removed_nodes: list[str] = Field(default_factory=list)
+    added_edges: list[str] = Field(default_factory=list)
+    removed_edges: list[str] = Field(default_factory=list)
+    steps: list[RemediationStep] = Field(default_factory=list)
 
 
 class RemediateResult(BaseModel):
@@ -124,13 +133,28 @@ def _catalog_metas() -> dict[str, NodeMeta]:
 
 def _enrich(workflow: Workflow) -> WorkflowPayload:
     metas = _catalog_metas()
-    # Still include unknowns so the canvas can render custom nodes.
     for node in workflow.nodes:
         if node.type not in metas:
             metas[node.type] = NodeMeta(
                 type=node.type, category="application", title=node.type
             )
     return WorkflowPayload(workflow=workflow, node_types=metas)
+
+
+def _graph_diff(
+    before: Workflow, after: Workflow, steps: list[RemediationStep] | None = None
+) -> GraphDiff:
+    before_nodes = {n.id for n in before.nodes}
+    after_nodes = {n.id for n in after.nodes}
+    before_edges = {f"{e.source}->{e.target}:{e.kind}" for e in before.edges}
+    after_edges = {f"{e.source}->{e.target}:{e.kind}" for e in after.edges}
+    return GraphDiff(
+        added_nodes=sorted(after_nodes - before_nodes),
+        removed_nodes=sorted(before_nodes - after_nodes),
+        added_edges=sorted(after_edges - before_edges),
+        removed_edges=sorted(before_edges - after_edges),
+        steps=list(steps or []),
+    )
 
 
 @app.get("/health")
@@ -216,21 +240,32 @@ def validate_connection(body: TypeCheckRequest) -> TypeCheckResult:
 
 @app.post("/remediate", response_model=RemediateResult)
 def remediate(body: RemediateRequest) -> RemediateResult:
+    """Apply-Fix via the shared remediation engine (#6), then re-analyze."""
     before = body.workflow
-    try:
-        if not body.rule_id or body.rule_id.upper() == "ALL":
-            after = apply_all_fixes(before)
-        else:
-            after = apply_fix(before, body.rule_id.upper())
-    except KeyError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    rule = (body.rule_id or "ALL").upper()
 
+    if rule == "ALL":
+        result = remediate_all(before, catalog)
+        after = result.workflow
+        steps = result.steps
+    else:
+        report = analyze(before, catalog)
+        finding = next((f for f in report.findings if f.rule_id == rule), None)
+        if finding is None:
+            raise HTTPException(
+                status_code=400,
+                detail=f"no open finding for rule {rule} on this workflow",
+            )
+        after, step = apply_fix(before, finding, catalog)
+        steps = [step]
+
+    after.version = before.version + 1
     saved = store.save(after)
     payload = _enrich(saved)
-    report = analyze(saved, catalog)
+    analysis = analyze(saved, catalog)
     return RemediateResult(
         workflow=payload.workflow,
         node_types=payload.node_types,
-        analysis=report,
-        diff=diff_workflows(before, saved),
+        analysis=analysis,
+        diff=_graph_diff(before, saved, steps),
     )
