@@ -34,6 +34,8 @@ from monnify_studio.observability import (
     instrument_fastapi,
     new_id,
 )
+from monnify_studio.ai import design_from_intent, get_llm_client, stream_chat_events
+from monnify_studio.ai.models import ChatRequest, DesignRequest, DesignResultBody
 from monnify_studio.providers import default_catalog
 from monnify_studio.remediation import apply_fix, remediate_all
 from monnify_studio.remediation.engine import RemediationStep
@@ -51,6 +53,10 @@ class Settings(BaseSettings):
     studio_env: str = "development"
     allow_production_execution: bool = False
     cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
+    ai_provider: str = "anthropic"
+    anthropic_api_key: str = ""
+    openai_api_key: str = ""
+    google_api_key: str = ""
 
 
 settings = Settings()
@@ -369,6 +375,56 @@ def list_execution_events(run_id: str) -> list[ExecutionEvent]:
     if execution_store.get(run_id) is None:
         raise HTTPException(status_code=404, detail=f"unknown run: {run_id}")
     return execution_store.list_events(run_id)
+
+
+def _llm():
+    return get_llm_client(
+        settings.ai_provider,
+        anthropic_api_key=settings.anthropic_api_key,
+        openai_api_key=settings.openai_api_key,
+        google_api_key=settings.google_api_key,
+    )
+
+
+@app.post("/assistant/chat")
+async def assistant_chat(body: ChatRequest) -> StreamingResponse:
+    """SSE architecture Q&A over the current graph + findings (#15 Slice A)."""
+
+    async def event_generator():
+        async for frame in stream_chat_events(body, _llm(), catalog):
+            yield frame
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+@app.post("/assistant/design", response_model=DesignResultBody)
+def assistant_design(body: DesignRequest) -> DesignResultBody:
+    """Intent → IR template, validated + analyzed (#15 Slice B, D16 gate)."""
+    result = design_from_intent(
+        body.intent,
+        catalog,
+        apply_safe=body.apply_safe,
+    )
+    node_types: dict = {}
+    if result.workflow is not None:
+        node_types = _enrich(result.workflow).node_types
+    return DesignResultBody(
+        workflow=result.workflow,
+        node_types=node_types,
+        analysis=result.analysis,
+        source=result.source if result.source in ("canned", "llm") else "canned",
+        template_id=result.template_id,
+        clarifications=result.clarifications,
+        summary=result.summary,
+    )
 
 
 @app.get("/executions/{run_id}/events/stream")

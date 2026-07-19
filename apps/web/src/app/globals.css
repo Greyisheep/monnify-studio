@@ -770,6 +770,34 @@ body {
   gap: 8px;
 }
 
+.studio-chat__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.studio-chat__chip {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--ink-mid);
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 500;
+  padding: 0.25rem 0.45rem;
+  border-radius: 0.35rem;
+  cursor: pointer;
+}
+
+.studio-chat__chip:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.studio-chat__chip:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .studio-chat__messages {
   flex: 1;
   min-height: 0;
@@ -786,6 +814,15 @@ body {
   border-radius: 10px;
   font-size: 13px;
   line-height: 1.4;
+}
+
+.studio-chat__text {
+  white-space: pre-wrap;
+}
+
+.studio-chat__apply {
+  margin-top: 8px;
+  width: 100%;
 }
 
 .studio-chat__bubble--assistant {

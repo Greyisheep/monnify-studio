@@ -122,9 +122,16 @@ function CanvasInner() {
         }
         leftTab={leftTab}
         collapsed={leftCollapsed}
+        workflow={currentIr}
+        selectedNodeId={session.selectedNodeId}
+        busy={session.busy}
         onLeftTabChange={setLeftTab}
         onToggleCollapsed={() => setLeftCollapsed((value) => !value)}
         onAdd={(typeKey) => graph.addNode(typeKey)}
+        onApplyDesign={(nextWorkflow, nodeTypes, analysis) => {
+          session.applyDesign(nextWorkflow, nodeTypes, analysis);
+          setLeftTab("api");
+        }}
       />
 
       <main className="studio-main">

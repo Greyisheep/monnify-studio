@@ -176,6 +176,25 @@ export function useStudioSession({ setNodes, setEdges }: UseStudioSessionOptions
     [reanalyze],
   );
 
+  const applyDesign = useCallback(
+    (
+      nextWorkflow: Workflow,
+      nodeMetas: Record<string, NodeMeta>,
+      analysis: AnalysisReport,
+    ) => {
+      applyPayload(
+        nextWorkflow,
+        { ...catalog, ...nodeMetas },
+        analysis,
+        { relayout: true },
+      );
+      setSource("api");
+      setDiffNote(`Applied AI design: ${nextWorkflow.name}`);
+      setDirty(true);
+    },
+    [applyPayload, catalog],
+  );
+
   return {
     heroId,
     setHeroId,
@@ -201,5 +220,6 @@ export function useStudioSession({ setNodes, setEdges }: UseStudioSessionOptions
     save,
     applyFix,
     runAnalyze,
+    applyDesign,
   };
 }

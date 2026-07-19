@@ -7,7 +7,7 @@
 
 import Image from "next/image";
 
-import type { NodeMeta } from "@/types";
+import type { AnalysisReport, NodeMeta, Workflow } from "@/types";
 import { ChatPanel } from "./ChatPanel";
 
 export interface NodePaletteProps {
@@ -16,9 +16,17 @@ export interface NodePaletteProps {
   teamLabel: string;
   leftTab: "api" | "chat";
   collapsed: boolean;
+  workflow: Workflow | null;
+  selectedNodeId: string | null;
+  busy?: boolean;
   onLeftTabChange: (tab: "api" | "chat") => void;
   onToggleCollapsed: () => void;
   onAdd: (typeKey: string) => void;
+  onApplyDesign: (
+    workflow: Workflow,
+    nodeTypes: Record<string, NodeMeta>,
+    analysis: AnalysisReport,
+  ) => void;
 }
 
 const CATEGORY_LABEL: Record<string, string> = {
@@ -49,9 +57,13 @@ export function NodePalette({
   teamLabel,
   leftTab,
   collapsed,
+  workflow,
+  selectedNodeId,
+  busy = false,
   onLeftTabChange,
   onToggleCollapsed,
   onAdd,
+  onApplyDesign,
 }: NodePaletteProps) {
   const groups = groupByCategory(catalog);
 
@@ -145,7 +157,12 @@ export function NodePalette({
 
       <div className="studio-sidebar__scroll">
         {leftTab === "chat" ? (
-          <ChatPanel />
+          <ChatPanel
+            workflow={workflow}
+            selectedNodeId={selectedNodeId}
+            busy={busy}
+            onApplyDesign={onApplyDesign}
+          />
         ) : (
           <>
             {groups.length === 0 && (
