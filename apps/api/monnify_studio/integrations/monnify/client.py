@@ -23,6 +23,7 @@ log = get_logger("monnify")
 
 _AUTH_PATH = "/api/v1/auth/login"
 _INIT_PATH = "/api/v1/merchant/transactions/init-transaction"
+_QUERY_PATH = "/api/v2/merchant/transactions/query"
 
 
 class MonnifyError(RuntimeError):
@@ -99,6 +100,33 @@ class MonnifySandboxClient:
                 "monnify.transaction.initialized",
                 payment_reference=result["payment_reference"],
                 checkout_url=result["checkout_url"],
+            )
+            return result
+
+
+    def query_transaction(self, *, payment_reference: str) -> dict[str, Any]:
+        """Authoritative transaction state by payment reference (#53).
+
+        This is THE trust boundary of the generated artifact: order status only
+        ever changes based on what this returns, never on what a client claims.
+        """
+        if self._token is None:
+            self.authenticate()
+        with traced("monnify.query_transaction", reference=payment_reference):
+            resp = self._http.get(
+                _QUERY_PATH,
+                headers={"Authorization": f"Bearer {self._token}"},
+                params={"paymentReference": payment_reference},
+            )
+            body = _ok(resp)["responseBody"]
+            result = {
+                "status": body.get("paymentStatus", "UNKNOWN"),
+                "amount_paid": float(body.get("amountPaid") or 0.0),
+            }
+            log.info(
+                "monnify.transaction.queried",
+                payment_reference=payment_reference,
+                status=result["status"],
             )
             return result
 

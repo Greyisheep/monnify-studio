@@ -25,6 +25,7 @@ from monnify_studio.artifacts import (
 )
 from monnify_studio.config import Settings as StudioSettings
 from monnify_studio.integrations.monnify import MonnifyError, MonnifySandboxClient
+from monnify_studio.orders import Order, orders_service
 from monnify_studio.executor import (
     ExecutionEvent,
     ExecutionRun,
@@ -436,12 +437,46 @@ def preview_pay(artifact_id: str) -> dict:
             )
     except MonnifyError as exc:
         raise HTTPException(status_code=502, detail=f"Monnify sandbox error: {exc}") from None
+    orders_service.create(
+        reference=reference,
+        artifact_id=artifact_id,
+        product=artifact.config.product_name,
+        amount=float(artifact.config.price_ngn),
+        payment_reference=tx["payment_reference"],
+        transaction_reference=tx["transaction_reference"],
+    )
     log.info("artifact.pay.initialized", artifact_id=artifact_id, order=reference)
     return {
         "order_reference": reference,
         "payment_reference": tx["payment_reference"],
         "checkout_url": tx["checkout_url"],
     }
+
+
+@app.get("/preview/{artifact_id}/orders", response_model=list[Order])
+def list_orders(artifact_id: str) -> list[Order]:
+    """Orders for the seller dashboard (#53). Status is provider truth only."""
+    _artifact_or_404(artifact_id)
+    return orders_service.for_artifact(artifact_id)
+
+
+@app.post("/preview/{artifact_id}/orders/{reference}/verify", response_model=Order)
+def verify_order(artifact_id: str, reference: str) -> Order:
+    """The fake-credit-alert trust boundary (#53, D17).
+
+    A customer claiming "I have sent the money" lands here; the only thing
+    that can change the order's status is Monnify's own answer.
+    """
+    _artifact_or_404(artifact_id)
+    if orders_service.get(reference) is None:
+        raise HTTPException(status_code=404, detail=f"unknown order: {reference}")
+    with correlation(request_id=new_id("verify")):
+        try:
+            return orders_service.verify(reference)
+        except MonnifyError as exc:
+            raise HTTPException(
+                status_code=502, detail=f"Monnify sandbox error: {exc}"
+            ) from None
 
 
 @app.post("/executions", response_model=StartExecutionResponse)
