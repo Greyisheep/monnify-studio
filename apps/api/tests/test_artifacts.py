@@ -77,3 +77,31 @@ def test_preview_unknown_artifact_404():
 def test_template_workflow_generates_clean():
     # Belt and braces: the flagship template itself always passes the envelope.
     generate_artifact(build_template("sell-online"), ArtifactConfig())
+
+
+def test_logo_renders_when_provided():
+    # Seller branding (#61): data URL from a client-side file upload.
+    tiny_png = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUg=="
+    data = _generate_via_api({"business_name": "Ada Thrift", "logo_url": tiny_png})
+    page = client.get(data["preview_url"]).text
+    assert 'class="brand-logo"' in page
+    assert "brand-mark" not in page  # letter mark replaced
+    dash = client.get(data["dashboard_url"]).text
+    assert 'class="brand-logo"' in dash
+
+
+def test_logo_absent_falls_back_to_letter_mark():
+    data = _generate_via_api({"business_name": "Ada Thrift"})
+    page = client.get(data["preview_url"]).text
+    assert "brand-mark" in page
+    assert "brand-logo" not in page
+
+
+def test_logo_unsafe_scheme_rejected():
+    wf_id = client.post("/workflows/from-template/sell-online").json()["workflow"]["id"]
+    res = client.post(
+        f"/workflows/{wf_id}/generate",
+        json={"config": {"logo_url": "javascript:alert(1)"}},
+    )
+    assert res.status_code == 422
+    assert "https:// or data:image/" in res.text
