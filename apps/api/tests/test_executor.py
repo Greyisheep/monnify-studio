@@ -31,6 +31,20 @@ def test_mock_run_emits_started_and_completed():
     assert any(event.type == ExecutionEventType.NODE_WAITING for event in events)
 
 
+def test_wait_without_auto_resume_suspends_run():
+    """D1: wait nodes are suspension points when auto-resume is off."""
+    run = run_workflow(
+        unsafe_marketplace(),
+        adapter=MockAdapter(),
+        auto_resume_waits=False,
+    )
+    assert run.status.value == "waiting"
+    events = execution_store.list_events(run.id)
+    types = [event.type for event in events]
+    assert ExecutionEventType.NODE_WAITING in types
+    assert ExecutionEventType.RUN_COMPLETED not in types
+
+
 def test_event_seq_is_contiguous():
     run = run_workflow(unsafe_marketplace(), adapter=MockAdapter())
     events = execution_store.list_events(run.id)
