@@ -1,6 +1,6 @@
 /**
  * Studio shell: full-bleed canvas with overlay panels (#44).
- * Panels float and must not shrink the diagram. Provenance: #4, #27, #44, D14.
+ * Execution trace overlay for mock runs (#28). Provenance: #4, #27, #28, #44, D14.
  */
 "use client";
 
@@ -14,6 +14,7 @@ import {
 } from "@xyflow/react";
 
 import type { StudioNodeData } from "@/types";
+import { useExecutionTrace } from "@/hooks/useExecutionTrace";
 import { useStudioGraph } from "@/hooks/useStudioGraph";
 import { useStudioSession } from "@/hooks/useStudioSession";
 import {
@@ -27,6 +28,7 @@ import { NodePalette } from "./NodePalette";
 import { ReviewPanel } from "./ReviewPanel";
 import { StudioHeader } from "./StudioHeader";
 import { StudioToolbar } from "./StudioToolbar";
+import { TracePanel } from "./TracePanel";
 import { WorkflowCanvas } from "./WorkflowCanvas";
 
 function CanvasInner() {
@@ -34,6 +36,7 @@ function CanvasInner() {
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [paletteOpen, setPaletteOpen] = useState(true);
   const [reviewOpen, setReviewOpen] = useState(true);
+  const [traceOpen, setTraceOpen] = useState(false);
 
   const session = useStudioSession({ setNodes, setEdges });
   const graph = useStudioGraph({
@@ -49,6 +52,7 @@ function CanvasInner() {
     setDiffNote: session.setDiffNote,
     setWorkflow: session.setWorkflow,
   });
+  const trace = useExecutionTrace();
 
   const currentIr = useMemo(() => {
     if (!session.workflow) return null;
@@ -60,10 +64,18 @@ function CanvasInner() {
       ? (session.report.findings[session.selectedFindingIndex] ?? null)
       : null;
 
-  const highlightIds = useMemo(
-    () => findingHighlightIds(selectedFinding),
-    [selectedFinding],
-  );
+  const selectedTraceEvent =
+    trace.selectedSeq != null
+      ? (trace.events.find((event) => event.seq === trace.selectedSeq) ?? null)
+      : null;
+
+  const highlightIds = useMemo(() => {
+    const fromFinding = findingHighlightIds(selectedFinding);
+    if (selectedTraceEvent?.node_id) {
+      return new Set([...fromFinding, selectedTraceEvent.node_id]);
+    }
+    return fromFinding;
+  }, [selectedFinding, selectedTraceEvent]);
 
   const displayNodes = useMemo(
     () => withNodeHighlights(nodes, highlightIds),
@@ -81,7 +93,6 @@ function CanvasInner() {
     );
   }, [currentIr, session.selectedNodeId]);
 
-  // Selecting a node opens config overlay without compressing the canvas (#44).
   const configOpen = !!selectedIrNode;
 
   useEffect(() => {
@@ -105,12 +116,21 @@ function CanvasInner() {
         hasFindings={(session.report?.findings.length ?? 0) > 0}
         paletteOpen={paletteOpen}
         reviewOpen={reviewOpen}
+        traceOpen={traceOpen}
+        running={trace.running}
         onTogglePalette={() => setPaletteOpen((open) => !open)}
         onToggleReview={() => setReviewOpen((open) => !open)}
+        onToggleTrace={() => setTraceOpen((open) => !open)}
         onDelete={graph.deleteSelected}
         onReanalyze={() => currentIr && void session.runAnalyze(currentIr)}
         onSave={() => currentIr && void session.save(currentIr)}
         onApplyAll={() => currentIr && void session.applyFix(currentIr, "ALL")}
+        onRun={() => {
+          if (!currentIr) return;
+          setTraceOpen(true);
+          setReviewOpen(false);
+          void trace.runWorkflow(currentIr);
+        }}
       />
 
       <div className="studio-stage">
@@ -118,7 +138,7 @@ function CanvasInner() {
           nodes={displayNodes}
           edges={displayEdges}
           loading={session.loading}
-          busy={session.busy}
+          busy={session.busy || trace.running}
           typeError={session.typeError}
           diffNote={session.diffNote}
           connectionFeedback={graph.connectionFeedback}
@@ -156,7 +176,7 @@ function CanvasInner() {
           </div>
         )}
 
-        {reviewOpen && (
+        {reviewOpen && !traceOpen && (
           <div className="studio-overlay studio-overlay--review">
             <ReviewPanel
               workflowName={session.workflow?.name ?? ""}
@@ -169,6 +189,20 @@ function CanvasInner() {
                 currentIr && void session.applyFix(currentIr, ruleId)
               }
               onClose={() => setReviewOpen(false)}
+            />
+          </div>
+        )}
+
+        {traceOpen && (
+          <div className="studio-overlay studio-overlay--trace">
+            <TracePanel
+              run={trace.run}
+              events={trace.events}
+              selectedSeq={trace.selectedSeq}
+              running={trace.running}
+              error={trace.error}
+              onSelect={trace.setSelectedSeq}
+              onClose={() => setTraceOpen(false)}
             />
           </div>
         )}
