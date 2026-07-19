@@ -58,6 +58,16 @@ MONNIFY_NODE_TYPES: list[NodeTypeDef] = [
         outputs=[PortSpec(name="transfer_reference", type=D.TRANSFER_REFERENCE)],
     ),
     NodeTypeDef(
+        type="monnify.bulk_transfer",
+        category=C.MONNIFY,
+        title="Bulk Transfer",
+        description="Disburse to up to 5,000 beneficiaries in one batch (payroll, vendors).",
+        # Carries BENEFICIARY_TRANSFER so MON011 demands validation upstream (#54, #24).
+        default_tags=[T.EXTERNAL_CALL, T.MONEY_MOVEMENT, T.BENEFICIARY_TRANSFER, T.SECRET_BOUNDARY],
+        inputs=[PortSpec(name="amount", type=D.MONEY)],
+        outputs=[PortSpec(name="transfer_reference", type=D.TRANSFER_REFERENCE)],
+    ),
+    NodeTypeDef(
         type="monnify.query_transfer_status",
         category=C.MONNIFY,
         title="Query Transfer Status",

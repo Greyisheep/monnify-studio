@@ -146,4 +146,12 @@ CORE_NODE_TYPES: list[NodeTypeDef] = [
         title="Send Notification",
         description="Non-financial side effect (email/SMS/push).",
     ),
+    NodeTypeDef(
+        type="app.data_rows",
+        category=C.APPLICATION,
+        title="Data Rows (CSV / Sheet)",
+        description="Rows from an uploaded CSV or spreadsheet-shaped source (e.g. employees). "
+        "Canvas + mock execution only for now (#54, D17 tier-1 logic).",
+        outputs=[PortSpec(name="rows", type=D.ANY)],
+    ),
 ]
