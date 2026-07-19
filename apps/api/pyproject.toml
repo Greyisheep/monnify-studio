@@ -23,6 +23,11 @@ api = [
     "opentelemetry-instrumentation-httpx>=0.45b0",
     "opentelemetry-exporter-otlp-proto-http>=1.24",
 ]
+ai = [
+    "anthropic>=0.40",
+    "openai>=1.40",
+    "google-generativeai>=0.7",
+]
 dev = [
     "pytest>=8.0",
     "ruff>=0.4",
