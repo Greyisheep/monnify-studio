@@ -1,10 +1,10 @@
-"""Core vocabulary for the IR — provider-agnostic (D13).
+"""Core vocabulary for the IR - provider-agnostic (D13).
 
 Nothing in this module mentions Monnify. The engine reasons in terms of
 *capabilities* and *domain types*; providers (Monnify, and later others) map
 their concrete endpoints onto this vocabulary via a node catalog.
 
-Traceability: #3 (P1.1 — The IR); decisions D1, D9, D13.
+Traceability: #3 (P1.1 - The IR); decisions D1, D9, D13.
 """
 
 from __future__ import annotations
@@ -25,7 +25,7 @@ class NodeCategory(str, Enum):
 class CapabilityTag(str, Enum):
     """What a node *means* for correctness.
 
-    The analyzer never looks at a node's `type` string — it reasons purely
+    The analyzer never looks at a node's `type` string - it reasons purely
     over these tags (D3). That is what keeps the rule engine provider-agnostic:
     a Paystack `verify` and a Monnify `verify` both carry
     AUTHORITATIVE_VERIFICATION and are treated identically.

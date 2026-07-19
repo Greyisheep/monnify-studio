@@ -1,4 +1,4 @@
-"""MON011 — beneficiary account must be validated before a transfer (#24)."""
+"""MON011 - beneficiary account must be validated before a transfer (#24)."""
 
 from __future__ import annotations
 

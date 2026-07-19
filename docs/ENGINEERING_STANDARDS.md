@@ -1,12 +1,12 @@
 # Engineering Standards
 
-The standards this project is held to. Grounded in **APOSD** — John Ousterhout's
+The standards this project is held to. Grounded in **APOSD** - John Ousterhout's
 *A Philosophy of Software Design*. The north star is one sentence:
 
 > **The goal of software design is to minimize complexity.** Every decision here
 > exists to make the system easier to understand and cheaper to change.
 
-If a rule below ever fights that goal, the goal wins — raise it in a PR.
+If a rule below ever fights that goal, the goal wins - raise it in a PR.
 
 ---
 
@@ -14,7 +14,7 @@ If a rule below ever fights that goal, the goal wins — raise it in a PR.
 
 These are the principles we actually apply in review, not decoration.
 
-1. **Complexity is incremental — resist it every time.** There is no single
+1. **Complexity is incremental - resist it every time.** There is no single
    catastrophic decision; complexity accretes from many small "this is fine"
    choices. Reviewers push back on each one.
 2. **Deep modules over shallow ones.** A module should offer a *simple
@@ -33,7 +33,7 @@ These are the principles we actually apply in review, not decoration.
    comparison sharpens both.
 7. **Comments are part of the design, and describe what the code cannot.** Write
    the interface comment *before* the implementation. Comments capture intent,
-   invariants, units, and "why" — never restate the code.
+   invariants, units, and "why" - never restate the code.
 8. **Strategic, not tactical.** We are building a codebase, not just making it
    work today. Budget a little extra design on every change; refuse the "tactical
    tornado" that ships fast and leaves complexity behind.
@@ -44,7 +44,7 @@ These are the principles we actually apply in review, not decoration.
 
 Use these as the worked examples when in doubt:
 
-- **Deep module:** `analysis/engine.py::Analysis.unguarded_targets` — one small
+- **Deep module:** `analysis/engine.py::Analysis.unguarded_targets` - one small
   method expresses "can danger be reached without passing a guard?", and *most*
   MON rules are one line on top of it. Simple interface, powerful body.
 - **Information hiding:** the `providers/` catalog hides every Monnify-specific
@@ -66,7 +66,7 @@ Use these as the worked examples when in doubt:
 configs, no scratch files at the root. Everything lives in a directory that says
 what it is.
 
-Canonical monorepo layout (grows into this — don't create empty dirs early):
+Canonical monorepo layout (grows into this - don't create empty dirs early):
 
 ```
 monnify-studio/
@@ -86,7 +86,7 @@ monnify-studio/
 
 Rules:
 - A file's location should be predictable from its purpose. If you hesitate where
-  something goes, that's a signal to add/clarify a directory — say so in the PR.
+  something goes, that's a signal to add/clarify a directory - say so in the PR.
 - Tests live beside the app they test (`apps/api/tests`), mirroring the package.
 - Temporary/scratch work never gets committed (see `.gitignore`); it goes in a
   scratch dir outside the repo.
@@ -111,7 +111,7 @@ Issue-first, branch-per-issue, reviewed PRs.
 
 ---
 
-## 4. Traceability — full idea tracing
+## 4. Traceability - full idea tracing
 
 Anyone reading a line of code should be able to recover **why it exists** without
 asking. We keep the whole chain navigable *from the code itself*:
@@ -123,18 +123,18 @@ code comment  →  issue/PR number  →  decision (D#)  →  rationale
 Rules:
 
 - **Put the issue/PR number in the code.** When a line encodes a non-obvious
-  choice, cite its origin in the comment — the issue (`#6`) and the decision
+  choice, cite its origin in the comment - the issue (`#6`) and the decision
   (`D10`) that motivated it. E.g.:
   ```python
   # Split settles immediately, so it's wrong for payout-after-fulfilment (#6, D10).
   ```
-- **Module docstrings name the decisions — and issues — they implement**, so a
+- **Module docstrings name the decisions - and issues - they implement**, so a
   file's provenance is visible at the top. (Our core modules already cite `D#`;
   add the originating issue alongside.)
 - **Close the loop from both ends.** Commits/PRs carry `Closes #N` (issue ← code);
   code carries `#N` / `D#` (code → issue → why). With `git blame`, every line then
   reaches its PR, its discussion, and its decision.
-- **The bar:** if a reviewer asks "why is this here?", the trace is missing — add
+- **The bar:** if a reviewer asks "why is this here?", the trace is missing - add
   the reference, don't just answer in the thread.
 
 This is not comment noise. Cite the *why* and the *source of the decision*; never
@@ -160,9 +160,9 @@ restate the code (APOSD §7). One good reference beats a paragraph.
 
 ## 6. Frontend standards (when `apps/web` lands)
 
-- TypeScript strict; IR types are **generated** from the backend JSON Schema —
+- TypeScript strict; IR types are **generated** from the backend JSON Schema -
   never hand-duplicated (single source of truth).
-- A cohesive design system (tokens, not ad-hoc styles) — design craft is a
+- A cohesive design system (tokens, not ad-hoc styles) - design craft is a
   feature here, not polish (D14).
 - Components are deep: a clean prop interface over real behaviour; no prop-drilling
   soup.
@@ -194,10 +194,22 @@ restate the code (APOSD §7). One good reference beats a paragraph.
 A change is done when:
 
 1. It closes a specific issue and the PR says `Closes #N`.
-2. It reduces or holds complexity — a reviewer finds it obvious.
+2. It reduces or holds complexity - a reviewer finds it obvious.
 3. Public interfaces are documented (the *why*, per APOSD).
 4. It is **fully traceable**: the code carries its issue/PR + decision references,
    so the "why" is answerable from the source alone (§4).
 5. Tests cover the new behaviour and the suite is green.
 6. No secrets, no root-level clutter, no dead files left behind.
 7. Decisions that shaped it are recorded (link the `D#` or add one to `docs/`).
+
+---
+
+## 10. Prose and docs
+
+- **No em-dashes or en-dashes, anywhere.** Never use the em-dash (U+2014) or
+  en-dash (U+2013) in prose, code, comments, docs, commit messages, or issue/PR
+  text. Use commas, parentheses, colons, or plain hyphens instead. No exceptions.
+- Keep docs current with the code: a change that alters behaviour updates its
+  docs in the same PR.
+- Write plainly. State the "why", not just the "what" (this pairs with the
+  traceability rule in section 4).

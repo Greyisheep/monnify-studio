@@ -1,16 +1,16 @@
 """Apply-Fix: turn a finding into an IR rewrite that removes it (#6).
 
 Each MON rule has a matching transform that inserts the safety node(s) the
-finding calls for — or removes the offending node. `remediate_all` runs the exact
+finding calls for - or removes the offending node. `remediate_all` runs the exact
 loop the UI runs: analyze → fix the top finding → re-analyze, until the graph is
-clean. Correctness stays deterministic — remediation edits the graph, but the
+clean. Correctness stays deterministic - remediation edits the graph, but the
 analyzer (D3), never an LLM, decides when we're done.
 
 The inserted safety nodes are structural (tags + placement); wiring their typed
 inputs is left to codegen/execution (Epic 2/3). That's enough for the graph to be
 correct *and* to analyze clean.
 
-Traceability: #6 (P1.4 — Remediation); decisions D3, D9, D10.
+Traceability: #6 (P1.4 - Remediation); decisions D3, D9, D10.
 """
 
 from __future__ import annotations
@@ -27,7 +27,7 @@ from .graph_ops import insert_chain_on_edge, remove_node_reconnect
 
 
 class RemediationStep(BaseModel):
-    """One applied fix — what the UI shows in the graph diff."""
+    """One applied fix - what the UI shows in the graph diff."""
 
     rule_id: str
     action: str
@@ -42,7 +42,7 @@ class RemediationResult(BaseModel):
 
 
 def _final_edge(finding: Finding) -> tuple[str, str]:
-    """The last edge into the danger — where a guard must be spliced."""
+    """The last edge into the danger - where a guard must be spliced."""
     if len(finding.path) < 2:
         raise ValueError(f"{finding.rule_id} finding has no path to remediate")
     return finding.path[-2], finding.path[-1]
@@ -134,7 +134,7 @@ REMEDIATIONS: dict[str, Callable[[Workflow, Finding, Catalog], RemediationStep]]
 def apply_fix(
     workflow: Workflow, finding: Finding, catalog: Catalog
 ) -> tuple[Workflow, RemediationStep]:
-    """Apply one finding's remediation, returning a new workflow (pure — the input
+    """Apply one finding's remediation, returning a new workflow (pure - the input
     is not mutated) and a description of the change."""
     wf = workflow.model_copy(deep=True)
     fn = REMEDIATIONS.get(finding.rule_id)

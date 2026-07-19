@@ -2,11 +2,11 @@
 
 A `NodeTypeDef` is the contract for one kind of node: its typed ports and its
 default capability tags. A `Catalog` is a registry of those defs. The core
-(provider-neutral) node types live in `core.py`; each provider — Monnify today,
-Paystack/Flutterwave tomorrow — contributes a pack of `monnify.*` / `paystack.*`
+(provider-neutral) node types live in `core.py`; each provider - Monnify today,
+Paystack/Flutterwave tomorrow - contributes a pack of `monnify.*` / `paystack.*`
 defs. Swapping providers is adding a pack, never touching the engine.
 
-Traceability: #3 (P1.1 — node catalog); decision D13.
+Traceability: #3 (P1.1 - node catalog); decision D13.
 """
 
 from __future__ import annotations

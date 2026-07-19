@@ -3,16 +3,16 @@
 Story: customers pay upfront, the platform holds the money, and the provider is
 paid only after the customer confirms the job. Two versions:
 
-  * `unsafe_marketplace()` — what a naive integration looks like. It trusts a
+  * `unsafe_marketplace()` - what a naive integration looks like. It trusts a
     client callback, processes a webhook with no signature/idempotency, and
     reaches for Transaction Split (which pays the provider immediately). This is
     the graph Studio lights up with findings.
-  * `safe_marketplace()`  — the architecture after remediation. Zero findings.
+  * `safe_marketplace()`  - the architecture after remediation. Zero findings.
 
 Keeping both as code (rather than only JSON) makes the intended contrast
 executable and lets tests assert exactly which rules should fire.
 
-Traceability: #3 (P1.1 — hero fixtures); decisions D7, D10.
+Traceability: #3 (P1.1 - hero fixtures); decisions D7, D10.
 """
 
 from __future__ import annotations
@@ -44,7 +44,7 @@ def unsafe_marketplace() -> Workflow:
     ]
     return Workflow(
         id="marketplace-unsafe",
-        name="Marketplace — Unsafe",
+        name="Marketplace - Unsafe",
         provider="monnify",
         description="Naive payout-after-fulfilment marketplace with unsafe integration patterns.",
         variables={
@@ -101,7 +101,7 @@ def safe_marketplace() -> Workflow:
     ]
     return Workflow(
         id="marketplace-safe",
-        name="Marketplace — Safe",
+        name="Marketplace - Safe",
         provider="monnify",
         description="Payout-after-fulfilment marketplace with verification, idempotency, "
         "beneficiary validation, conditional payout via Transfer, and reconciliation.",

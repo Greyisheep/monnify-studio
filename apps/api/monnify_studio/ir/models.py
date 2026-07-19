@@ -1,10 +1,10 @@
 """The Intermediate Representation: a typed, event-driven node graph.
 
 Design (locked decisions):
-  * D1  — event-driven state machine: `event.*` / wait nodes are async
+  * D1  - event-driven state machine: `event.*` / wait nodes are async
           suspension points; the executor treats them as machine pauses.
-  * D9  — safety concerns are first-class *nodes*, not hidden edge metadata.
-  * D13 — provider-agnostic: a `Node.type` is just a catalog key; this module
+  * D9  - safety concerns are first-class *nodes*, not hidden edge metadata.
+  * D13 - provider-agnostic: a `Node.type` is just a catalog key; this module
           has no knowledge of Monnify.
 
 Two orthogonal concerns, two mechanisms (kept deliberately separate):
@@ -13,7 +13,7 @@ Two orthogonal concerns, two mechanisms (kept deliberately separate):
   * **Data references** (`${node.port}` / `${var.name}` inside `Node.inputs`)
     describe *typed data flow*. The type checker validates these.
 
-Traceability: #3 (P1.1 — The IR); decisions D1, D9, D13.
+Traceability: #3 (P1.1 - The IR); decisions D1, D9, D13.
 """
 
 from __future__ import annotations
@@ -111,6 +111,6 @@ class Workflow(BaseModel):
         return [e.source for e in self.edges if e.target == node_id]
 
     def roots(self) -> list[str]:
-        """Nodes with no incoming edge — entry points into the graph."""
+        """Nodes with no incoming edge - entry points into the graph."""
         targets = {e.target for e in self.edges}
         return [n.id for n in self.nodes if n.id not in targets]

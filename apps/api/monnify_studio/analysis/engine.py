@@ -1,11 +1,11 @@
 """Static-analysis engine: tag-reachability over the IR graph (D3).
 
-The engine reasons ONLY over capability tags — never node `type` strings — so
+The engine reasons ONLY over capability tags - never node `type` strings - so
 every rule is provider-agnostic. The workhorse is `unguarded_targets`: "can I
 reach a dangerous node from this source without passing a protective node?"
 That single primitive expresses most payment-correctness rules.
 
-Traceability: #5 (P1.3 — static analysis engine); decision D3.
+Traceability: #5 (P1.3 - static analysis engine); decision D3.
 """
 
 from __future__ import annotations
@@ -82,7 +82,7 @@ class Analysis:
                 continue
             seen.add(nid)
             if is_guard(nid):
-                continue  # protected from here on — prune this subtree
+                continue  # protected from here on - prune this subtree
             if is_target(nid):
                 offending.append(path)
                 continue  # reached the danger; no need to look deeper on this branch
