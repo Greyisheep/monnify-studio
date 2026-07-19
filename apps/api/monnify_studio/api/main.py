@@ -15,6 +15,13 @@ from monnify_studio.analysis import Report, analyze
 from monnify_studio.fixtures import safe_marketplace, unsafe_marketplace
 from monnify_studio.ir.models import Workflow
 from monnify_studio.ir.typing import control_edge_type_hint, validate_port_connection
+from monnify_studio.observability import (
+    configure_observability,
+    correlation,
+    get_logger,
+    instrument_fastapi,
+    new_id,
+)
 from monnify_studio.providers import default_catalog
 from monnify_studio.remediation import apply_fix, remediate_all
 from monnify_studio.remediation.engine import RemediationStep
@@ -37,6 +44,9 @@ class Settings(BaseSettings):
 settings = Settings()
 catalog = default_catalog()
 
+configure_observability(console_spans=False)  # structured logs + tracing (D15, #39)
+log = get_logger("api")
+
 app = FastAPI(
     title="Monnify Studio API",
     version="0.1.0",
@@ -50,6 +60,28 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def _observe(request, call_next):
+    """Tag every request with a correlation id and log it (redacted) (#39, D15)."""
+    with correlation(request_id=new_id("req")):
+        response = await call_next(request)
+        log.info(
+            "api.request",
+            method=request.method,
+            path=request.url.path,
+            status=response.status_code,
+        )
+        return response
+
+
+try:
+    instrument_fastapi(app)  # per-request trace spans, propagated to adapters
+except ImportError:
+    log.warning("otel.fastapi.not_installed")
+
+log.info("api.ready", env=settings.studio_env)
 
 
 class PortMeta(BaseModel):
