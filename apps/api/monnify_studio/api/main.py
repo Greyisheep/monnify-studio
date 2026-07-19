@@ -29,7 +29,11 @@ from monnify_studio.artifacts import (
     artifact_store,
     generate_artifact,
 )
-from monnify_studio.config import Settings as StudioSettings
+from monnify_studio.credentials import (
+    CredentialStatus,
+    MonnifyCredentials,
+    credential_store,
+)
 from monnify_studio.integrations.monnify import MonnifyError, MonnifySandboxClient
 from monnify_studio.orders import Order, orders_service
 from monnify_studio.executor import (
@@ -522,8 +526,10 @@ def preview_pay(artifact_id: str) -> dict:
     """
     artifact = _artifact_or_404(artifact_id)
     reference = f"ord-{uuid4().hex[:10]}"
+    # Their keys, their money: collect to the workflow's own account (#68, D19).
+    resolved = credential_store.settings_for(artifact.workflow_id)
     try:
-        with MonnifySandboxClient(StudioSettings()) as client:
+        with MonnifySandboxClient(resolved) as client:
             tx = client.initialize_transaction(
                 amount=float(artifact.config.price_ngn),
                 customer_name="Studio Demo Customer",
@@ -540,6 +546,7 @@ def preview_pay(artifact_id: str) -> dict:
         amount=float(artifact.config.price_ngn),
         payment_reference=tx["payment_reference"],
         transaction_reference=tx["transaction_reference"],
+        workflow_id=artifact.workflow_id,
     )
     log.info("artifact.pay.initialized", artifact_id=artifact_id, order=reference)
     return {
@@ -547,6 +554,32 @@ def preview_pay(artifact_id: str) -> dict:
         "payment_reference": tx["payment_reference"],
         "checkout_url": tx["checkout_url"],
     }
+
+
+@app.put("/workflows/{workflow_id}/credentials", response_model=CredentialStatus)
+def set_credentials(workflow_id: str, creds: MonnifyCredentials) -> CredentialStatus:
+    """Store a workflow's own Monnify sandbox keys (#68, D19). Write-only.
+
+    Values are never returned; only `configured`. Base URL stays sandbox-pinned,
+    so a user cannot point Studio at production."""
+    if store.get(workflow_id) is None:
+        raise HTTPException(status_code=404, detail=f"unknown workflow: {workflow_id}")
+    credential_store.put(workflow_id, creds)
+    return credential_store.status(workflow_id)
+
+
+@app.get("/workflows/{workflow_id}/credentials", response_model=CredentialStatus)
+def get_credentials_status(workflow_id: str) -> CredentialStatus:
+    """Whether this workflow has usable credentials, and from where. No secrets."""
+    if store.get(workflow_id) is None:
+        raise HTTPException(status_code=404, detail=f"unknown workflow: {workflow_id}")
+    return credential_store.status(workflow_id)
+
+
+@app.delete("/workflows/{workflow_id}/credentials", response_model=CredentialStatus)
+def delete_credentials(workflow_id: str) -> CredentialStatus:
+    credential_store.delete(workflow_id)
+    return credential_store.status(workflow_id)
 
 
 @app.get("/preview/{artifact_id}/orders", response_model=list[Order])
