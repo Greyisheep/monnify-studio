@@ -1,3 +1,7 @@
+/**
+ * Studio design tokens + shell styles (D14).
+ * Prefer extending :root variables; do not add one-off hexes in components.
+ */
 @import url("https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=IBM+Plex+Mono:wght@400;500&display=swap");
 
 @tailwind base;
@@ -22,6 +26,12 @@
   --cat-safety: #9a3412;
   --cat-control: #57534e;
   --cat-application: #334155;
+  --glow-mint: #d9efe7;
+  --glow-sand: #efe4c8;
+  --surface-warm: #fff8f3;
+  --surface-danger-soft: #fce8e6;
+  --surface-warn-soft: #fff1df;
+  --on-ink: #ffffff;
   --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
 }
@@ -39,8 +49,8 @@ body {
   margin: 0;
   color: var(--ink);
   background:
-    radial-gradient(1200px 600px at 10% -10%, #d9efe7 0%, transparent 55%),
-    radial-gradient(900px 500px at 100% 0%, #efe4c8 0%, transparent 50%),
+    radial-gradient(1200px 600px at 10% -10%, var(--glow-mint) 0%, transparent 55%),
+    radial-gradient(900px 500px at 100% 0%, var(--glow-sand) 0%, transparent 50%),
     var(--paper);
   font-family: var(--font-sans);
 }
@@ -344,7 +354,7 @@ body {
   margin-top: auto;
   padding: 0.85rem 1rem 1rem;
   border-top: 1px solid var(--line);
-  background: #fff8f3;
+  background: var(--surface-warm);
 }
 
 .studio-explain h3 {
@@ -460,12 +470,12 @@ body {
 
 .studio-counts span[data-sev="critical"] {
   color: var(--danger);
-  background: #fce8e6;
+  background: var(--surface-danger-soft);
 }
 
 .studio-counts span[data-sev="high"] {
   color: var(--warn);
-  background: #fff1df;
+  background: var(--surface-warn-soft);
 }
 
 .studio-findings {
@@ -513,12 +523,12 @@ body {
 }
 
 .sev-critical {
-  color: #fff;
+  color: var(--on-ink);
   background: var(--danger);
 }
 
 .sev-high {
-  color: #fff;
+  color: var(--on-ink);
   background: var(--warn);
 }
 
@@ -576,7 +586,7 @@ body {
 }
 .studio-node.cat-safety {
   border-left-color: var(--cat-safety);
-  background: #fff8f3;
+  background: var(--surface-warm);
 }
 .studio-node.cat-control {
   border-left-color: var(--cat-control);

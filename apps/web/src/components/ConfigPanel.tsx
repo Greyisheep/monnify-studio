@@ -1,18 +1,27 @@
+/**
+ * Node config drawer (business fields + advanced JSON). Provenance: #4.
+ */
 "use client";
 
-import { useState } from "react";
+import { useState, type ChangeEvent } from "react";
 
-import type { Finding, IrNode, NodeMeta } from "@/lib/ir";
+import type { Finding, IrNode, NodeMeta } from "@/types";
 
-type Props = {
+export interface ConfigPanelProps {
   node: IrNode | null;
   meta: NodeMeta | undefined;
   selectedFinding: Finding | null;
   onChange: (node: IrNode) => void;
   onClose: () => void;
-};
+}
 
-export function ConfigPanel({ node, meta, selectedFinding, onChange, onClose }: Props) {
+export function ConfigPanel({
+  node,
+  meta,
+  selectedFinding,
+  onChange,
+  onClose,
+}: ConfigPanelProps) {
   const [mode, setMode] = useState<"business" | "json">("business");
   const [jsonDraft, setJsonDraft] = useState("");
   const [jsonError, setJsonError] = useState<string | null>(null);
@@ -75,7 +84,9 @@ export function ConfigPanel({ node, meta, selectedFinding, onChange, onClose }: 
             Label
             <input
               value={node.label ?? ""}
-              onChange={(e) => onChange({ ...node, label: e.target.value })}
+              onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                onChange({ ...node, label: event.target.value })
+              }
             />
           </label>
           <label>
@@ -86,9 +97,9 @@ export function ConfigPanel({ node, meta, selectedFinding, onChange, onClose }: 
           {(meta?.inputs?.length ?? 0) > 0 && (
             <div className="port-list">
               <h4>Inputs</h4>
-              {meta!.inputs!.map((p) => (
-                <code key={p.name}>
-                  {p.name}: {p.type}
+              {meta!.inputs!.map((port) => (
+                <code key={port.name}>
+                  {port.name}: {port.type}
                 </code>
               ))}
             </div>
@@ -96,9 +107,9 @@ export function ConfigPanel({ node, meta, selectedFinding, onChange, onClose }: 
           {(meta?.outputs?.length ?? 0) > 0 && (
             <div className="port-list">
               <h4>Outputs</h4>
-              {meta!.outputs!.map((p) => (
-                <code key={p.name}>
-                  {p.name}: {p.type}
+              {meta!.outputs!.map((port) => (
+                <code key={port.name}>
+                  {port.name}: {port.type}
                 </code>
               ))}
             </div>
@@ -109,7 +120,9 @@ export function ConfigPanel({ node, meta, selectedFinding, onChange, onClose }: 
           <textarea
             className="json-editor"
             value={jsonDraft}
-            onChange={(e) => setJsonDraft(e.target.value)}
+            onChange={(event: ChangeEvent<HTMLTextAreaElement>) =>
+              setJsonDraft(event.target.value)
+            }
             spellCheck={false}
           />
           {jsonError && <p className="type-error">{jsonError}</p>}
@@ -124,8 +137,8 @@ export function ConfigPanel({ node, meta, selectedFinding, onChange, onClose }: 
                 }
                 onChange(parsed);
                 setJsonError(null);
-              } catch (err) {
-                setJsonError(err instanceof Error ? err.message : "Invalid JSON");
+              } catch (error) {
+                setJsonError(error instanceof Error ? error.message : "Invalid JSON");
               }
             }}
           >

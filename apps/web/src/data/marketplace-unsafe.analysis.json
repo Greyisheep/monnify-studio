@@ -27,7 +27,7 @@
       "rule_id": "MON009",
       "severity": "critical",
       "title": "Immediate split contradicts payout-after-fulfilment",
-      "message": "Transaction split settles to the provider at payment time — before fulfilment is confirmed.",
+      "message": "Transaction split settles to the provider at payment time - before fulfilment is confirmed.",
       "node_ids": ["split", "confirm"],
       "path": [],
       "explanation": "Split disburses immediately; this workflow also gates payout on fulfilment.",

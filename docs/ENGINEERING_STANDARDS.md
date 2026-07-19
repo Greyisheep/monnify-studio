@@ -47,12 +47,15 @@ Use these as the worked examples when in doubt:
 - **Deep module:** `analysis/engine.py::Analysis.unguarded_targets` - one small
   method expresses "can danger be reached without passing a guard?", and *most*
   MON rules are one line on top of it. Simple interface, powerful body.
+- **Deep module (frontend):** `apps/web/src/lib/flowIo.ts` - one adapter owns
+  IR <-> React Flow mapping so canvas components never invent edge kinds.
 - **Information hiding:** the `providers/` catalog hides every Monnify-specific
   detail behind a neutral `NodeTypeDef`. The analyzer reasons only over
   capability *tags* and never learns a provider exists (D13). Swapping providers
   touches one file.
-- **Different abstraction per layer:** `ir/` (graph shape) → `providers/`
-  (what nodes mean) → `analysis/` (correctness). No layer restates the one below.
+- **Different abstraction per layer:** `ir/` (graph shape) -> `providers/`
+  (what nodes mean) -> `analysis/` (correctness). No layer restates the one below.
+  On the web: `types` -> `lib` -> `hooks` -> `components`.
 - **Errors defined out of existence:** invalid workflows are rejected by typed
   connections at edit time, so the analyzer/executor never handle "impossible"
   graphs downstream.
@@ -158,14 +161,62 @@ restate the code (APOSD §7). One good reference beats a paragraph.
   callers must remember to check.
 - **Dependencies** are managed with `uv`; commit `uv.lock`.
 
-## 6. Frontend standards (when `apps/web` lands)
+## 6. Frontend standards (`apps/web`)
 
-- TypeScript strict; IR types are **generated** from the backend JSON Schema -
-  never hand-duplicated (single source of truth).
-- A cohesive design system (tokens, not ad-hoc styles) - design craft is a
-  feature here, not polish (D14).
-- Components are deep: a clean prop interface over real behaviour; no prop-drilling
-  soup.
+The Studio canvas is Next.js (App Router) + React Flow. Lane C owns this tree.
+Issue provenance for the Epic 1 shell: canvas editing (#4), Architecture Review
+panel (#27). Design craft is a feature, not polish (D14). Stack choice: D6.
+
+### Layout
+
+```
+apps/web/src/
+├── app/           # Next entry (page, layout, globals.css tokens)
+├── components/    # Presentational UI with narrow props
+├── hooks/         # Session (load/save/analyze/remediate) and graph edits
+├── lib/           # API client, IR <-> React Flow adapters, findings helpers
+├── types/         # IR/analysis contracts (temporary hand ports until codegen)
+└── data/          # Offline hero fixtures when the API is unreachable
+```
+
+### Rules
+
+- **TypeScript strict.** Prefer names that read as prose (`sourceNode`, not `n`).
+- **IR types: single source of truth (D6).** Target state: Pydantic exports JSON
+  Schema -> generated TS under `packages/` (or a generated folder the web app
+  imports). Do not invent a second IR model on the frontend.
+  - *Interim (until Phase 1.1 codegen lands):* hand ports may live in
+    `apps/web/src/types/`. Every such file must say it is interim, cite D6, and
+    name the Python module it mirrors. Prefer tightening the backend contract
+    and regenerating over growing the hand port.
+- **Deep modules, shallow props.** Hooks and `lib/` hide transport, validation,
+  and IR mapping. Components take focused props; avoid dumping every session
+  setter into child trees. Compose in `StudioApp`, do not recreate a god
+  component.
+- **Design tokens (D14).** Visual language lives in CSS custom properties in
+  `src/app/globals.css` (`:root`). New colors/fonts go through tokens first;
+  do not sprinkle one-off hexes into components. Tailwind is available but the
+  Studio shell is token-driven custom CSS on purpose.
+- **API boundary.** Talk to the FastAPI app only through `lib/api.ts`. Live API
+  is preferred; fixture fallback in `src/data/` is intentional for offline demo.
+  Default origin: `NEXT_PUBLIC_API_URL` (see `apps/web/.env.example`), typically
+  `http://127.0.0.1:8010` so it does not collide with other local services on
+  8000.
+- **Traceability.** Module headers cite the issue(s) and decision(s) they
+  implement (`#4`, `#27`, `D6`, `D14`), same bar as Python (§4).
+- **Scripts.** At minimum: `dev`, `build`, `lint`, `typecheck` (`tsc --noEmit`).
+  Keep the suite green before merge when CI covers web.
+
+### Worked frontend modules (APOSD)
+
+- **Deep module:** `lib/flowIo.ts` hides IR <-> React Flow mapping behind
+  `workflowToFlow` / `flowToWorkflow`. Canvas code never hand-builds IR edge
+  shapes.
+- **Information hiding:** `hooks/useStudioSession.ts` owns load/save/analyze/
+  remediate and source (`api` vs `fixture`). Presentational panels do not know
+  how fixtures are chosen.
+- **Different abstraction per layer:** `types` (contract) -> `lib` (IO/adapters)
+  -> `hooks` (session/graph behaviour) -> `components` (pixels).
 
 ---
 

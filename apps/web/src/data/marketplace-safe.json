@@ -1,7 +1,7 @@
 {
   "workflow": {
     "id": "marketplace-safe",
-    "name": "Marketplace — Safe",
+    "name": "Marketplace - Safe",
     "version": 1,
     "provider": "monnify",
     "description": "Payout-after-fulfilment marketplace with verification, idempotency, conditional payout via Transfer, and reconciliation.",

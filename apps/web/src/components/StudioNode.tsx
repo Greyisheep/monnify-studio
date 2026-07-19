@@ -1,10 +1,13 @@
+/**
+ * Canvas node chrome for React Flow. Provenance: #4, D14.
+ */
 "use client";
 
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 
-import type { StudioNodeData } from "@/lib/toReactFlow";
+import type { StudioNodeData } from "@/types";
 
-type StudioFlowNode = Node<StudioNodeData, "studio">;
+export type StudioFlowNode = Node<StudioNodeData, "studio">;
 
 const CATEGORY_CLASS: Record<string, string> = {
   monnify: "cat-monnify",
@@ -15,10 +18,10 @@ const CATEGORY_CLASS: Record<string, string> = {
 };
 
 export function StudioNode({ data, selected }: NodeProps<StudioFlowNode>) {
-  const cat = CATEGORY_CLASS[data.category] ?? "cat-application";
+  const categoryClass = CATEGORY_CLASS[data.category] ?? "cat-application";
 
   return (
-    <div className={`studio-node ${cat}${selected ? " is-selected" : ""}`}>
+    <div className={`studio-node ${categoryClass}${selected ? " is-selected" : ""}`}>
       <Handle type="target" position={Position.Left} className="studio-handle" />
       <span className="studio-node__cat">{data.category}</span>
       <strong className="studio-node__label">{data.label}</strong>

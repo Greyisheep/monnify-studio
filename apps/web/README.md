@@ -1,36 +1,91 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Monnify Studio (web)
 
-## Getting Started
+Next.js + React Flow shell for the Monnify Studio canvas: edit the payment IR,
+run Architecture Review, and Apply Fix against the FastAPI analyzer.
 
-First, run the development server:
+Tracks Epic 1 Lane C work: canvas + typed editing (#4), Architecture Review UI
+(#27). Design craft is intentional (D14). IR contract is D6.
+
+## What you get
+
+| Area | Behaviour |
+|------|-----------|
+| Canvas | React Flow graph of the marketplace hero (unsafe / safe toggle) |
+| Edit | Add / delete / connect nodes with typed connection checks |
+| Config | Business fields + advanced JSON for the selected node |
+| Review | Severity counts, finding cards, path highlight, Explain / Docs |
+| Remediate | Apply Fix (one rule or all) via the backend remediation engine |
+| Offline | Local fixtures in `src/data/` if the API is down |
+
+## Quickstart
+
+Needs Node 20+ and the API from `apps/api` when you want Live API mode.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# Terminal 1 - API (Python 3.11+, typically port 8010)
+cd apps/api
+# activate your venv, then:
+uvicorn monnify_studio.api.main:app --reload --port 8010
+
+# Terminal 2 - web
+cd apps/web
+cp .env.example .env.local   # if you do not already have one
+npm install
+npm run dev                  # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+`NEXT_PUBLIC_API_URL` defaults to `http://127.0.0.1:8010`. If the API is
+unreachable, the UI still loads hero fixtures and marks the source as
+"Local fixtures".
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Command | Purpose |
+|---------|---------|
+| `npm run dev` | Next.js dev server |
+| `npm run build` | Production build |
+| `npm run start` | Serve the production build |
+| `npm run lint` | ESLint (next/core-web-vitals) |
+| `npm run typecheck` | `tsc --noEmit` |
 
-## Learn More
+## Source map
 
-To learn more about Next.js, take a look at the following resources:
+```
+src/
+├── app/                 # Next entry + globals.css design tokens
+├── components/          # Header, toolbar, canvas, config, review, node
+├── hooks/
+│   ├── useStudioSession.ts   # load / save / analyze / remediate
+│   └── useStudioGraph.ts     # connect, add, delete, update selection
+├── lib/
+│   ├── api.ts                # FastAPI client + fixture fallback
+│   ├── flowIo.ts             # IR <-> React Flow
+│   ├── findings.ts           # highlight + diff copy helpers
+│   └── constants.ts          # heroes + palette
+├── types/               # Interim hand ports of IR/analysis (see D6)
+└── data/                # Offline marketplace-unsafe / -safe payloads
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Read [`docs/ENGINEERING_STANDARDS.md`](../../docs/ENGINEERING_STANDARDS.md) §6
+for the frontend rules this tree is held to.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Design tokens (D14)
 
-## Deploy on Vercel
+Tokens live in `src/app/globals.css` under `:root` (`--ink`, `--paper`,
+`--accent`, category colors, fonts). Prefer extending those variables over
+adding one-off colors in components.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## IR types (D6, interim)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+`src/types/` currently mirrors backend Pydantic shapes by hand. That is an
+acknowledged interim until Phase 1.1 JSON Schema -> TypeScript codegen lands
+(see BUILD_PLAN D6). Do not grow a parallel IR here; fix the backend contract
+and plan to regenerate.
+
+UI-only types (`StudioNodeData` in `types/canvas.ts`) stay frontend-owned.
+
+## Related docs
+
+- [`docs/BUILD_PLAN.md`](../../docs/BUILD_PLAN.md) - epics, phases, decisions
+- [`docs/ENGINEERING_STANDARDS.md`](../../docs/ENGINEERING_STANDARDS.md) - APOSD + FE standards
+- Root [`README.md`](../../README.md) - product thesis + combined quickstart
