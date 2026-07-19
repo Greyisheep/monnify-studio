@@ -27,6 +27,9 @@
       <h2>{{ config.product_name }}</h2>
       <p class="price"><span class="naira">NGN</span> {{ price_display }}</p>
       <button id="pay" class="btn-primary" type="button">Pay now</button>
+      <button id="claim" class="btn-ghost claim" type="button" hidden>
+        I have sent the money
+      </button>
       <p id="status" class="status" role="status"></p>
       <p class="trust">
         <span class="dot" aria-hidden="true"></span>
@@ -43,7 +46,10 @@
 
   <script>
     const btn = document.getElementById("pay");
+    const claim = document.getElementById("claim");
     const status = document.getElementById("status");
+    let orderRef = null;
+
     btn.addEventListener("click", async () => {
       btn.disabled = true;
       status.textContent = "Creating secure checkout...";
@@ -51,12 +57,37 @@
         const res = await fetch("/preview/{{ artifact_id }}/pay", { method: "POST" });
         if (!res.ok) throw new Error((await res.json()).detail || "checkout failed");
         const data = await res.json();
-        status.textContent = "Opening Monnify checkout (order " + data.order_reference + ")";
+        orderRef = data.order_reference;
+        status.textContent = "Opening Monnify checkout (order " + orderRef + ")";
+        claim.hidden = false;
         window.open(data.checkout_url, "_blank", "noopener");
       } catch (err) {
         status.textContent = "Could not start checkout: " + err.message;
       } finally {
         btn.disabled = false;
+      }
+    });
+
+    // The fake-credit-alert trust boundary (#53): claiming payment only
+    // triggers a server-side check with Monnify; it never marks anything paid.
+    claim.addEventListener("click", async () => {
+      if (!orderRef) return;
+      claim.disabled = true;
+      status.textContent = "Checking with Monnify...";
+      try {
+        const res = await fetch(
+          "/preview/{{ artifact_id }}/orders/" + orderRef + "/verify",
+          { method: "POST" },
+        );
+        if (!res.ok) throw new Error((await res.json()).detail || "verify failed");
+        const order = await res.json();
+        status.textContent = order.status === "verified"
+          ? "Payment confirmed. Thank you!"
+          : "We checked with Monnify: " + order.note + ".";
+      } catch (err) {
+        status.textContent = "Could not verify: " + err.message;
+      } finally {
+        claim.disabled = false;
       }
     });
   </script>

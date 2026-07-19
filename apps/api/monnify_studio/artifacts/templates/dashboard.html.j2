@@ -57,7 +57,10 @@
         rows.innerHTML = orders.map(o =>
           "<tr><td>" + o.reference + "</td><td>" + o.product + "</td><td>NGN " +
           Number(o.amount).toLocaleString() + "</td><td>" +
-          (BADGE[o.status] || o.status) + "</td></tr>").join("");
+          (BADGE[o.status] || o.status) +
+          (o.note && o.status !== "verified"
+            ? '<div class="note">' + o.note + "</div>" : "") +
+          "</td></tr>").join("");
         empty.style.display = orders.length ? "none" : "block";
       } catch { empty.style.display = "block"; }
     }
