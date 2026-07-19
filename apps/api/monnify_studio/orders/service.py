@@ -15,6 +15,7 @@ Design notes:
 
 from __future__ import annotations
 
+import inspect
 from enum import Enum
 from typing import Any, Callable, Protocol
 
@@ -24,8 +25,8 @@ from ..observability import get_logger
 
 log = get_logger("orders")
 
-# Returns {"status": "PAID" | "PENDING" | ..., "amount_paid": float}
-Verifier = Callable[[str], dict[str, Any]]
+# (payment_reference, workflow_id) -> {"status": "PAID"|..., "amount_paid": float}
+Verifier = Callable[..., dict[str, Any]]
 
 NOTE_NO_PAYMENT = "No confirmed payment found for this reference"
 NOTE_UNDERPAID = "Amount paid is less than the order total"
@@ -47,18 +48,20 @@ class Order(BaseModel):
     note: str = ""
     payment_reference: str = ""
     transaction_reference: str = ""
+    workflow_id: str | None = None  # whose credentials verify this order (#68)
 
 
 class _SupportsQuery(Protocol):  # what the real client provides
     def query_transaction(self, *, payment_reference: str) -> dict[str, Any]: ...
 
 
-def monnify_verifier(payment_reference: str) -> dict[str, Any]:
-    """Default verifier: ask the Monnify sandbox for the truth (#53)."""
-    from ..config import Settings
+def monnify_verifier(payment_reference: str, workflow_id: str | None = None) -> dict[str, Any]:
+    """Default verifier: ask Monnify for the truth, using this workflow's own
+    credentials when it has them, else the platform keys (#53, #68)."""
+    from ..credentials import credential_store
     from ..integrations.monnify import MonnifySandboxClient
 
-    with MonnifySandboxClient(Settings()) as client:
+    with MonnifySandboxClient(credential_store.settings_for(workflow_id)) as client:
         return client.query_transaction(payment_reference=payment_reference)
 
 
@@ -94,6 +97,20 @@ class OrdersService:
     def get(self, reference: str) -> Order | None:
         return self._orders.get(reference)
 
+    def _query(self, order: Order) -> dict[str, Any]:
+        """Ask the verifier for provider truth, passing the workflow id to
+        credential-aware verifiers while still supporting single-arg fakes."""
+        try:
+            params = inspect.signature(self.verifier).parameters
+            accepts_workflow = len(params) >= 2 or any(
+                p.kind in (p.VAR_POSITIONAL, p.VAR_KEYWORD) for p in params.values()
+            )
+        except (TypeError, ValueError):
+            accepts_workflow = False
+        if accepts_workflow:
+            return self.verifier(order.payment_reference, order.workflow_id)
+        return self.verifier(order.payment_reference)
+
     def for_artifact(self, artifact_id: str) -> list[Order]:
         return [o for o in self._orders.values() if o.artifact_id == artifact_id]
 
@@ -112,7 +129,7 @@ class OrdersService:
         if order.status is OrderStatus.VERIFIED:
             return order  # terminal; nothing a repeat call should change
 
-        truth = self.verifier(order.payment_reference)
+        truth = self._query(order)
         status = str(truth.get("status", "UNKNOWN")).upper()
         amount_paid = float(truth.get("amount_paid") or 0.0)
 
