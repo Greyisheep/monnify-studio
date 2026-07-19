@@ -45,6 +45,8 @@ correctness **visible and checkable** before it ever touches real money.
   returning a real checkout URL, fully traced with secrets redacted.
 - **Observability** - structured JSON logs plus OpenTelemetry tracing with
   context propagation and secret redaction, used by everything above.
+- **Visual canvas** (Next.js + React Flow): the hero graph with flagged nodes,
+  an Architecture Review sidebar, and one-click Apply-Fix.
 
 See [`docs/BUILD_PLAN.md`](docs/BUILD_PLAN.md) for the full epic → phase → issue
 plan and the locked architecture decisions, and
@@ -75,6 +77,27 @@ uv run pytest -q
 
 Expected: the unsafe marketplace reports 3 critical + 1 high finding; the safe
 marketplace reports none.
+
+## Running the full app (API + canvas)
+
+Two servers. Backend API:
+
+```bash
+cd apps/api
+uv run uvicorn monnify_studio.api.app:app --port 8000
+```
+
+Frontend canvas, in another terminal:
+
+```bash
+cd apps/web
+npm install
+npm run dev   # http://localhost:3000
+```
+
+Open http://localhost:3000: the marketplace hero renders on the canvas, the
+Architecture Review flags the unsafe patterns, and Apply Fix rewrites the graph
+into a clean one in front of you.
 
 ## Layout
 
