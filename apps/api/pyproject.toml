@@ -5,6 +5,8 @@ description = "AI-native development environment for building reliable payment i
 requires-python = ">=3.11"
 dependencies = [
     "pydantic>=2.6",
+    "pydantic-settings>=2.2",
+    "httpx>=0.27",
     "structlog>=24.1",
     "opentelemetry-api>=1.24",
     "opentelemetry-sdk>=1.24",
@@ -17,8 +19,6 @@ api = [
     "sqlalchemy>=2.0",
     "alembic>=1.13",
     "psycopg[binary]>=3.1",
-    "pydantic-settings>=2.2",
-    "httpx>=0.27",
     "opentelemetry-instrumentation-fastapi>=0.45b0",
     "opentelemetry-instrumentation-httpx>=0.45b0",
     "opentelemetry-exporter-otlp-proto-http>=1.24",
