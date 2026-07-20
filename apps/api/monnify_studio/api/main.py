@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 
 from decimal import Decimal
 from uuid import uuid4
@@ -1053,3 +1054,10 @@ async def stream_execution_events(run_id: str) -> StreamingResponse:
             "X-Accel-Buffering": "no",
         },
     )
+
+
+# Demo seed (#116): only when the deploy asks for it; tests/dev stay pristine.
+if os.getenv("STUDIO_SEED_DEMO") == "1":  # pragma: no cover - deploy-time path
+    from .seed import seed_demo
+
+    seed_demo()
