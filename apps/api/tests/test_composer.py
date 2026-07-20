@@ -105,3 +105,22 @@ def test_compose_endpoint_503_without_provider(monkeypatch):
     monkeypatch.setattr(composer_mod, "select_provider", lambda p=None: KeywordFallback())
     res = client.post("/assistant/compose", json={"message": "ajo"})
     assert res.status_code == 503
+
+
+def test_compose_stream_emits_status_and_result(monkeypatch):
+    monkeypatch.setattr(
+        composer_mod, "select_provider", lambda p=None: _FakeProvider([UNSAFE_AJO])
+    )
+    with client.stream(
+        "POST",
+        "/assistant/compose/stream",
+        json={"message": "I want an ajo app"},
+        headers={"Accept": "text/event-stream"},
+    ) as response:
+        assert response.status_code == 200
+        body = response.read().decode()
+    assert "event: status" in body
+    assert "Designing nodes from the catalog" in body
+    assert "event: result" in body
+    assert "event: done" in body
+    assert "Ajo contributions" in body

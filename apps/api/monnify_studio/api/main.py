@@ -311,7 +311,7 @@ def assistant_compose(body: AssistantRequest) -> ComposeResponse:
     """
     with correlation(request_id=new_id("moni")):
         try:
-            outcome = compose_flow(body.message, provider=body.provider)
+            return _compose_response(body)
         except ComposeUnavailable as exc:
             raise HTTPException(status_code=503, detail=str(exc)) from None
         except ComposeError as exc:
@@ -319,24 +319,85 @@ def assistant_compose(body: AssistantRequest) -> ComposeResponse:
                 status_code=422,
                 detail=f"Moni could not produce a valid flow: {'; '.join(exc.errors)}",
             ) from None
-        saved = store.save(outcome.workflow)
-        payload = _enrich(saved)
-        log.info(
-            "assistant.compose",
-            workflow=saved.id,
-            provider=outcome.provider,
-            caught=len(outcome.report_before.findings),
-            remaining=len(outcome.report_after.findings),
-        )
-        return ComposeResponse(
-            workflow=payload.workflow,
-            node_types=payload.node_types,
-            analysis=outcome.report_after,
-            findings_caught=[f.rule_id for f in outcome.report_before.findings],
-            steps=outcome.steps,
-            provider=outcome.provider,
-            explanation=outcome.explanation,
-        )
+
+
+def _compose_response(body: AssistantRequest) -> ComposeResponse:
+    outcome = compose_flow(body.message, provider=body.provider)
+    saved = store.save(outcome.workflow)
+    payload = _enrich(saved)
+    log.info(
+        "assistant.compose",
+        workflow=saved.id,
+        provider=outcome.provider,
+        caught=len(outcome.report_before.findings),
+        remaining=len(outcome.report_after.findings),
+    )
+    return ComposeResponse(
+        workflow=payload.workflow,
+        node_types=payload.node_types,
+        analysis=outcome.report_after,
+        findings_caught=[f.rule_id for f in outcome.report_before.findings],
+        steps=outcome.steps,
+        provider=outcome.provider,
+        explanation=outcome.explanation,
+    )
+
+
+@app.post("/assistant/compose/stream")
+async def assistant_compose_stream(body: AssistantRequest) -> StreamingResponse:
+    """SSE progress while Moni composes a flow (#55, #15)."""
+    async def event_generator():
+        def sse(event: str, data: dict) -> str:
+            return f"event: {event}\ndata: {json.dumps(data)}\n\n"
+
+        try:
+            yield sse("status", {"text": "Reading what you need..."})
+            loop = asyncio.get_running_loop()
+            yield sse("status", {"text": "Designing nodes from the catalog..."})
+            outcome = await loop.run_in_executor(
+                None, lambda: compose_flow(body.message, provider=body.provider)
+            )
+            yield sse("status", {"text": "Running architecture review..."})
+            saved = store.save(outcome.workflow)
+            payload = _enrich(saved)
+            log.info(
+                "assistant.compose.stream",
+                workflow=saved.id,
+                provider=outcome.provider,
+            )
+            response = ComposeResponse(
+                workflow=payload.workflow,
+                node_types=payload.node_types,
+                analysis=outcome.report_after,
+                findings_caught=[f.rule_id for f in outcome.report_before.findings],
+                steps=outcome.steps,
+                provider=outcome.provider,
+                explanation=outcome.explanation,
+            )
+            yield sse("result", response.model_dump(mode="json"))
+            yield "event: done\ndata: {}\n\n"
+        except ComposeUnavailable as exc:
+            yield sse("error", {"status": 503, "detail": str(exc)})
+            yield "event: done\ndata: {}\n\n"
+        except ComposeError as exc:
+            yield sse(
+                "error",
+                {
+                    "status": 422,
+                    "detail": f"Moni could not produce a valid flow: {'; '.join(exc.errors)}",
+                },
+            )
+            yield "event: done\ndata: {}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @app.get("/templates", response_model=list[TemplateInfo])

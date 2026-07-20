@@ -1,7 +1,3 @@
-/**
- * Session orchestration: load/open workflows, templates, Moni, Apply Fix.
- * Provenance: #4, #27, #6, #37, #15, #55, D16, D17.
- */
 "use client";
 
 import { useCallback, useEffect, useState, type Dispatch, type SetStateAction } from "react";
@@ -20,6 +16,7 @@ import {
   remediateWorkflow,
   resetWorkflow,
   saveWorkflow,
+  streamComposeWorkflow,
   type DataSource,
 } from "@/lib/api";
 import type { HeroId } from "@/lib/constants";
@@ -310,12 +307,20 @@ export function useStudioSession({ setNodes, setEdges }: UseStudioSessionOptions
     [reanalyze],
   );
 
-  const askMoni = useCallback(async (message: string): Promise<MoniAskResult> => {
+  const askMoni = useCallback(
+    async (
+      message: string,
+      onStatus?: (text: string) => void,
+    ): Promise<MoniAskResult> => {
     setBusy(true);
     setTypeError(null);
     try {
       try {
-        const composed = await composeWorkflow(message);
+        const streamed = await streamComposeWorkflow(message, (text) => {
+          onStatus?.(text);
+        });
+        const composed =
+          streamed ?? (await composeWorkflow(message));
         applyPayload(
           composed.workflow,
           { ...catalog, ...composed.node_types },
@@ -344,6 +349,7 @@ export function useStudioSession({ setNodes, setEdges }: UseStudioSessionOptions
         if (!msg.startsWith("503")) throw composeError;
       }
 
+      onStatus?.("Matching a vetted template...");
       const intent = await classifyIntent(message);
       if (
         !intent.template_id ||
@@ -412,7 +418,7 @@ export function useStudioSession({ setNodes, setEdges }: UseStudioSessionOptions
         try {
           artifact = await generateArtifact(payload.workflow.id, seed);
         } catch {
-          // Graph may still have findings / generate refused; canvas is still usable.
+          
           artifact = null;
         }
 

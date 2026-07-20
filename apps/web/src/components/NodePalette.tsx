@@ -1,8 +1,3 @@
-/**
- * Left API catalog sidebar matched to Figma Main (15:742).
- * Panel icon collapses the catalog for more canvas room.
- * Provenance: #44, Figma Monnify-challenge.
- */
 "use client";
 
 import Image from "next/image";
@@ -21,7 +16,10 @@ export interface NodePaletteProps {
   onLeftTabChange: (tab: "api" | "chat") => void;
   onToggleCollapsed: () => void;
   onAdd: (typeKey: string) => void;
-  onAsk: (message: string) => Promise<MoniAskResult>;
+  onAsk: (
+    message: string,
+    onStatus?: (text: string) => void,
+  ) => Promise<MoniAskResult>;
   onSetupIntent: (
     templateId: string,
     config: IntentResult["config"],
