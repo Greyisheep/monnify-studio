@@ -147,6 +147,14 @@ CORE_NODE_TYPES: list[NodeTypeDef] = [
         description="Non-financial side effect (email/SMS/push).",
     ),
     NodeTypeDef(
+        type="app.notify_whatsapp",
+        category=C.APPLICATION,
+        title="Send WhatsApp",
+        description="Message a person on WhatsApp (via Evolution API) - e.g. send the "
+        "invoice link, or a thank-you once payment is confirmed (#99).",
+        inputs=[PortSpec(name="recipient", type=D.ANY, required=False)],
+    ),
+    NodeTypeDef(
         type="app.data_rows",
         category=C.APPLICATION,
         title="Data Rows (CSV / Sheet)",
