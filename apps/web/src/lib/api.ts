@@ -1,16 +1,25 @@
 /**
  * Studio HTTP client: live FastAPI preferred, offline fixtures as fallback.
- * Hides transport details from hooks/components. Provenance: #4, #27, #28, #44, D6.
+ * Hides transport details from hooks/components.
+ * Provenance: #4, #27, #28, #44, #15, #55, #51, #52, #68, D6, D17, D19.
  */
 import type {
   AnalysisReport,
+  ArtifactConfigInput,
+  ComposeResult,
+  CredentialStatus,
   ExecutionEvent,
   ExecutionRun,
+  GenerateArtifactResult,
+  IntentResult,
+  MonnifyCredentialInput,
   NodeMeta,
   RemediateResult,
   StartExecutionResult,
+  TemplateInfo,
   Workflow,
   WorkflowPayload,
+  WorkflowSummary,
 } from "@/types";
 
 import unsafePayload from "@/data/marketplace-unsafe.json";
@@ -212,6 +221,57 @@ export async function streamExecutionEvents(
       onEvent(JSON.parse(payload) as ExecutionEvent);
     }
   }
+}
+
+export async function composeWorkflow(message: string): Promise<ComposeResult> {
+  return postJson<ComposeResult>("/assistant/compose", { message });
+}
+
+export async function classifyIntent(message: string): Promise<IntentResult> {
+  return postJson<IntentResult>("/assistant/intent", { message });
+}
+
+export async function createFromTemplate(
+  templateId: string,
+): Promise<WorkflowPayload> {
+  return postJson<WorkflowPayload>(`/workflows/from-template/${templateId}`, {});
+}
+
+export async function listWorkflows(): Promise<WorkflowSummary[]> {
+  const live = await tryGetJson<WorkflowSummary[]>("/workflows");
+  return live ?? [];
+}
+
+export async function listTemplates(): Promise<TemplateInfo[]> {
+  const live = await tryGetJson<TemplateInfo[]>("/templates");
+  return live ?? [];
+}
+
+export async function fetchCredentialStatus(
+  workflowId: string,
+): Promise<CredentialStatus | null> {
+  return tryGetJson<CredentialStatus>(`/workflows/${workflowId}/credentials`);
+}
+
+export async function putCredentials(
+  workflowId: string,
+  creds: MonnifyCredentialInput,
+): Promise<CredentialStatus> {
+  return putJson<CredentialStatus>(`/workflows/${workflowId}/credentials`, creds);
+}
+
+export async function generateArtifact(
+  workflowId: string,
+  config: ArtifactConfigInput = {},
+): Promise<GenerateArtifactResult> {
+  return postJson<GenerateArtifactResult>(`/workflows/${workflowId}/generate`, {
+    config,
+  });
+}
+
+export function absoluteApiUrl(path: string): string {
+  if (path.startsWith("http://") || path.startsWith("https://")) return path;
+  return `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
 }
 
 export { API_BASE };

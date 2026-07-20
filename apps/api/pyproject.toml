@@ -19,6 +19,7 @@ api = [
     "sqlalchemy>=2.0",
     "alembic>=1.13",
     "psycopg[binary]>=3.1",
+    "jinja2>=3.1",
     "opentelemetry-instrumentation-fastapi>=0.45b0",
     "opentelemetry-instrumentation-httpx>=0.45b0",
     "opentelemetry-exporter-otlp-proto-http>=1.24",

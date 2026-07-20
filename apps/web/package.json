@@ -13,6 +13,7 @@
   "dependencies": {
     "@dagrejs/dagre": "^3.0.0",
     "@xyflow/react": "^12.11.2",
+    "geist": "^1.7.2",
     "next": "15.5.20",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
