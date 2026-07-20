@@ -631,6 +631,63 @@ def list_orders(artifact_id: str) -> list[Order]:
     return orders_service.for_artifact(artifact_id)
 
 
+class ActivityItem(BaseModel):
+    ts: str
+    kind: str  # "run" | "notification" | "ledger"
+    text: str  # plain words, no node ids or internal refs (kid-lens, #78/#79)
+
+
+_RUN_WORDS = {
+    "completed": "Practice run finished: everything worked",
+    "failed": "A run hit a problem",
+    "running": "A run is in progress",
+    "waiting": "Waiting for something to happen (like a payment)",
+    "pending": "A run is queued",
+}
+
+
+@app.get("/preview/{artifact_id}/activity", response_model=list[ActivityItem])
+def artifact_activity(artifact_id: str) -> list[ActivityItem]:
+    """Life for the generated dashboard, in plain words (#78).
+
+    Notifications and ledger entries are derived from real execution events of
+    the underlying workflow; friendly v1 lives here until #79 moves it into the
+    executor itself.
+    """
+    artifact = _artifact_or_404(artifact_id)
+    items: list[ActivityItem] = []
+    for run in execution_store.list_runs(artifact.workflow_id):
+        status = run.status.value if hasattr(run.status, "value") else str(run.status)
+        items.append(
+            ActivityItem(
+                ts=run.created_at.isoformat(),
+                kind="run",
+                text=_RUN_WORDS.get(status, f"Run {status}"),
+            )
+        )
+        for ev in execution_store.list_events(run.id):
+            if ev.type.value != "node.completed" or not ev.node_type:
+                continue
+            if ev.node_type == "app.notify":
+                items.append(
+                    ActivityItem(
+                        ts=ev.ts.isoformat(),
+                        kind="notification",
+                        text=f"Notification sent: {ev.message}",
+                    )
+                )
+            elif ev.node_type == "app.credit_ledger":
+                items.append(
+                    ActivityItem(
+                        ts=ev.ts.isoformat(),
+                        kind="ledger",
+                        text=f"Money recorded: {ev.message}",
+                    )
+                )
+    items.sort(key=lambda i: i.ts, reverse=True)
+    return items[:50]
+
+
 @app.post("/preview/{artifact_id}/orders/{reference}/verify", response_model=Order)
 def verify_order(artifact_id: str, reference: str) -> Order:
     """The fake-credit-alert trust boundary (#53, D17).

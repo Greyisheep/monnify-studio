@@ -10,9 +10,18 @@ The skin is one stylesheet (`templates/skin.css.j2`) so design (#59 item 1)
 can restyle without touching structure or behavior.
 """
 
-from .generator import ArtifactConfig, GeneratedArtifact, artifact_store, generate_artifact
+from .generator import (
+    ArtifactConfig,
+    FlowFeatures,
+    GeneratedArtifact,
+    artifact_store,
+    flow_features,
+    generate_artifact,
+)
 
 __all__ = [
+    "FlowFeatures",
+    "flow_features",
     "ArtifactConfig",
     "GeneratedArtifact",
     "artifact_store",

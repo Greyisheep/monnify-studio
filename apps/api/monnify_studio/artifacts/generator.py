@@ -17,11 +17,42 @@ from jinja2 import Environment, PackageLoader, select_autoescape
 from pydantic import BaseModel, Field, field_validator
 
 from ..analysis import analyze
+from ..ir.types import CapabilityTag as T
 from ..ir.models import Workflow
 from ..observability import get_logger
 from ..providers import default_catalog
 
 log = get_logger("artifacts")
+
+# Node types that collect money in (no capability tag distinguishes collection
+# yet, so v1 detects by type; everything else below is tag-driven, D13).
+_COLLECTING_TYPES = {"monnify.initialize_transaction", "monnify.create_reserved_account"}
+
+
+class FlowFeatures(BaseModel):
+    """What a flow can do, detected from its graph: drives which dashboard
+    sections exist, so ANY composed idea ends in a product (#78, D17)."""
+
+    collects: bool = False
+    has_ledger: bool = False
+    has_notify: bool = False
+    has_payout: bool = False
+
+
+def flow_features(workflow: Workflow) -> FlowFeatures:
+    catalog = default_catalog()
+    features = FlowFeatures()
+    for node in workflow.nodes:
+        tags = catalog.effective_tags(node)
+        if node.type in _COLLECTING_TYPES:
+            features.collects = True
+        if T.MUTATES_LEDGER in tags:
+            features.has_ledger = True
+        if node.type == "app.notify":
+            features.has_notify = True
+        if T.BENEFICIARY_TRANSFER in tags or T.MONEY_MOVEMENT in tags:
+            features.has_payout = True
+    return features
 
 _env = Environment(
     loader=PackageLoader("monnify_studio.artifacts", "templates"),
@@ -93,8 +124,10 @@ def generate_artifact(workflow: Workflow, config: ArtifactConfig) -> GeneratedAr
     context = {
         "config": config,
         "workflow_id": workflow.id,
+        "workflow_name": workflow.name,
         "artifact_id": artifact_id,
         "price_display": f"{config.price_ngn:,}",
+        "features": flow_features(workflow),  # section switches (#78)
     }
     artifact = GeneratedArtifact(
         artifact_id=artifact_id,

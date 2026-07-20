@@ -27,6 +27,13 @@ class ExecutionStore:
         with self._lock:
             return self._runs.get(run_id)
 
+    def list_runs(self, workflow_id: str, *, limit: int = 10) -> list[ExecutionRun]:
+        """Recent runs for one workflow, newest first (dashboard activity, #78)."""
+        with self._lock:
+            runs = [r for r in self._runs.values() if r.workflow_id == workflow_id]
+        runs.sort(key=lambda r: r.created_at, reverse=True)
+        return runs[:limit]
+
     def set_status(
         self,
         run_id: str,
