@@ -1,10 +1,12 @@
 /**
  * Left API catalog sidebar matched to Figma Main (21:1670).
  * Panel icon collapses into Maincollapsed floating chrome (21:1732).
+ * Icons: Lucide PanelLeft, Share2, FileText.
  */
 "use client";
 
 import Image from "next/image";
+import { FileText, PanelLeft, Share2 } from "lucide-react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 
 import type { IntentResult, MoniAskResult, NodeMeta } from "@/types";
@@ -139,12 +141,10 @@ export function NodePalette({
           title="Collapse panels"
           aria-label="Collapse panels"
         >
-          <Image
-            src="/figma/icon-panel-left.svg"
-            alt=""
-            width={16}
-            height={16}
-            unoptimized
+          <PanelLeft
+            aria-hidden
+            size={16}
+            strokeWidth={1.5}
             className="studio-sidebar__icon"
           />
         </button>
@@ -199,12 +199,10 @@ export function NodePalette({
                           onClick={() => onAdd(item.type)}
                         >
                           {!featured ? (
-                            <Image
-                              src="/figma/icon-node.svg"
-                              alt=""
-                              width={16}
-                              height={16}
-                              unoptimized
+                            <Share2
+                              aria-hidden
+                              size={16}
+                              strokeWidth={1.5}
                               className="studio-sidebar__icon"
                             />
                           ) : null}
@@ -213,13 +211,7 @@ export function NodePalette({
                           </span>
                           {featured ? (
                             <span className="studio-sidebar__item-badge" aria-hidden>
-                              <Image
-                                src="/figma/icon-invoice.svg"
-                                alt=""
-                                width={16}
-                                height={16}
-                                unoptimized
-                              />
+                              <FileText size={16} strokeWidth={1.5} />
                             </span>
                           ) : null}
                         </button>

@@ -1,9 +1,10 @@
 /**
  * Right inspect sidebar: moon / Run / Deploy + Preview | Code (Figma Main 21:1670).
+ * Icons: Lucide Moon + Play.
  */
 "use client";
 
-import Image from "next/image";
+import { Moon, Play } from "lucide-react";
 import type { PointerEvent as ReactPointerEvent, ReactNode } from "react";
 
 export interface RightSidebarProps {
@@ -50,13 +51,7 @@ export function RightSidebar({
           aria-label="Theme"
           disabled
         >
-          <Image
-            src="/figma/icon-moon.svg"
-            alt=""
-            width={16}
-            height={16}
-            unoptimized
-          />
+          <Moon aria-hidden size={16} strokeWidth={1.5} />
         </button>
         <div className="studio-sidebar__action-row">
           <button
@@ -65,13 +60,7 @@ export function RightSidebar({
             disabled={busy || running || !canAct}
             onClick={onRun}
           >
-            <Image
-              src="/figma/icon-play.svg"
-              alt=""
-              width={12}
-              height={12}
-              unoptimized
-            />
+            <Play aria-hidden size={12} strokeWidth={1.5} fill="currentColor" />
             {running ? "Running…" : "Run"}
           </button>
           <button

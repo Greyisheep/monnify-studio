@@ -1,9 +1,11 @@
 /**
  * Floating chrome pills for Figma Maincollapsed (21:1732).
+ * Icons: Lucide PanelLeft, Moon, Play.
  */
 "use client";
 
 import Image from "next/image";
+import { Moon, PanelLeft, Play } from "lucide-react";
 
 export interface StudioFloatingChromeProps {
   workflowName?: string;
@@ -47,13 +49,7 @@ export function StudioFloatingChrome({
           title="Show side panels"
           aria-label="Show side panels"
         >
-          <Image
-            src="/figma/icon-panel-left.svg"
-            alt=""
-            width={16}
-            height={16}
-            unoptimized
-          />
+          <PanelLeft aria-hidden size={16} strokeWidth={1.5} />
         </button>
       </div>
 
@@ -65,13 +61,7 @@ export function StudioFloatingChrome({
           aria-label="Theme"
           disabled
         >
-          <Image
-            src="/figma/icon-moon.svg"
-            alt=""
-            width={16}
-            height={16}
-            unoptimized
-          />
+          <Moon aria-hidden size={16} strokeWidth={1.5} />
         </button>
         <span className="studio-float__divider" aria-hidden />
         <button
@@ -80,13 +70,7 @@ export function StudioFloatingChrome({
           disabled={busy || running || !canAct}
           onClick={onRun}
         >
-          <Image
-            src="/figma/icon-play.svg"
-            alt=""
-            width={12}
-            height={12}
-            unoptimized
-          />
+          <Play aria-hidden size={12} strokeWidth={1.5} fill="currentColor" />
           {running ? "Running…" : "Run"}
         </button>
         <button

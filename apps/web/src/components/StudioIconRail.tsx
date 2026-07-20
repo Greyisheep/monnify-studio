@@ -1,10 +1,11 @@
 /**
  * Far-left icon rail from Figma Main (21:1670).
- * Plus → new template; grid → dashboard; workflow → canvas.
+ * Icons: Lucide (design system) — Plus, LayoutGrid, Workflow.
  */
 "use client";
 
 import Image from "next/image";
+import { LayoutGrid, Plus, Workflow } from "lucide-react";
 
 export interface StudioIconRailProps {
   active?: "workflow" | "dashboard" | "new";
@@ -36,7 +37,7 @@ export function StudioIconRail({
           aria-label="New workflow"
           onClick={onNew}
         >
-          <Image src="/figma/icon-plus.svg" alt="" width={16} height={16} unoptimized />
+          <Plus aria-hidden size={16} strokeWidth={1.5} />
         </button>
         <button
           type="button"
@@ -45,7 +46,7 @@ export function StudioIconRail({
           aria-label="Dashboard"
           onClick={onDashboard}
         >
-          <Image src="/figma/icon-grid.svg" alt="" width={16} height={16} unoptimized />
+          <LayoutGrid aria-hidden size={16} strokeWidth={1.5} />
         </button>
         <button
           type="button"
@@ -54,13 +55,7 @@ export function StudioIconRail({
           aria-label="Workflow canvas"
           aria-current={active === "workflow" ? "page" : undefined}
         >
-          <Image
-            src="/figma/icon-workflow.svg"
-            alt=""
-            width={16}
-            height={16}
-            unoptimized
-          />
+          <Workflow aria-hidden size={16} strokeWidth={1.5} />
         </button>
       </div>
     </nav>
