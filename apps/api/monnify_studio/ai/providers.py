@@ -22,6 +22,11 @@ log = get_logger("ai")
 # Default model per the Claude API guidance; overridable via env for testing.
 _ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-5")
 
+# Hard per-call timeout (#106): without it the SDK default is ~600s, and since
+# these run on synchronous endpoints a provider hang would block the worker for
+# minutes AND defeat the fallbacks, which only fire on an exception, not a stall.
+_TIMEOUT_S = float(os.getenv("AI_TIMEOUT_S", "25"))
+
 
 class AIProvider(Protocol):
     name: str
@@ -111,7 +116,7 @@ class AnthropicProvider:
     ) -> BaseModel:
         import anthropic
 
-        client = anthropic.Anthropic(api_key=_anthropic_key())
+        client = anthropic.Anthropic(api_key=_anthropic_key(), timeout=_TIMEOUT_S)
         resp = client.messages.parse(
             model=_ANTHROPIC_MODEL,
             max_tokens=max_tokens,
@@ -147,7 +152,7 @@ class OpenAIProvider:
     ) -> BaseModel:
         from openai import OpenAI
 
-        client = OpenAI()
+        client = OpenAI(timeout=_TIMEOUT_S)
         completion = client.beta.chat.completions.parse(
             model=os.getenv("OPENAI_MODEL", "gpt-5-mini"),
             messages=[
@@ -183,7 +188,10 @@ class GoogleProvider:
     ) -> BaseModel:
         from google import genai
 
-        client = genai.Client(api_key=_google_key())
+        client = genai.Client(
+            api_key=_google_key(),
+            http_options={"timeout": int(_TIMEOUT_S * 1000)},  # genai timeout is ms
+        )
         resp = client.models.generate_content(
             # gemini-flash-latest tracks the newest Flash on this key (#15).
             model=os.getenv("GOOGLE_MODEL", "gemini-flash-latest"),
