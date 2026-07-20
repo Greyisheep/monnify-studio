@@ -52,7 +52,6 @@ export interface RemediateResult {
   diff: GraphDiff;
 }
 
-/** POST /assistant/compose — Moni ceiling (#15 / #55). */
 export interface ComposeResult {
   workflow: Workflow;
   node_types: Record<string, NodeMeta>;
@@ -63,7 +62,6 @@ export interface ComposeResult {
   explanation: string;
 }
 
-/** POST /assistant/intent — Moni floor (#15). */
 export interface IntentResult {
   template_id: string;
   confidence: number;

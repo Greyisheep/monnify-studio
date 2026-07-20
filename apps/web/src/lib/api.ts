@@ -216,17 +216,14 @@ export async function streamExecutionEvents(
   }
 }
 
-/** Moni ceiling: compose a full flow and return canvas-ready payload (#15, #55). */
 export async function composeWorkflow(message: string): Promise<ComposeResult> {
   return postJson<ComposeResult>("/assistant/compose", { message });
 }
 
-/** Moni floor: map free text onto a vetted template (#15). */
 export async function classifyIntent(message: string): Promise<IntentResult> {
   return postJson<IntentResult>("/assistant/intent", { message });
 }
 
-/** Instantiate a template as a fresh editable workflow (#51, #55). */
 export async function createFromTemplate(
   templateId: string,
 ): Promise<WorkflowPayload> {

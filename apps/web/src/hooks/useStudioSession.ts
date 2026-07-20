@@ -179,10 +179,6 @@ export function useStudioSession({ setNodes, setEdges }: UseStudioSessionOptions
     [reanalyze],
   );
 
-  /**
-   * Ask Moni to build a flow and put it on the canvas (#55 p1 / #15).
-   * Tries compose first; on 503 falls back to intent → from-template.
-   */
   const askMoni = useCallback(
     async (message: string) => {
       setBusy(true);

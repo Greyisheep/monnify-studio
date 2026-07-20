@@ -1,6 +1,3 @@
-/**
- * Moni chat: compose → canvas (#55 p1 / #15). Overlay; does not shrink the stage.
- */
 "use client";
 
 import { useState, type FormEvent } from "react";
