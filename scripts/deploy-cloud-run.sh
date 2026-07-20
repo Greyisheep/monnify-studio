@@ -35,6 +35,7 @@ trap 'rm -f "$ENV_FILE"' EXIT
   echo "studio_env: production"
   echo "allow_production_execution: \"false\""   # sandbox-only, always
   echo "cors_origins: \"*\""                       # tightened after web deploys, below
+  echo "STUDIO_SEED_DEMO: \"1\""                  # boot seeds a demo business (#116)
 } > "$ENV_FILE"
 
 # Forward only known keys — never print values. A real exported env var wins
@@ -65,6 +66,8 @@ gcloud run deploy "$API_SERVICE" \
   --allow-unauthenticated \
   --port 8080 \
   --env-vars-file "$ENV_FILE" \
+  --min-instances 1 \
+  --max-instances 1 \
   --quiet
 
 rm -f "$ENV_FILE"
