@@ -22,6 +22,14 @@ class MoniIntent(BaseModel):
     clarifying_question: str = ""
 
 
+class MoniAnswer(BaseModel):
+    """Moni's answer to a builder's "why" (#75). Sources are NOT part of the
+    model output on purpose: the application attaches real doc references from
+    the catalog, so a citation can never be an invented URL."""
+
+    answer: str = ""
+
+
 class MoniFlowNode(BaseModel):
     """One node in a composed flow. `type` must be a real catalog node type;
     the composer rejects anything else (D18: catalog-constrained creativity)."""

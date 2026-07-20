@@ -20,8 +20,10 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from monnify_studio.ai import (
     ComposeError,
     ComposeUnavailable,
+    Source,
     classify_intent,
     compose_flow,
+    explain,
 )
 from monnify_studio.analysis import Report, analyze
 from monnify_studio.artifacts import (
@@ -336,6 +338,46 @@ def assistant_compose(body: AssistantRequest) -> ComposeResponse:
             steps=outcome.steps,
             provider=outcome.provider,
             explanation=outcome.explanation,
+        )
+
+
+class ExplainRequest(BaseModel):
+    question: str
+    node_type: str | None = None  # catalog key the user is asking about
+    workflow_id: str | None = None  # optional: adds the flow as context
+    provider: str | None = None
+
+
+class ExplainResponse(BaseModel):
+    answer: str
+    sources: list[Source] = Field(default_factory=list)  # real doc refs, never model-made
+    provider: str
+
+
+@app.post("/assistant/explain", response_model=ExplainResponse)
+def assistant_explain(body: ExplainRequest) -> ExplainResponse:
+    """Ask Moni "why" while building; answers cite the real Monnify docs (#75, D20)."""
+    with correlation(request_id=new_id("why")):
+        summary = ""
+        if body.workflow_id:
+            wf = store.get(body.workflow_id)
+            if wf is not None:
+                labels = ", ".join(n.label or n.type for n in wf.nodes[:14])
+                summary = f"'{wf.name}' with steps: {labels}"
+        try:
+            result, provider_used = explain(
+                body.question,
+                node_type=body.node_type,
+                workflow_summary=summary,
+                provider=body.provider,
+            )
+        except KeyError:
+            raise HTTPException(
+                status_code=404, detail=f"unknown node type: {body.node_type}"
+            ) from None
+        log.info("assistant.explain", node=body.node_type, provider=provider_used)
+        return ExplainResponse(
+            answer=result.answer, sources=result.sources, provider=provider_used
         )
 
 
