@@ -1,0 +1,57 @@
+# CI test gate (#119): nothing merges - or deploys to the judges' link - without
+# both suites green. Deploy remains a separate workflow (deploy.yml, main only).
+name: CI
+
+on:
+  pull_request:
+    branches: [dev, main]
+  push:
+    branches: [dev, main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  api:
+    name: API (ruff + pytest)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: apps/api/uv.lock
+      - name: Sync dependencies
+        run: uv sync --frozen --all-extras
+      - name: Lint (ruff)
+        run: uv run ruff check monnify_studio tests
+      - name: Tests (pytest)
+        # No API keys in CI on purpose: the suite must pass keyless, proving the
+        # keyword/grounding fallbacks (D11) really carry the product.
+        run: uv run pytest -q
+
+  web:
+    name: Web (typecheck + vitest + lint)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - name: Install
+        run: npm ci
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Tests (vitest)
+        run: npm run test
+      - name: Lint
+        run: npm run lint
