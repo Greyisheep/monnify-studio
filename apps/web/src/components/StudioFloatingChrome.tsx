@@ -1,11 +1,10 @@
 /**
  * Floating chrome pills for Figma Maincollapsed (21:1732).
- * Icons: Lucide PanelLeft, Moon, Play.
+ * Icons: exact Figma exports.
  */
 "use client";
 
 import Image from "next/image";
-import { Moon, PanelLeft, Play } from "lucide-react";
 
 export interface StudioFloatingChromeProps {
   workflowName?: string;
@@ -32,10 +31,10 @@ export function StudioFloatingChrome({
     <>
       <div className="studio-float studio-float--left" role="group" aria-label="Workflow">
         <Image
-          src="/figma/monnify-logo.svg"
+          src="/figma/monnify-logo-rail.svg"
           alt=""
-          width={22}
-          height={14}
+          width={21}
+          height={13}
           unoptimized
         />
         <div className="studio-float__meta">
@@ -49,7 +48,13 @@ export function StudioFloatingChrome({
           title="Show side panels"
           aria-label="Show side panels"
         >
-          <PanelLeft aria-hidden size={16} strokeWidth={1.5} />
+          <Image
+            src="/figma/icon-panel-collapse.svg"
+            alt=""
+            width={16}
+            height={16}
+            unoptimized
+          />
         </button>
       </div>
 
@@ -61,7 +66,13 @@ export function StudioFloatingChrome({
           aria-label="Theme"
           disabled
         >
-          <Moon aria-hidden size={16} strokeWidth={1.5} />
+          <Image
+            src="/figma/icon-moon-figma.svg"
+            alt=""
+            width={16}
+            height={16}
+            unoptimized
+          />
         </button>
         <span className="studio-float__divider" aria-hidden />
         <button
@@ -70,7 +81,13 @@ export function StudioFloatingChrome({
           disabled={busy || running || !canAct}
           onClick={onRun}
         >
-          <Play aria-hidden size={12} strokeWidth={1.5} fill="currentColor" />
+          <Image
+            src="/figma/icon-play-figma.svg"
+            alt=""
+            width={12}
+            height={12}
+            unoptimized
+          />
           {running ? "Running…" : "Run"}
         </button>
         <button
