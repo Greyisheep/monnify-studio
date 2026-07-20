@@ -62,7 +62,7 @@ export function CredentialsForm({ workflowId, busy }: CredentialsFormProps) {
   if (!workflowId) {
     return (
       <div className="studio-creds">
-        <h3>Monnify credentials</h3>
+        <h3>Connect your Monnify account</h3>
         <p className="muted">Open a workflow to attach sandbox keys.</p>
       </div>
     );
@@ -70,11 +70,11 @@ export function CredentialsForm({ workflowId, busy }: CredentialsFormProps) {
 
   return (
     <div className="studio-creds">
-      <h3>Monnify credentials</h3>
+      <h3>Connect your Monnify account</h3>
       <p className="muted">
         {status?.configured
           ? `Configured (${status.source}). Values are write-only.`
-          : "Not set, platform demo keys may be used."}
+          : "Optional: we use a practice account until then."}
       </p>
       <form className="studio-creds__form" onSubmit={onSubmit}>
         <label>

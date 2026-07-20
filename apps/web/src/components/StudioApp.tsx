@@ -28,9 +28,15 @@ import {
   withNodeHighlights,
 } from "@/lib/findings";
 import { flowToWorkflow } from "@/lib/flowIo";
+import {
+  readStudioPath,
+  writeStudioPath,
+  type StudioPath,
+} from "@/lib/studioPath";
 import { ConfigPanel } from "./ConfigPanel";
 import { CredentialsForm } from "./CredentialsForm";
 import { NodePalette } from "./NodePalette";
+import { PathGate } from "./PathGate";
 import { PreviewArtifactPanel } from "./PreviewArtifactPanel";
 import { ReviewPanel } from "./ReviewPanel";
 import { RightSidebar } from "./RightSidebar";
@@ -48,7 +54,12 @@ function CanvasInner() {
   const [previewMode, setPreviewMode] = useState<
     "review" | "trace" | "artifact"
   >("artifact");
-  const [templatesOpen, setTemplatesOpen] = useState(true);
+  const [studioPath, setStudioPath] = useState<StudioPath | null>(() =>
+    readStudioPath(),
+  );
+  const [templatesOpen, setTemplatesOpen] = useState(
+    () => readStudioPath() === "business",
+  );
   const [sellerSeed, setSellerSeed] = useState<ArtifactConfigInput | null>(null);
   const [sellerResult, setSellerResult] = useState<GenerateArtifactResult | null>(
     null,
@@ -133,11 +144,25 @@ function CanvasInner() {
     setPreviewMode("artifact");
   }
 
+  function onPathContinue(path: StudioPath) {
+    writeStudioPath(path);
+    setStudioPath(path);
+    if (path === "business") {
+      setTemplatesOpen(true);
+      setLeftTab("chat");
+      setPreviewMode("artifact");
+    } else {
+      setTemplatesOpen(false);
+      setLeftTab("api");
+    }
+  }
+
   return (
     <div
       className={`studio-shell${leftCollapsed ? " is-left-collapsed" : ""}`}
       style={sidebars.shellStyle}
     >
+      <PathGate open={studioPath == null} onContinue={onPathContinue} />
       <NodePalette
         catalog={{ ...session.nodeTypesMeta, ...session.catalog }}
         workflowName={session.workflow?.name ?? "Workflow"}
@@ -192,7 +217,7 @@ function CanvasInner() {
               setRightTab("code");
             }}
           >
-            Credentials
+            Connect your Monnify account
           </button>
           <button
             type="button"

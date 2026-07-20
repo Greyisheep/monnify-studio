@@ -21,6 +21,7 @@ import {
 
 import { validateConnection } from "@/lib/api";
 import { canvasScreenCenter, edgeToFlow, newNodeId } from "@/lib/flowIo";
+import { placeFreeOfNodes } from "@/lib/placeNode";
 import type {
   IrNode,
   NodeCategory,
@@ -129,12 +130,18 @@ export function useStudioGraph({
       const prefix = typeKey.split(".").pop() ?? "node";
       const label = meta?.title ?? typeKey;
       const nodeId = newNodeId(new Set(nodes.map((node) => node.id)), prefix);
-      const position = screenToFlowPosition(canvasScreenCenter());
+      const center = screenToFlowPosition(canvasScreenCenter());
+      const origin = { x: center.x - 90, y: center.y - 30 };
+      const position = placeFreeOfNodes(
+        nodes.map((node) => node.position),
+        { w: 180, h: 72 },
+        origin,
+      );
 
       const node: StudioFlowNode = {
         id: nodeId,
         type: "studio",
-        position: { x: position.x - 90, y: position.y - 30 },
+        position,
         selected: true,
         data: {
           label,
@@ -153,7 +160,7 @@ export function useStudioGraph({
       setTypeError(null);
       setDiffNote(`Added "${label}" - drag handles to connect it`);
       requestAnimationFrame(() => {
-        setCenter(position.x, position.y, { zoom: 1.05, duration: 220 });
+        setCenter(position.x + 90, position.y + 30, { zoom: 1.05, duration: 220 });
       });
     },
     [
