@@ -9,6 +9,8 @@ import Image from "next/image";
 import type { PointerEvent as ReactPointerEvent } from "react";
 
 import type { NodeMeta } from "@/types";
+import type { IntentResult } from "@/lib/api";
+import type { MoniAskResult } from "@/hooks/useStudioSession";
 import { ChatPanel } from "./ChatPanel";
 
 export interface NodePaletteProps {
@@ -21,12 +23,11 @@ export interface NodePaletteProps {
   onLeftTabChange: (tab: "api" | "chat") => void;
   onToggleCollapsed: () => void;
   onAdd: (typeKey: string) => void;
-  onAsk: (message: string) => Promise<{
-    kind: "compose" | "template" | "clarify";
-    explanation: string;
-    workflowName: string | null;
-    templateId?: string;
-  }>;
+  onAsk: (message: string) => Promise<MoniAskResult>;
+  onSetupIntent: (
+    templateId: string,
+    config: IntentResult["config"],
+  ) => Promise<void>;
   onResizeStart?: (event: ReactPointerEvent) => void;
 }
 
@@ -63,6 +64,7 @@ export function NodePalette({
   onToggleCollapsed,
   onAdd,
   onAsk,
+  onSetupIntent,
   onResizeStart,
 }: NodePaletteProps) {
   const groups = groupByCategory(catalog);
@@ -163,7 +165,7 @@ export function NodePalette({
 
       <div className="studio-sidebar__scroll">
         {leftTab === "chat" ? (
-          <ChatPanel busy={busy} onAsk={onAsk} />
+          <ChatPanel busy={busy} onAsk={onAsk} onSetupIntent={onSetupIntent} />
         ) : (
           <>
             {groups.length === 0 && (

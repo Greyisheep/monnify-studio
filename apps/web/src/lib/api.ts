@@ -310,3 +310,4 @@ export function absoluteApiUrl(path: string): string {
 }
 
 export { API_BASE };
+export type { IntentResult, ComposeResult } from "@/types";

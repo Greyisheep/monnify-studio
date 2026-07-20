@@ -15,11 +15,15 @@ import {
   fetchAnalysis,
   fetchCatalog,
   fetchWorkflow,
+  generateArtifact,
   listWorkflows,
   remediateWorkflow,
   resetWorkflow,
   saveWorkflow,
+  type ArtifactConfigInput,
   type DataSource,
+  type GenerateArtifactResult,
+  type IntentResult,
   type WorkflowSummary,
 } from "@/lib/api";
 import type { HeroId } from "@/lib/constants";
@@ -39,6 +43,43 @@ export interface UseStudioSessionOptions {
 
 const HERO_IDS = new Set<string>(["marketplace-unsafe", "marketplace-safe"]);
 
+export type MoniAskResult =
+  | {
+      kind: "compose";
+      explanation: string;
+      workflowName: string | null;
+    }
+  | {
+      kind: "intent";
+      explanation: string;
+      workflowName: null;
+      templateId: string;
+      config: IntentResult["config"];
+      confidence: number;
+    }
+  | {
+      kind: "clarify";
+      explanation: string;
+      workflowName: null;
+    };
+
+function intentToArtifactConfig(
+  config: IntentResult["config"],
+): ArtifactConfigInput {
+  const price = config.price_ngn;
+  return {
+    business_name:
+      typeof config.business_name === "string" && config.business_name
+        ? config.business_name
+        : undefined,
+    product_name:
+      typeof config.product_name === "string" && config.product_name
+        ? config.product_name
+        : undefined,
+    price_ngn: typeof price === "number" ? price : Number(price) || undefined,
+  };
+}
+
 export function useStudioSession({ setNodes, setEdges }: UseStudioSessionOptions) {
   const [heroId, setHeroId] = useState<HeroId>("marketplace-unsafe");
   const [activeWorkflowId, setActiveWorkflowId] = useState<string | null>(null);
@@ -46,6 +87,7 @@ export function useStudioSession({ setNodes, setEdges }: UseStudioSessionOptions
   const [source, setSource] = useState<DataSource | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [ready, setReady] = useState(false);
   const [report, setReport] = useState<AnalysisReport | null>(null);
   const [workflow, setWorkflow] = useState<Workflow | null>(null);
   const [nodeTypesMeta, setNodeTypesMeta] = useState<Record<string, NodeMeta>>({});
@@ -204,11 +246,27 @@ export function useStudioSession({ setNodes, setEdges }: UseStudioSessionOptions
   }, [applyPayload, catalog, refreshWorkflows]);
 
   useEffect(() => {
-    void openWorkflow(heroId);
-  }, []); // initial hero only
-
-  useEffect(() => {
-    void refreshWorkflows();
+    let cancelled = false;
+    void (async () => {
+      setLoading(true);
+      try {
+        const [catalogResult] = await Promise.all([fetchCatalog(), refreshWorkflows()]);
+        if (!cancelled) {
+          setCatalog(catalogResult);
+          setReady(true);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setTypeError(error instanceof Error ? error.message : "Boot failed");
+          setReady(true);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [refreshWorkflows]);
 
   const reanalyze = useCallback(async (nextWorkflow: Workflow) => {
@@ -282,58 +340,89 @@ export function useStudioSession({ setNodes, setEdges }: UseStudioSessionOptions
     [reanalyze],
   );
 
-  const askMoni = useCallback(
-    async (message: string) => {
+  const askMoni = useCallback(async (message: string): Promise<MoniAskResult> => {
+    setBusy(true);
+    setTypeError(null);
+    try {
+      try {
+        const composed = await composeWorkflow(message);
+        applyPayload(
+          composed.workflow,
+          { ...catalog, ...composed.node_types },
+          composed.analysis,
+          { relayout: true },
+        );
+        setSource("api");
+        const caught =
+          composed.findings_caught.length > 0
+            ? ` · caught ${composed.findings_caught.join(", ")}`
+            : "";
+        setDiffNote(
+          `Moni composed “${composed.workflow.name}” (${composed.provider})${caught}`,
+        );
+        await refreshWorkflows();
+        return {
+          kind: "compose",
+          explanation:
+            composed.explanation ||
+            `Built “${composed.workflow.name}” and loaded it on the canvas.`,
+          workflowName: composed.workflow.name,
+        };
+      } catch (composeError) {
+        const msg =
+          composeError instanceof Error ? composeError.message : String(composeError);
+        if (!msg.startsWith("503")) throw composeError;
+      }
+
+      const intent = await classifyIntent(message);
+      if (
+        !intent.template_id ||
+        intent.template_id === "unknown" ||
+        intent.confidence < 0.4
+      ) {
+        return {
+          kind: "clarify",
+          explanation:
+            intent.clarifying_question ||
+            intent.explanation ||
+            "I need a bit more detail before I can set that up.",
+          workflowName: null,
+        };
+      }
+
+      return {
+        kind: "intent",
+        explanation:
+          intent.explanation ||
+          `I can set up the “${intent.template_id}” template for you.`,
+        workflowName: null,
+        templateId: intent.template_id,
+        config: intent.config,
+        confidence: intent.confidence,
+      };
+    } catch (error) {
+      const text = error instanceof Error ? error.message : "Moni request failed";
+      setTypeError(text);
+      throw error;
+    } finally {
+      setBusy(false);
+    }
+  }, [applyPayload, catalog, refreshWorkflows]);
+
+  const setupFromIntent = useCallback(
+    async (
+      templateId: string,
+      config: IntentResult["config"] = {},
+    ): Promise<{
+      workflowName: string;
+      artifact: GenerateArtifactResult | null;
+      seed: ArtifactConfigInput;
+    }> => {
       setBusy(true);
       setTypeError(null);
+      const seed = intentToArtifactConfig(config);
       try {
-        try {
-          const composed = await composeWorkflow(message);
-          applyPayload(
-            composed.workflow,
-            { ...catalog, ...composed.node_types },
-            composed.analysis,
-            { relayout: true },
-          );
-          setSource("api");
-          const caught =
-            composed.findings_caught.length > 0
-              ? ` · caught ${composed.findings_caught.join(", ")}`
-              : "";
-          setDiffNote(
-            `Moni composed “${composed.workflow.name}” (${composed.provider})${caught}`,
-          );
-          await refreshWorkflows();
-          return {
-            kind: "compose" as const,
-            explanation:
-              composed.explanation ||
-              `Built “${composed.workflow.name}” and loaded it on the canvas.`,
-            workflowName: composed.workflow.name,
-          };
-        } catch (composeError) {
-          const msg =
-            composeError instanceof Error ? composeError.message : String(composeError);
-          if (!msg.startsWith("503")) throw composeError;
-        }
-
-        const intent = await classifyIntent(message);
-        if (
-          !intent.template_id ||
-          intent.template_id === "unknown" ||
-          intent.confidence < 0.4
-        ) {
-          return {
-            kind: "clarify" as const,
-            explanation:
-              intent.clarifying_question ||
-              intent.explanation ||
-              "I need a bit more detail before I can set that up.",
-            workflowName: null,
-          };
-        }
-
-        const payload = await createFromTemplate(intent.template_id);
+        const payload = await createFromTemplate(templateId);
         const [analysis, catalogResult] = await Promise.all([
           analyzeWorkflow(payload.workflow),
           Object.keys(catalog).length ? Promise.resolve(catalog) : fetchCatalog(),
@@ -346,21 +435,24 @@ export function useStudioSession({ setNodes, setEdges }: UseStudioSessionOptions
           { relayout: true },
         );
         setSource("api");
-        setDiffNote(
-          `Moni set up template “${intent.template_id}” (${intent.provider})`,
-        );
+        setDiffNote(`Set up template “${templateId}” from Chat`);
         await refreshWorkflows();
+
+        let artifact: GenerateArtifactResult | null = null;
+        try {
+          artifact = await generateArtifact(payload.workflow.id, seed);
+        } catch {
+          // Graph may still have findings / generate refused — canvas is still usable.
+          artifact = null;
+        }
+
         return {
-          kind: "template" as const,
-          explanation:
-            intent.explanation ||
-            `Loaded the “${intent.template_id}” template onto the canvas.`,
           workflowName: payload.workflow.name,
-          templateId: intent.template_id,
+          artifact,
+          seed,
         };
       } catch (error) {
-        const text = error instanceof Error ? error.message : "Moni request failed";
-        setTypeError(text);
+        setTypeError(error instanceof Error ? error.message : "Set up failed");
         throw error;
       } finally {
         setBusy(false);
@@ -378,6 +470,7 @@ export function useStudioSession({ setNodes, setEdges }: UseStudioSessionOptions
     openWorkflow,
     startFromTemplate,
     startBlank,
+    ready,
     source,
     loading,
     busy,
@@ -401,5 +494,6 @@ export function useStudioSession({ setNodes, setEdges }: UseStudioSessionOptions
     applyFix,
     runAnalyze,
     askMoni,
+    setupFromIntent,
   };
 }

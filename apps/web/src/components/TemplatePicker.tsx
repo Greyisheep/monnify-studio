@@ -2,27 +2,42 @@
 
 import { useEffect, useState } from "react";
 
-import {
-  listTemplates,
-  type TemplateInfo,
-} from "@/lib/api";
+import { listTemplates, type TemplateInfo } from "@/lib/api";
 
 export interface TemplatePickerProps {
   open: boolean;
   busy: boolean;
+  dismissible?: boolean;
   onClose: () => void;
   onPick: (templateId: string) => void;
   onBlank?: () => void;
 }
 
+const CANNED: TemplateInfo[] = [
+  {
+    id: "sell-online",
+    title: "Sell online with verified payments",
+    persona: "Small online seller",
+    description:
+      "Checkout link + orders dashboard. Paid only after Monnify verifies.",
+  },
+  {
+    id: "payroll",
+    title: "Payroll",
+    persona: "Team lead / ops",
+    description: "Bulk payouts with verification and reconciliation guards.",
+  },
+];
+
 export function TemplatePicker({
   open,
   busy,
+  dismissible = true,
   onClose,
   onPick,
   onBlank,
 }: TemplatePickerProps) {
-  const [templates, setTemplates] = useState<TemplateInfo[]>([]);
+  const [templates, setTemplates] = useState<TemplateInfo[]>(CANNED);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -30,12 +45,18 @@ export function TemplatePicker({
     let cancelled = false;
     void listTemplates()
       .then((items) => {
-        if (!cancelled) setTemplates(items);
+        if (cancelled) return;
+        setTemplates(items.length > 0 ? items : CANNED);
+        setError(items.length > 0 ? null : "Using offline template list.");
       })
       .catch((err) => {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Failed to load templates");
-        }
+        if (cancelled) return;
+        setTemplates(CANNED);
+        setError(
+          err instanceof Error
+            ? `${err.message} — showing offline templates.`
+            : "Showing offline templates.",
+        );
       });
     return () => {
       cancelled = true;
@@ -52,9 +73,11 @@ export function TemplatePicker({
             <h2>What do you want to set up?</h2>
             <p>Pick a vetted product template. Safety nodes come built in.</p>
           </div>
-          <button type="button" className="studio-btn studio-btn--ghost" onClick={onClose}>
-            Close
-          </button>
+          {dismissible && (
+            <button type="button" className="studio-btn studio-btn--ghost" onClick={onClose}>
+              Close
+            </button>
+          )}
         </div>
         {error && <p className="studio-modal__error">{error}</p>}
         <div className="studio-template-grid">

@@ -2,20 +2,27 @@
 
 import { useState, type FormEvent } from "react";
 
+import type { MoniAskResult } from "@/hooks/useStudioSession";
+import type { IntentResult } from "@/lib/api";
+
 export interface ChatMessage {
   id: string;
   role: "user" | "assistant";
   text: string;
+  intent?: {
+    templateId: string;
+    config: IntentResult["config"];
+    confidence: number;
+  };
 }
 
 export interface ChatPanelProps {
   busy: boolean;
-  onAsk: (message: string) => Promise<{
-    kind: "compose" | "template" | "clarify";
-    explanation: string;
-    workflowName: string | null;
-    templateId?: string;
-  }>;
+  onAsk: (message: string) => Promise<MoniAskResult>;
+  onSetupIntent: (
+    templateId: string,
+    config: IntentResult["config"],
+  ) => Promise<void>;
 }
 
 const STARTER: ChatMessage[] = [
@@ -23,7 +30,7 @@ const STARTER: ChatMessage[] = [
     id: "welcome",
     role: "assistant",
     text:
-      "Describe what you want to set up. I’ll compose a flow (or pick a vetted template) and put it on the canvas.",
+      "Describe what you want to set up. I’ll compose a flow when an AI key is available, or propose a vetted template you can confirm with Set this up.",
   },
 ];
 
@@ -33,7 +40,7 @@ const PROMPTS = [
   "Build me a payroll for my team",
 ];
 
-export function ChatPanel({ busy, onAsk }: ChatPanelProps) {
+export function ChatPanel({ busy, onAsk, onSetupIntent }: ChatPanelProps) {
   const [messages, setMessages] = useState<ChatMessage[]>(STARTER);
   const [draft, setDraft] = useState("");
 
@@ -51,12 +58,26 @@ export function ChatPanel({ busy, onAsk }: ChatPanelProps) {
 
     try {
       const result = await onAsk(trimmed);
+      if (result.kind === "intent") {
+        setMessages((current) => [
+          ...current,
+          {
+            id: `assistant-${Date.now()}`,
+            role: "assistant",
+            text: result.explanation,
+            intent: {
+              templateId: result.templateId,
+              config: result.config,
+              confidence: result.confidence,
+            },
+          },
+        ]);
+        return;
+      }
       const suffix =
         result.kind === "compose"
           ? " Loaded on the canvas — edit freely."
-          : result.kind === "template"
-            ? ` Template “${result.templateId}” is on the canvas.`
-            : "";
+          : "";
       setMessages((current) => [
         ...current,
         {
@@ -75,6 +96,30 @@ export function ChatPanel({ busy, onAsk }: ChatPanelProps) {
             error instanceof Error
               ? error.message
               : "Could not reach Moni. Is the API running?",
+        },
+      ]);
+    }
+  }
+
+  async function setup(message: ChatMessage) {
+    if (!message.intent || busy) return;
+    try {
+      await onSetupIntent(message.intent.templateId, message.intent.config);
+      setMessages((current) => [
+        ...current,
+        {
+          id: `assistant-${Date.now()}`,
+          role: "assistant",
+          text: `Set up “${message.intent!.templateId}” on the canvas and opened Seller preview.`,
+        },
+      ]);
+    } catch (error) {
+      setMessages((current) => [
+        ...current,
+        {
+          id: `assistant-${Date.now()}`,
+          role: "assistant",
+          text: error instanceof Error ? error.message : "Set up failed",
         },
       ]);
     }
@@ -106,7 +151,17 @@ export function ChatPanel({ busy, onAsk }: ChatPanelProps) {
             key={message.id}
             className={`studio-chat__bubble studio-chat__bubble--${message.role}`}
           >
-            {message.text}
+            <div className="studio-chat__text">{message.text}</div>
+            {message.intent && (
+              <button
+                type="button"
+                className="studio-btn studio-btn--primary studio-chat__setup"
+                disabled={busy}
+                onClick={() => void setup(message)}
+              >
+                Set this up
+              </button>
+            )}
           </div>
         ))}
       </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ChangeEvent, type FormEvent } from "react";
+import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 
 import {
   absoluteApiUrl,
@@ -12,27 +12,54 @@ import {
 export interface PreviewArtifactPanelProps {
   workflowId: string | null;
   busy: boolean;
+  seedConfig?: ArtifactConfigInput | null;
+  initialResult?: GenerateArtifactResult | null;
   onBeforeGenerate?: () => Promise<void>;
 }
+
+const DEFAULTS: ArtifactConfigInput = {
+  business_name: "My Business",
+  product_name: "Product",
+  price_ngn: 5000,
+  accent_color: "#0f6b57",
+  tagline: "Pay securely. Every order is verified with Monnify.",
+  logo_url: "",
+};
 
 export function PreviewArtifactPanel({
   workflowId,
   busy,
+  seedConfig,
+  initialResult,
   onBeforeGenerate,
 }: PreviewArtifactPanelProps) {
-  const [config, setConfig] = useState<ArtifactConfigInput>({
-    business_name: "My Business",
-    product_name: "Product",
-    price_ngn: 5000,
-    accent_color: "#0f6b57",
-    tagline: "Pay securely. Every order is verified with Monnify.",
-    logo_url: "",
-  });
+  const [config, setConfig] = useState<ArtifactConfigInput>({ ...DEFAULTS });
   const [logoUrlField, setLogoUrlField] = useState("");
-  const [result, setResult] = useState<GenerateArtifactResult | null>(null);
+  const [result, setResult] = useState<GenerateArtifactResult | null>(
+    initialResult ?? null,
+  );
   const [view, setView] = useState<"payment" | "dashboard">("payment");
   const [error, setError] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
+
+  useEffect(() => {
+    if (!seedConfig) return;
+    setConfig((current) => ({
+      ...current,
+      ...seedConfig,
+      logo_url: seedConfig.logo_url ?? current.logo_url,
+    }));
+    if (seedConfig.logo_url?.startsWith("http")) {
+      setLogoUrlField(seedConfig.logo_url);
+    }
+  }, [seedConfig]);
+
+  useEffect(() => {
+    if (initialResult) {
+      setResult(initialResult);
+      setView("payment");
+    }
+  }, [initialResult]);
 
   function onLogoFile(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -46,8 +73,8 @@ export function PreviewArtifactPanel({
     reader.readAsDataURL(file);
   }
 
-  async function onGenerate(event: FormEvent) {
-    event.preventDefault();
+  async function onGenerate(event?: FormEvent) {
+    event?.preventDefault();
     if (!workflowId) return;
     setGenerating(true);
     setError(null);
@@ -74,13 +101,39 @@ export function PreviewArtifactPanel({
       )
     : null;
 
+  const markLetter = (config.business_name || "M").trim().charAt(0).toUpperCase() || "M";
+  const hasLogo = Boolean(config.logo_url || logoUrlField);
+
   return (
     <div className="studio-artifact">
       <h3>Seller preview</h3>
       <p className="muted">
-        Generate the payment page + orders dashboard for this workflow.
+        Configure the shop, then generate the payment page + orders dashboard.
       </p>
       {!workflowId && <p className="muted">Open a workflow first.</p>}
+
+      <div className="studio-artifact__mark" aria-hidden>
+        {hasLogo ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={config.logo_url || logoUrlField}
+            alt=""
+            className="studio-artifact__logo"
+          />
+        ) : (
+          <span
+            className="studio-artifact__letter"
+            style={{ background: config.accent_color || "#0f6b57" }}
+          >
+            {markLetter}
+          </span>
+        )}
+        <div>
+          <strong>{config.business_name || "My Business"}</strong>
+          <span>{config.tagline}</span>
+        </div>
+      </div>
+
       <form className="studio-artifact__form" onSubmit={onGenerate}>
         <label>
           Business name
@@ -118,6 +171,19 @@ export function PreviewArtifactPanel({
               setConfig((current) => ({
                 ...current,
                 price_ngn: Number(event.target.value),
+              }))
+            }
+            disabled={busy || generating || !workflowId}
+          />
+        </label>
+        <label>
+          Tagline
+          <input
+            value={config.tagline ?? ""}
+            onChange={(event) =>
+              setConfig((current) => ({
+                ...current,
+                tagline: event.target.value,
               }))
             }
             disabled={busy || generating || !workflowId}

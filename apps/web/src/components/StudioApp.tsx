@@ -18,6 +18,7 @@ import { useExecutionTrace } from "@/hooks/useExecutionTrace";
 import { useSidebarWidths } from "@/hooks/useSidebarWidths";
 import { useStudioGraph } from "@/hooks/useStudioGraph";
 import { useStudioSession } from "@/hooks/useStudioSession";
+import type { ArtifactConfigInput, GenerateArtifactResult } from "@/lib/api";
 import {
   findingHighlightIds,
   withEdgeHighlights,
@@ -43,8 +44,12 @@ function CanvasInner() {
   const [rightTab, setRightTab] = useState<"preview" | "code">("preview");
   const [previewMode, setPreviewMode] = useState<
     "review" | "trace" | "artifact"
-  >("review");
-  const [templatesOpen, setTemplatesOpen] = useState(false);
+  >("artifact");
+  const [templatesOpen, setTemplatesOpen] = useState(true);
+  const [sellerSeed, setSellerSeed] = useState<ArtifactConfigInput | null>(null);
+  const [sellerResult, setSellerResult] = useState<GenerateArtifactResult | null>(
+    null,
+  );
 
   const session = useStudioSession({ setNodes, setEdges });
   const sidebars = useSidebarWidths();
@@ -115,6 +120,16 @@ function CanvasInner() {
     }
   }, [selectedIrNode?.id]);
 
+  function goSeller(
+    seed?: ArtifactConfigInput | null,
+    artifact?: GenerateArtifactResult | null,
+  ) {
+    if (seed) setSellerSeed(seed);
+    if (artifact) setSellerResult(artifact);
+    setRightTab("preview");
+    setPreviewMode("artifact");
+  }
+
   return (
     <div
       className={`studio-shell${leftCollapsed ? " is-left-collapsed" : ""}`}
@@ -128,7 +143,9 @@ function CanvasInner() {
             ? "Live API"
             : session.source === "fixture"
               ? "Local fixtures"
-              : "Connecting…"
+              : session.ready
+                ? "Ready"
+                : "Connecting…"
         }
         leftTab={leftTab}
         collapsed={leftCollapsed}
@@ -137,6 +154,10 @@ function CanvasInner() {
         onToggleCollapsed={() => setLeftCollapsed((value) => !value)}
         onAdd={(typeKey) => graph.addNode(typeKey)}
         onAsk={session.askMoni}
+        onSetupIntent={async (templateId, config) => {
+          const result = await session.setupFromIntent(templateId, config);
+          goSeller(result.seed, result.artifact);
+        }}
         onResizeStart={(event) => sidebars.beginResize("left", event)}
       />
 
@@ -159,6 +180,17 @@ function CanvasInner() {
               Delete node
             </button>
           )}
+          <button
+            type="button"
+            className="studio-btn studio-btn--ghost"
+            disabled={session.busy || !session.activeWorkflowId}
+            onClick={() => {
+              session.setSelectedNodeId(null);
+              setRightTab("code");
+            }}
+          >
+            Credentials
+          </button>
           <button
             type="button"
             className="studio-btn studio-btn--ghost"
@@ -196,7 +228,12 @@ function CanvasInner() {
             loading={session.loading}
             busy={session.busy || trace.running}
             typeError={session.typeError}
-            diffNote={session.diffNote}
+            diffNote={
+              session.diffNote ||
+              (!session.activeWorkflowId
+                ? "Pick a template to begin (or start blank)."
+                : null)
+            }
             connectionFeedback={graph.connectionFeedback}
             layoutNonce={session.layoutNonce}
             onNodesChange={onNodesChange}
@@ -248,6 +285,13 @@ function CanvasInner() {
             <div className="studio-segment">
               <button
                 type="button"
+                className={previewMode === "artifact" ? "is-active" : ""}
+                onClick={() => setPreviewMode("artifact")}
+              >
+                Seller
+              </button>
+              <button
+                type="button"
                 className={previewMode === "review" ? "is-active" : ""}
                 onClick={() => setPreviewMode("review")}
               >
@@ -260,13 +304,6 @@ function CanvasInner() {
               >
                 Trace
               </button>
-              <button
-                type="button"
-                className={previewMode === "artifact" ? "is-active" : ""}
-                onClick={() => setPreviewMode("artifact")}
-              >
-                Seller
-              </button>
             </div>
             {previewMode === "trace" ? (
               <TracePanel
@@ -276,19 +313,9 @@ function CanvasInner() {
                 running={trace.running}
                 error={trace.error}
                 onSelect={trace.setSelectedSeq}
-                onClose={() => setPreviewMode("review")}
+                onClose={() => setPreviewMode("artifact")}
               />
-            ) : previewMode === "artifact" ? (
-              <PreviewArtifactPanel
-                workflowId={session.activeWorkflowId}
-                busy={session.busy}
-                onBeforeGenerate={async () => {
-                  if (currentIr && session.dirty) {
-                    await session.save(currentIr);
-                  }
-                }}
-              />
-            ) : (
+            ) : previewMode === "review" ? (
               <ReviewPanel
                 workflowName={session.workflow?.name ?? ""}
                 report={session.report}
@@ -300,6 +327,18 @@ function CanvasInner() {
                   currentIr && void session.applyFix(currentIr, ruleId)
                 }
               />
+            ) : (
+              <PreviewArtifactPanel
+                workflowId={session.activeWorkflowId}
+                busy={session.busy}
+                seedConfig={sellerSeed}
+                initialResult={sellerResult}
+                onBeforeGenerate={async () => {
+                  if (currentIr && session.dirty) {
+                    await session.save(currentIr);
+                  }
+                }}
+              />
             )}
           </>
         )}
@@ -308,18 +347,23 @@ function CanvasInner() {
       <TemplatePicker
         open={templatesOpen}
         busy={session.busy}
-        onClose={() => setTemplatesOpen(false)}
+        dismissible={!!session.activeWorkflowId}
+        onClose={() => {
+          if (session.activeWorkflowId) setTemplatesOpen(false);
+        }}
         onPick={(templateId) => {
           void session.startFromTemplate(templateId).then(() => {
             setTemplatesOpen(false);
-            setRightTab("preview");
-            setPreviewMode("artifact");
+            setSellerResult(null);
+            setSellerSeed(null);
+            goSeller();
           });
         }}
         onBlank={() => {
           void session.startBlank().then(() => {
             setTemplatesOpen(false);
             setLeftTab("api");
+            setPreviewMode("review");
           });
         }}
       />
