@@ -52,6 +52,38 @@ def test_sources_come_from_catalog_never_model(monkeypatch):
     assert "Transfer" in result.answer
 
 
+class _AnswersWithUrl:
+    name = "fake"
+
+    def available(self) -> bool:
+        return True
+
+    def structured(self, **_):
+        # A model that slips an invented citation into the prose.
+        return MoniAnswer(answer="Verify the transaction. See https://evil.example/x for proof.")
+
+
+def test_model_invented_url_is_stripped_from_answer(monkeypatch):
+    _offline(monkeypatch, _AnswersWithUrl())
+    result, _ = explain("why?", node_type="monnify.verify_transaction")
+    assert "http" not in result.answer  # citations only come from sources[]
+    assert "Verify the transaction" in result.answer
+    assert all(s.url.startswith("https://developers.monnify.com") for s in result.sources)
+
+
+def test_failed_doc_fetch_is_not_cached(monkeypatch):
+    # A transient fetch failure must not permanently degrade this url to empty.
+    explain_mod._DOC_CACHE.pop("https://developers.monnify.com/probe", None)
+
+    def _boom(url, timeout=6.0, follow_redirects=True):
+        raise RuntimeError("network blip")
+
+    monkeypatch.setattr(explain_mod.httpx, "get", _boom)
+    assert explain_mod._fetch_doc("https://developers.monnify.com/probe") == ""
+    # The failure was not written to the cache, so a later success can still land.
+    assert "https://developers.monnify.com/probe" not in explain_mod._DOC_CACHE
+
+
 def test_provider_failure_degrades_to_grounding(monkeypatch):
     _offline(monkeypatch, _Failing())
     result, provider = explain("why validate the account?", node_type="monnify.validate_bank_account")

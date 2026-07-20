@@ -47,11 +47,11 @@ class _Provider:
 
 
 def test_persistent_parse_failure_raises_composeerror(monkeypatch):
-    prov = _Provider(bad=2)
+    prov = _Provider(bad=99)  # never returns valid JSON
     monkeypatch.setattr(comp, "select_provider", lambda p=None: prov)
     with pytest.raises(ComposeError):  # not a raw ValidationError / 500
         compose_flow("ajo app")
-    assert prov.calls == 2  # first attempt + one corrective retry
+    assert prov.calls == comp._MAX_ROUNDS  # tried each round, then refused cleanly
 
 
 def test_recovers_after_one_bad_parse(monkeypatch):

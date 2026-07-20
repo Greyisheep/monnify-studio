@@ -20,6 +20,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from monnify_studio.ai import (
     ComposeError,
+    ComposeRefused,
     ComposeUnavailable,
     Source,
     classify_intent,
@@ -326,11 +327,26 @@ def assistant_compose(body: AssistantRequest) -> ComposeResponse:
         try:
             outcome = compose_flow(body.message, provider=body.provider)
         except ComposeUnavailable as exc:
+            # No provider, or an upstream outage: not the user's fault, not a 422.
             raise HTTPException(status_code=503, detail=str(exc)) from None
+        except ComposeRefused as exc:
+            # Honest decline: the request is not a Monnify money flow (#106).
+            raise HTTPException(
+                status_code=422, detail=f"Moni can't build that: {exc.reason}"
+            ) from None
         except ComposeError as exc:
+            # Tried, but could not make it verifiably safe within the round budget.
             raise HTTPException(
                 status_code=422,
-                detail=f"Moni could not produce a valid flow: {'; '.join(exc.errors)}",
+                detail="Moni could not produce a verifiably safe flow: "
+                + "; ".join(exc.errors),
+            ) from None
+        except HTTPException:
+            raise
+        except Exception as exc:  # noqa: BLE001 - never leak a raw 500 (keeps CORS)
+            log.error("assistant.compose.unexpected", error=type(exc).__name__)
+            raise HTTPException(
+                status_code=500, detail="Moni hit an unexpected error composing this flow."
             ) from None
         saved = store.save(outcome.workflow)
         payload = _enrich(saved)

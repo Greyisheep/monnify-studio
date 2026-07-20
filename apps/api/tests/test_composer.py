@@ -46,7 +46,9 @@ class _FakeProvider:
 
     def structured(self, **kwargs):
         self.calls += 1
-        return self._flows.pop(0)
+        # Repeat the last canned flow so the multi-round loop never runs dry; a
+        # single-element list is effectively "always returns this proposal".
+        return self._flows.pop(0) if len(self._flows) > 1 else self._flows[0]
 
 
 def test_compose_pipeline_fixes_unsafe_proposal(monkeypatch):
@@ -64,7 +66,7 @@ def test_compose_pipeline_fixes_unsafe_proposal(monkeypatch):
     assert "safety.verify_signature" in node_types
 
 
-def test_invalid_node_types_get_one_retry_then_fail(monkeypatch):
+def test_invalid_node_types_exhaust_rounds_then_refuse(monkeypatch):
     bad = MoniFlow(
         name="bad",
         nodes=[
@@ -73,11 +75,11 @@ def test_invalid_node_types_get_one_retry_then_fail(monkeypatch):
         ],
         edges=[MoniFlowEdge(source="a", target="b")],
     )
-    fake = _FakeProvider([bad, bad])
+    fake = _FakeProvider([bad])  # keeps proposing an invalid node type
     monkeypatch.setattr(composer_mod, "select_provider", lambda p=None: fake)
-    with pytest.raises(ComposeError):
+    with pytest.raises(ComposeError):  # tried every round, then refused (never shipped)
         compose_flow("anything")
-    assert fake.calls == 2  # exactly one corrective retry
+    assert fake.calls == composer_mod._MAX_ROUNDS
 
 
 def test_keyword_fallback_cannot_compose(monkeypatch):

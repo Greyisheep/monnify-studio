@@ -37,6 +37,9 @@ _SYSTEM = (
 _DOC_CACHE: dict[str, str] = {}
 _TAG_RE = re.compile(r"<(script|style)[^>]*>.*?</\1>", re.DOTALL | re.IGNORECASE)
 _HTML_RE = re.compile(r"<[^>]+>")
+# References live only in `sources` (assembled from the catalog); any URL in the
+# model's prose is stripped so it cannot smuggle an invented citation (#106).
+_URL_RE = re.compile(r"https?://\S+")
 
 
 class Source(BaseModel):
@@ -62,8 +65,10 @@ def _fetch_doc(url: str, *, limit: int = 3500) -> str:
         text = _HTML_RE.sub(" ", text)
         text = re.sub(r"\s+", " ", text).strip()[:limit]
     except Exception as exc:  # noqa: BLE001 - degrade to catalog grounding
+        # Do NOT cache the failure: a single transient blip must not permanently
+        # degrade this node's answers to grounding-only for the process life (#106).
         log.info("explain.doc_fetch_failed", url=url, error=type(exc).__name__)
-        text = ""
+        return ""
     _DOC_CACHE[url] = text
     return text
 
@@ -99,6 +104,10 @@ def explain(
     try:
         result = chosen.structured(system=_SYSTEM, user=user, message="", schema=MoniAnswer, max_tokens=1024)
         answer = result.answer.strip() if isinstance(result, MoniAnswer) else ""
+        # Citations only ever come from the catalog via `sources`; strip any URL
+        # the model slipped into the prose so it cannot pass off an invented link.
+        answer = _URL_RE.sub("", answer)
+        answer = re.sub(r"\s{2,}", " ", answer).strip()
     except Exception as exc:  # noqa: BLE001 - the grounding is still a real answer (D11)
         log.info("explain.provider_failed", provider=chosen.name, error=type(exc).__name__)
         answer = ""
