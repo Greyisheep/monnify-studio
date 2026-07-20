@@ -30,6 +30,7 @@ from monnify_studio.artifacts import (
     ArtifactConfig,
     artifact_store,
     generate_artifact,
+    render_invoice_page,
 )
 from monnify_studio.credentials import (
     CredentialStatus,
@@ -622,6 +623,76 @@ def get_credentials_status(workflow_id: str) -> CredentialStatus:
 def delete_credentials(workflow_id: str) -> CredentialStatus:
     credential_store.delete(workflow_id)
     return credential_store.status(workflow_id)
+
+
+class InvoiceCreate(BaseModel):
+    customer: str
+    description: str
+    amount: float = Field(ge=100)
+
+
+@app.post("/preview/{artifact_id}/invoices", response_model=Order)
+def create_invoice(artifact_id: str, body: InvoiceCreate) -> Order:
+    """Create an invoice the merchant can share as a link (#85)."""
+    artifact = _artifact_or_404(artifact_id)
+    reference = f"INV-{uuid4().hex[:6].upper()}"
+    inv = orders_service.create(
+        reference=reference,
+        artifact_id=artifact_id,
+        product=body.description,
+        amount=float(body.amount),
+        workflow_id=artifact.workflow_id,
+        kind="invoice",
+        customer=body.customer,
+        description=body.description,
+    )
+    log.info("invoice.created", artifact_id=artifact_id, invoice=reference, amount=body.amount)
+    return inv
+
+
+@app.get("/preview/{artifact_id}/invoices", response_model=list[Order])
+def list_invoices(artifact_id: str) -> list[Order]:
+    _artifact_or_404(artifact_id)
+    return orders_service.invoices_for(artifact_id)
+
+
+@app.get("/preview/{artifact_id}/invoice/{reference}", response_class=HTMLResponse)
+def invoice_page(artifact_id: str, reference: str) -> HTMLResponse:
+    """The shareable, buyer-facing invoice page (#85)."""
+    artifact = _artifact_or_404(artifact_id)
+    inv = orders_service.get(reference)
+    if inv is None or inv.artifact_id != artifact_id:
+        raise HTTPException(status_code=404, detail=f"unknown invoice: {reference}")
+    return HTMLResponse(render_invoice_page(artifact, inv))
+
+
+@app.post("/preview/{artifact_id}/invoice/{reference}/pay")
+def invoice_pay(artifact_id: str, reference: str) -> dict:
+    """Buyer clicked Pay now on an invoice: open a REAL sandbox checkout for
+    exactly the invoice amount, into the merchant's account (#85, #68)."""
+    artifact = _artifact_or_404(artifact_id)
+    inv = orders_service.get(reference)
+    if inv is None or inv.artifact_id != artifact_id:
+        raise HTTPException(status_code=404, detail=f"unknown invoice: {reference}")
+    resolved = credential_store.settings_for(artifact.workflow_id)
+    try:
+        with MonnifySandboxClient(resolved) as client:
+            tx = client.initialize_transaction(
+                amount=inv.amount,
+                customer_name=inv.customer or "Invoice Customer",
+                customer_email="customer@example.com",
+                reference=f"{reference}-{uuid4().hex[:4]}",
+                description=f"{inv.description} ({artifact.config.business_name})",
+            )
+    except MonnifyError as exc:
+        raise HTTPException(status_code=502, detail=f"Monnify sandbox error: {exc}") from None
+    orders_service.attach_payment(
+        reference,
+        payment_reference=tx["payment_reference"],
+        transaction_reference=tx["transaction_reference"],
+    )
+    log.info("invoice.pay.initialized", invoice=reference, artifact_id=artifact_id)
+    return {"invoice_reference": reference, "checkout_url": tx["checkout_url"]}
 
 
 @app.get("/preview/{artifact_id}/orders", response_model=list[Order])

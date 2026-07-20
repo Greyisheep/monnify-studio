@@ -51,6 +51,15 @@ class KeywordFallback:
             raise NotImplementedError("keyword fallback cannot compose flows")
         text = message.lower()
         sell = ("sell", "instagram", "whatsapp", "thrift", "store", "shop", "boutique")
+        invoice = ("invoice", "bill my client", "billing", "receipt for", "invoice link")
+        if any(w in text for w in invoice):
+            return MoniIntent(
+                template_id="invoice",
+                confidence=0.6,
+                explanation="This looks like billing a client. Create an invoice, share "
+                "the link, and it is only marked paid after Monnify confirms the money "
+                "in your account.",
+            )
         payroll = ("payroll", "salary", "salaries", "staff", "employee", "wages", "pay my")
         if any(w in text for w in payroll):
             return MoniIntent(

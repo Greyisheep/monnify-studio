@@ -45,6 +45,25 @@
     </section>
     {% endif %}
 
+    {% if features.has_invoices %}
+    <section class="card">
+      <div class="table-head"><h2>Invoices</h2></div>
+      <form id="inv-form" class="inv-form">
+        <input id="inv-customer" placeholder="Who is this for? e.g. Chidi" required />
+        <input id="inv-desc" placeholder="What for? e.g. Logo design" required />
+        <input id="inv-amount" type="number" min="100" placeholder="Amount (NGN)" required />
+        <button class="btn-primary" type="submit">Create invoice</button>
+      </form>
+      <table class="orders" aria-live="polite">
+        <thead>
+          <tr><th>Invoice</th><th>For</th><th>Amount</th><th>Status</th><th></th></tr>
+        </thead>
+        <tbody id="inv-rows"></tbody>
+      </table>
+      <p id="inv-empty" class="empty">No invoices yet. Create one and share the link.</p>
+    </section>
+    {% endif %}
+
     {% if features.has_ledger %}
     <section class="card">
       <div class="table-head"><h2>Contributions ledger</h2></div>
@@ -90,6 +109,46 @@
     }
     loadActivity();
     setInterval(loadActivity, 5000);
+
+    {% if features.has_invoices %}
+    const invRows = document.getElementById("inv-rows");
+    const invEmpty = document.getElementById("inv-empty");
+    const INV_BADGE = {
+      verified: '<span class="badge ok">Paid</span>',
+      pending: '<span class="badge wait">Unpaid</span>',
+      rejected: '<span class="badge bad">No confirmed payment</span>',
+    };
+    async function loadInvoices() {
+      try {
+        const res = await fetch("/preview/{{ artifact_id }}/invoices");
+        if (!res.ok) return;
+        const invoices = await res.json();
+        invRows.innerHTML = invoices.map(i =>
+          "<tr><td>" + i.reference + "</td><td>" + (i.customer || "-") + " · " +
+          (i.description || i.product) + "</td><td>NGN " +
+          Number(i.amount).toLocaleString() + "</td><td>" +
+          (INV_BADGE[i.status] || i.status) + "</td><td>" +
+          '<a class="btn-ghost" target="_blank" href="/preview/{{ artifact_id }}/invoice/' +
+          i.reference + '">Open link</a></td></tr>').join("");
+        invEmpty.style.display = invoices.length ? "none" : "block";
+      } catch {}
+    }
+    document.getElementById("inv-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const body = {
+        customer: document.getElementById("inv-customer").value,
+        description: document.getElementById("inv-desc").value,
+        amount: Number(document.getElementById("inv-amount").value),
+      };
+      const res = await fetch("/preview/{{ artifact_id }}/invoices", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (res.ok) { e.target.reset(); loadInvoices(); }
+    });
+    loadInvoices();
+    setInterval(loadInvoices, 5000);
+    {% endif %}
 
     {% if features.collects %}
     const rows = document.getElementById("rows");

@@ -34,6 +34,7 @@ class FlowFeatures(BaseModel):
     sections exist, so ANY composed idea ends in a product (#78, D17)."""
 
     collects: bool = False
+    has_invoices: bool = False
     has_ledger: bool = False
     has_notify: bool = False
     has_payout: bool = False
@@ -46,6 +47,8 @@ def flow_features(workflow: Workflow) -> FlowFeatures:
         tags = catalog.effective_tags(node)
         if node.type in _COLLECTING_TYPES:
             features.collects = True
+        if node.type == "monnify.create_invoice":
+            features.has_invoices = True
         if T.MUTATES_LEDGER in tags:
             features.has_ledger = True
         if node.type == "app.notify":
@@ -116,6 +119,16 @@ def _require_verified_spine(workflow: Workflow) -> None:
         raise ValueError(
             f"workflow has critical findings ({rules}); fix them before generating"
         )
+
+
+def render_invoice_page(artifact: "GeneratedArtifact", invoice) -> str:
+    """Buyer-facing page for one invoice, rendered at request time (#85)."""
+    return _env.get_template("invoice_page.html.j2").render(
+        config=artifact.config,
+        artifact_id=artifact.artifact_id,
+        invoice=invoice,
+        amount_display=f"{invoice.amount:,.0f}",
+    )
 
 
 def generate_artifact(workflow: Workflow, config: ArtifactConfig) -> GeneratedArtifact:

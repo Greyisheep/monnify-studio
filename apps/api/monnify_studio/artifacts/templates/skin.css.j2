@@ -89,3 +89,8 @@ table.orders td { padding: 10px; border-bottom: 1px solid var(--line); }
 .feed li { padding: 8px 4px; border-bottom: 1px solid color-mix(in srgb, var(--ink) 8%, transparent); font-size: 0.92rem; }
 .feed li:last-child { border-bottom: none; }
 .feed-time { color: var(--muted); font-variant-numeric: tabular-nums; margin-right: 8px; font-size: 0.8rem; }
+
+/* Invoice creation form (#85) */
+.inv-form { display: grid; grid-template-columns: 1fr 1.4fr 0.9fr auto; gap: 8px; margin-bottom: 14px; }
+.inv-form input { padding: 9px 10px; border: 1px solid color-mix(in srgb, var(--ink) 15%, transparent); border-radius: 8px; font: inherit; background: transparent; color: inherit; }
+@media (max-width: 640px) { .inv-form { grid-template-columns: 1fr; } }

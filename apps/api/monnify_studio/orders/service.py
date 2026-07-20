@@ -49,6 +49,11 @@ class Order(BaseModel):
     payment_reference: str = ""
     transaction_reference: str = ""
     workflow_id: str | None = None  # whose credentials verify this order (#68)
+    # Invoices reuse the whole verify machinery (#85): an invoice is an order
+    # created BEFORE payment, with a buyer and a description on the face of it.
+    kind: str = "order"  # "order" | "invoice"
+    customer: str = ""
+    description: str = ""
 
 
 class _SupportsQuery(Protocol):  # what the real client provides
@@ -79,8 +84,12 @@ class OrdersService:
         artifact_id: str,
         product: str,
         amount: float,
-        payment_reference: str,
+        payment_reference: str = "",
         transaction_reference: str = "",
+        workflow_id: str | None = None,
+        kind: str = "order",
+        customer: str = "",
+        description: str = "",
     ) -> Order:
         order = Order(
             reference=reference,
@@ -89,6 +98,10 @@ class OrdersService:
             amount=amount,
             payment_reference=payment_reference,
             transaction_reference=transaction_reference,
+            workflow_id=workflow_id,
+            kind=kind,
+            customer=customer,
+            description=description,
         )
         self._orders[reference] = order
         log.info("orders.created", reference=reference, artifact=artifact_id, amount=amount)
@@ -114,6 +127,18 @@ class OrdersService:
     def for_artifact(self, artifact_id: str) -> list[Order]:
         return [o for o in self._orders.values() if o.artifact_id == artifact_id]
 
+    def invoices_for(self, artifact_id: str) -> list[Order]:
+        return [o for o in self.for_artifact(artifact_id) if o.kind == "invoice"]
+
+    def attach_payment(
+        self, reference: str, *, payment_reference: str, transaction_reference: str = ""
+    ) -> Order:
+        """An invoice meets its payment attempt (buyer clicked Pay now) (#85)."""
+        order = self._orders[reference]
+        order.payment_reference = payment_reference
+        order.transaction_reference = transaction_reference
+        return order
+
     # --- the trust boundary ---
 
     def verify(self, reference: str) -> Order:
@@ -128,6 +153,11 @@ class OrdersService:
             raise KeyError(reference)
         if order.status is OrderStatus.VERIFIED:
             return order  # terminal; nothing a repeat call should change
+        if not order.payment_reference:
+            # An invoice nobody has attempted to pay yet: not a rejection, just
+            # unpaid (#85). No provider query for a reference that cannot exist.
+            order.note = "No payment attempt yet. Share the invoice link."
+            return order
 
         truth = self._query(order)
         status = str(truth.get("status", "UNKNOWN")).upper()
