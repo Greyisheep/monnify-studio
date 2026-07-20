@@ -10,13 +10,13 @@
 **▶ Try it now, no setup:** **https://monnify-studio-web-cu5qickhka-bq.a.run.app**
 It is seeded with a live demo business ("Mama Nkechi Foods"), so it is never empty. Ask the assistant for something impossible (*"build me a rocket to the moon"*) and watch it politely refuse.
 
-Built for the **API Conference Lagos 2026 — Build With Monnify Developer Challenge**.
+Built for the **API Conference Lagos 2026 - Build With Monnify Developer Challenge**.
 
 ---
 
 ## The one-minute version
 
-A market woman, a freelancer, or a developer describes what they sell. **Moni** (the assistant) composes a complete Monnify payment flow as a graph. A deterministic **analyzer** audits that graph for the bugs that only show up in production — unverified webhooks, missing idempotency, unvalidated payouts, insufficient-balance failures — and Moni is only allowed to hand over a flow that passes. The flow then becomes a real product: a shareable shop link, a proper invoice, and a plain-words dashboard. Nothing is ever marked *paid* until Monnify itself confirms the money.
+A market woman, a freelancer, or a developer describes what they sell. **Moni** (the assistant) composes a complete Monnify payment flow as a graph. A deterministic **analyzer** audits that graph for the bugs that only show up in production - unverified webhooks, missing idempotency, unvalidated payouts, insufficient-balance failures - and Moni is only allowed to hand over a flow that passes. The flow then becomes a real product: a shareable shop link, a proper invoice, and a plain-words dashboard. Nothing is ever marked *paid* until Monnify itself confirms the money.
 
 The thesis, in one line: **AI proposes, the analyzer disposes. Correctness never rests on the model.**
 
@@ -31,24 +31,24 @@ Each of you can inspect the part you care about in a few minutes.
 4. The point: no code, usable by an 8-year-old or an 80-year-old, and no fake-payment-screenshot fraud (paid means Monnify confirmed it).
 
 ### 🎨 Designer
-- The product speaks in plain words end to end — a run reads *"Waiting: customer pays"*, never `node.suspended (D1)`.
+- The product speaks in plain words end to end - a run reads *"Waiting: customer pays"*, never `node.suspended (D1)`.
 - The generated invoice is a real document (styled to the Dockie/Carlofty references), and the dashboard is the business's "money book": inflow, outflow, net profit.
 - Design system + screens: the team's [Figma](https://www.figma.com/design/yuXqT1qhA15L3v1jNdPobC/Monnify-challenge) (user-type onboarding, dashboard, canvas).
 
 ### 🧑‍💻 Engineer
-- The heart is a typed, event-driven **IR** (a node graph) + a **static analyzer** with deterministic tag-reachability rules — *no LLM in the correctness path* (see the rules table below).
+- The heart is a typed, event-driven **IR** (a node graph) + a **static analyzer** with deterministic tag-reachability rules - *no LLM in the correctness path* (see the rules table below).
 - Moni's compose is a **deterministic generate → verify → refine → refuse loop**: she proposes, our code runs the analyzer and Apply-Fix, and returns only a clean flow or refuses honestly. Correctness stays in code, not the model.
-- **170 backend + 14 frontend tests**, gated in CI on every PR — and the suite runs **keyless**, so green also proves the no-API-key fallbacks carry the product.
+- **170 backend + 14 frontend tests**, gated in CI on every PR - and the suite runs **keyless**, so green also proves the no-API-key fallbacks carry the product.
 - Money is exact `Decimal` to the kobo, never `float`. Start reading at [`docs/MONI_ARCHITECTURE.md`](docs/MONI_ARCHITECTURE.md) and [`apps/api/monnify_studio/ai/composer.py`](apps/api/monnify_studio/ai/composer.py).
 
 ### 📣 DevRel
-- Moni is **grounded in Monnify's own docs** (the cheat sheet + live doc fetches), so she composes from documented features, not model memory — and citations are assembled from the catalog, never invented by the model.
+- Moni is **grounded in Monnify's own docs** (the cheat sheet + live doc fetches), so she composes from documented features, not model memory - and citations are assembled from the catalog, never invented by the model.
 - Ask Moni *"why?"* on any node and get a grounded answer with a real `developers.monnify.com` reference.
 - Every catalog node maps to a real Monnify capability (Collections, Reserved Accounts, Disbursements, Verification/KYC, Reconciliation).
 
 ## What works today
 
-- **Moni composes any flow** from plain language (not just templates) and refuses non-payment requests honestly. Verified live: ajo, per-tenant rent, rider payroll, savings-wallet-with-fee, ticketing — all compose analyzer-clean.
+- **Moni composes any flow** from plain language (not just templates) and refuses non-payment requests honestly. Verified live: ajo, per-tenant rent, rider payroll, savings-wallet-with-fee, ticketing - all compose analyzer-clean.
 - **The safety analyzer** (deterministic, no LLM), with Apply-Fix that rewrites a flawed graph to a clean one in front of you:
 
   | Rule | Catches |
@@ -62,7 +62,7 @@ Each of you can inspect the part you care about in a few minutes.
   | MON012 | Balance not checked before a payout (the live "insufficient balance" failure) |
 
 - **Real products from a flow:** a self-serve **shop link** + QR (buyers pick items → an invoice is generated), a **branded invoice** document, and a generic **dashboard** ledger.
-- **Verify-driven truth:** orders/invoices are *paid* only after Monnify confirms — defeating fake-alert screenshots.
+- **Verify-driven truth:** orders/invoices are *paid* only after Monnify confirms - defeating fake-alert screenshots.
 - **Live Monnify sandbox** calls (auth + initialize transaction → real checkout URL), fully traced with secrets redacted.
 - **Notifications** by email (SMTP); WhatsApp wired, on when its keys are set.
 - **Deployed on Cloud Run**, auto-deploying from `main`, seeded so it is never empty.
@@ -71,16 +71,16 @@ Each of you can inspect the part you care about in a few minutes.
 
 Needs Python 3.11+ and Node 20+. Two servers.
 
-**It works with zero API keys** — Moni falls back to keyword routing and doc-grounding, orders run against a mock adapter, and the whole test suite passes keyless. Keys only *unlock* live features (real compose, real sandbox calls). See [API keys](#api-keys) below.
+**It works with zero API keys** - Moni falls back to keyword routing and doc-grounding, orders run against a mock adapter, and the whole test suite passes keyless. Keys only *unlock* live features (real compose, real sandbox calls). See [API keys](#api-keys) below.
 
 ```bash
-# 1. Backend (analyzer + Moni + product API) — from apps/api
+# 1. Backend (analyzer + Moni + product API) - from apps/api
 cd apps/api
 uv sync --all-extras
 uv run pytest -q                                   # 170 tests, no keys needed
 uv run uvicorn monnify_studio.api.main:app --port 8010 --host 127.0.0.1
 
-# 2. Frontend canvas — in another terminal, from apps/web
+# 2. Frontend canvas - in another terminal, from apps/web
 cd apps/web
 cp .env.example .env.local                         # NEXT_PUBLIC_API_URL=http://127.0.0.1:8010
 npm ci && npm run dev                              # http://localhost:3000
@@ -105,7 +105,7 @@ All optional. Nothing is required to run the app or the tests.
 | `MONNIFY_API_KEY`, `MONNIFY_SECRET_KEY`, `MONNIFY_CONTRACT_CODE` | Real sandbox checkout + verification | [app.monnify.com](https://app.monnify.com) → sandbox → API keys |
 | `SMTP_*` | Real email receipts | any SMTP provider |
 
-Copy [`.env.example`](.env.example) to `.env` and fill in only what you want. **Sandbox only** — production execution is refused by default. Secrets never enter logs, workflows, shared links, or AI context.
+Copy [`.env.example`](.env.example) to `.env` and fill in only what you want. **Sandbox only** - production execution is refused by default. Secrets never enter logs, workflows, shared links, or AI context.
 
 ## Layout
 
@@ -122,4 +122,4 @@ The product model in plain words lives in [issue #105](https://github.com/Greyis
 
 ## License
 
-[MIT](LICENSE) — you own your code and idea.
+[MIT](LICENSE) - you own your code and idea.
