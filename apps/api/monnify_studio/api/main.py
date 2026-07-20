@@ -42,6 +42,11 @@ from monnify_studio.credentials import (
 )
 from monnify_studio.integrations.monnify import MonnifyError, MonnifySandboxClient
 from monnify_studio.money import money
+from monnify_studio.notifications import (
+    Notification,
+    notification_log,
+    whatsapp_notifier,
+)
 from monnify_studio.orders import LineItem, Order, orders_service
 from monnify_studio.executor import (
     ExecutionEvent,
@@ -737,14 +742,16 @@ class ShopSelection(BaseModel):
 
 class ShopInvoiceRequest(BaseModel):
     customer: str = ""
+    customer_whatsapp: str = ""  # optional: we message the buyer the invoice (#99)
     selections: list[ShopSelection] = Field(min_length=1)
 
 
 @app.post("/preview/{artifact_id}/shop/invoice")
-def shop_invoice(artifact_id: str, body: ShopInvoiceRequest) -> dict:
+def shop_invoice(artifact_id: str, body: ShopInvoiceRequest, request: Request) -> dict:
     """Turn a buyer's selection into a real multi-line invoice and hand back its
     shareable link (#91). Prices come from the seller's catalog, never the
-    client, so a buyer cannot invoice themselves a discount."""
+    client, so a buyer cannot invoice themselves a discount. If the buyer gave a
+    WhatsApp number, we message them the invoice link (#99)."""
     artifact = _artifact_or_404(artifact_id)
     prices = {it.id: it for it in artifact.config.shop_items()}
     line_items: list[LineItem] = []
@@ -765,9 +772,20 @@ def shop_invoice(artifact_id: str, body: ShopInvoiceRequest) -> dict:
         workflow_id=artifact.workflow_id,
         kind="invoice",
         customer=body.customer.strip() or "Customer",
+        customer_whatsapp=body.customer_whatsapp.strip(),
         description=summary,
         line_items=line_items,
     )
+    invoice_url = f"/preview/{artifact_id}/invoice/{reference}"
+    if inv.customer_whatsapp:
+        base = str(request.base_url).rstrip("/")
+        whatsapp_notifier.invoice_ready(
+            artifact_id=artifact_id,
+            number=inv.customer_whatsapp,
+            business=artifact.config.business_name,
+            amount=inv.amount,
+            url=f"{base}{invoice_url}",
+        )
     log.info(
         "shop.invoice.created",
         artifact_id=artifact_id,
@@ -775,10 +793,31 @@ def shop_invoice(artifact_id: str, body: ShopInvoiceRequest) -> dict:
         items=len(line_items),
         amount=str(inv.amount),
     )
-    return {
-        "invoice_reference": reference,
-        "invoice_url": f"/preview/{artifact_id}/invoice/{reference}",
-    }
+    return {"invoice_reference": reference, "invoice_url": invoice_url}
+
+
+def _thank_you_on_verified(order: Order) -> None:
+    """When Monnify confirms a payment, message the buyer a thank-you (#99)."""
+    if not order.customer_whatsapp:
+        return
+    artifact = artifact_store.get(order.artifact_id)
+    business = artifact.config.business_name if artifact else "the seller"
+    whatsapp_notifier.payment_thank_you(
+        artifact_id=order.artifact_id,
+        number=order.customer_whatsapp,
+        business=business,
+        amount=order.amount,
+    )
+
+
+orders_service.on_verified = _thank_you_on_verified
+
+
+@app.get("/preview/{artifact_id}/notifications", response_model=list[Notification])
+def artifact_notifications(artifact_id: str) -> list[Notification]:
+    """Messages the product has sent buyers, newest first (#99)."""
+    _artifact_or_404(artifact_id)
+    return notification_log.for_artifact(artifact_id)
 
 
 @app.post("/preview/{artifact_id}/invoice/{reference}/pay")
@@ -870,6 +909,10 @@ def artifact_activity(artifact_id: str) -> list[ActivityItem]:
                         text=f"Money recorded: {ev.message}",
                     )
                 )
+    for note in notification_log.for_artifact(artifact_id):
+        items.append(
+            ActivityItem(ts=note.ts.isoformat(), kind="notification", text=note.text)
+        )
     items.sort(key=lambda i: i.ts, reverse=True)
     return items[:50]
 

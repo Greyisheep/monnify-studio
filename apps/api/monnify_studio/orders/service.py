@@ -72,6 +72,7 @@ class Order(BaseModel):
     # created BEFORE payment, with a buyer and a description on the face of it.
     kind: str = "order"  # "order" | "invoice"
     customer: str = ""
+    customer_whatsapp: str = ""  # so the product can message the buyer (#99)
     description: str = ""
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -94,6 +95,10 @@ class OrdersService:
     def __init__(self, verifier: Verifier | None = None) -> None:
         self._orders: dict[str, Order] = {}  # keyed by order reference
         self.verifier: Verifier = verifier or monnify_verifier
+        # Fired once when an order flips to VERIFIED (e.g. send a WhatsApp
+        # thank-you, #99). Kept as a hook so this module never imports the
+        # notification layer; a failing hook must not affect verification.
+        self.on_verified: Callable[[Order], None] | None = None
 
     # --- creation & listing ---
 
@@ -109,6 +114,7 @@ class OrdersService:
         workflow_id: str | None = None,
         kind: str = "order",
         customer: str = "",
+        customer_whatsapp: str = "",
         description: str = "",
         line_items: list[LineItem] | None = None,
     ) -> Order:
@@ -126,6 +132,7 @@ class OrdersService:
             workflow_id=workflow_id,
             kind=kind,
             customer=customer,
+            customer_whatsapp=customer_whatsapp,
             description=description,
             line_items=items,
         )
@@ -206,6 +213,11 @@ class OrdersService:
             amount_paid=amount_paid,
             result=order.status.value,
         )
+        if order.status is OrderStatus.VERIFIED and self.on_verified is not None:
+            try:
+                self.on_verified(order)
+            except Exception as exc:  # a notification must never fail a verify
+                log.warning("orders.on_verified.failed", reference=reference, error=str(exc))
         return order
 
 
