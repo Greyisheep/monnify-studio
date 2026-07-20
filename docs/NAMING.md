@@ -36,8 +36,8 @@ The Business door must be usable by an 8-year-old and an 80-year-old; the Develo
 
 `Path` (the door: Business or Developer) -> **Goal** ("What do you want to do?": Sell goods/services, Send an invoice, Pay staff, Savings group, Something else) -> the setup that fits (Catalog only for the Sell goal; everything else hands to Moni) -> Dashboard.
 
-- **Path** — code `path`, values `business` / `developer`.
-- **Goal** — code `goal`; maps onto template ids (`sell-online`, `invoice`, `payroll`) plus Moni for "Something else".
+- **Path**: code `path`, values `business` / `developer`.
+- **Goal**: code `goal`; maps onto template ids (`sell-online`, `invoice`, `payroll`) plus Moni for "Something else".
 
 ## Dashboard labels
 
