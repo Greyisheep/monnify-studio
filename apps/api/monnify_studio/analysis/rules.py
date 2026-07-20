@@ -196,6 +196,43 @@ def mon011_beneficiary_not_validated(a: Analysis) -> list[Finding]:
     return findings
 
 
+def mon012_transfer_without_balance_check(a: Analysis) -> list[Finding]:
+    """A transfer is reachable without confirming the source balance covers it.
+
+    The live failure mode from Monnify merchants: disbursements die at runtime
+    with "You do not have sufficient balance" - discovered only when payday
+    fires. Structural twin of MON011; balance math is exact-kobo (D21). (#108)"""
+    findings: list[Finding] = []
+    is_transfer = a.has_pred(T.BENEFICIARY_TRANSFER)
+    is_check = a.has_pred(T.BALANCE_CHECK)
+    reported: set[str] = set()
+    for root in a.wf.roots():
+        for path in a.unguarded_targets(root, is_transfer, is_check):
+            target = path[-1]
+            if target in reported:
+                continue
+            reported.add(target)
+            findings.append(
+                Finding(
+                    rule_id="MON012",
+                    severity=Severity.MEDIUM,
+                    title="Balance not checked before transfer",
+                    message="The payout can fail at runtime with 'insufficient balance' "
+                    "because nothing confirms the wallet covers the amount first.",
+                    node_ids=[target],
+                    path=path,
+                    explanation=(
+                        "Query the available balance and confirm it covers the amount "
+                        "(plus fees) before initiating the transfer. Otherwise the flow "
+                        "only discovers the shortfall when the disbursement fails."
+                    ),
+                    remediation="Insert Check Balance First before the transfer.",
+                    doc_url=DOCS_API,
+                )
+            )
+    return findings
+
+
 RULES: list[Rule] = [
     mon001_client_callback_as_truth,
     mon002_missing_signature_check,
@@ -203,4 +240,5 @@ RULES: list[Rule] = [
     mon004_amount_not_validated,
     mon009_immediate_split_before_conditional_payout,
     mon011_beneficiary_not_validated,
+    mon012_transfer_without_balance_check,
 ]
