@@ -17,16 +17,19 @@ from __future__ import annotations
 
 import inspect
 from datetime import datetime, timezone
+from decimal import Decimal
 from enum import Enum
 from typing import Any, Callable, Protocol
 
 from pydantic import BaseModel, Field
 
+from ..money import covers, money
 from ..observability import get_logger
 
 log = get_logger("orders")
 
-# (payment_reference, workflow_id) -> {"status": "PAID"|..., "amount_paid": float}
+# (payment_reference, workflow_id) -> {"status": "PAID"|..., "amount_paid": <exact>}
+# amount_paid may arrive as str/int/Decimal; money() coerces it exactly (D21).
 Verifier = Callable[..., dict[str, Any]]
 
 NOTE_NO_PAYMENT = "No confirmed payment found for this reference"
@@ -44,7 +47,7 @@ class Order(BaseModel):
     reference: str
     artifact_id: str
     product: str
-    amount: float
+    amount: Decimal  # exact to the kobo; never a float (D21)
     status: OrderStatus = OrderStatus.PENDING
     note: str = ""
     payment_reference: str = ""
@@ -85,7 +88,7 @@ class OrdersService:
         reference: str,
         artifact_id: str,
         product: str,
-        amount: float,
+        amount: object,  # coerced to exact Decimal below; accepts int/str/Decimal
         payment_reference: str = "",
         transaction_reference: str = "",
         workflow_id: str | None = None,
@@ -97,7 +100,7 @@ class OrdersService:
             reference=reference,
             artifact_id=artifact_id,
             product=product,
-            amount=amount,
+            amount=money(amount),  # exact to the kobo before it is ever stored
             payment_reference=payment_reference,
             transaction_reference=transaction_reference,
             workflow_id=workflow_id,
@@ -163,14 +166,14 @@ class OrdersService:
 
         truth = self._query(order)
         status = str(truth.get("status", "UNKNOWN")).upper()
-        amount_paid = float(truth.get("amount_paid") or 0.0)
+        amount_paid = money(truth.get("amount_paid") or 0)  # exact, never a float
 
-        if status == "PAID" and amount_paid >= order.amount:
+        if status == "PAID" and covers(amount_paid, order.amount):
             order.status = OrderStatus.VERIFIED
             order.note = NOTE_VERIFIED
         elif status == "PAID":
             order.status = OrderStatus.REJECTED
-            order.note = f"{NOTE_UNDERPAID} (paid {amount_paid:,.0f} of {order.amount:,.0f})"
+            order.note = f"{NOTE_UNDERPAID} (paid {amount_paid:,.2f} of {order.amount:,.2f})"
         else:
             order.status = OrderStatus.REJECTED
             order.note = NOTE_NO_PAYMENT
