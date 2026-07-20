@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+from datetime import datetime, timedelta, timezone
 
 from decimal import Decimal
 from uuid import uuid4
@@ -1012,6 +1013,38 @@ def artifact_activity(artifact_id: str) -> list[ActivityItem]:
         )
     items.sort(key=lambda i: i.ts, reverse=True)
     return items[:50]
+
+
+class DashboardTotals(BaseModel):
+    period: str  # "today" | "week" | "month" | "all"
+    money_in: Decimal  # verified only, exact to the kobo (D21)
+    money_out: Decimal
+    profit: Decimal
+    orders_total: int
+    verified: int
+    needs_attention: int
+    rejected: int
+
+
+_PERIOD_DAYS = {"today": 1, "week": 7, "month": 30}
+
+
+@app.get("/preview/{artifact_id}/totals", response_model=DashboardTotals)
+def artifact_totals(artifact_id: str, period: str = "week") -> DashboardTotals:
+    """The Dashboard money book: money in / out / profit for a period (#134, #135).
+
+    Money in is the exact sum of orders Monnify verified, never a claim. `period`
+    is today / week / month / all; anything else falls back to all-time.
+    """
+    _artifact_or_404(artifact_id)
+    since: datetime | None = None
+    days = _PERIOD_DAYS.get(period)
+    if days is not None:
+        since = datetime.now(timezone.utc) - timedelta(days=days)
+    else:
+        period = "all"
+    totals = orders_service.totals_for(artifact_id, since=since)
+    return DashboardTotals(period=period, **totals)
 
 
 @app.post("/preview/{artifact_id}/orders/{reference}/verify", response_model=Order)
