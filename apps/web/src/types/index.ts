@@ -31,6 +31,13 @@ export type {
   WorkflowSummary,
 } from "./studioApi";
 export type {
+  OnboardingStep,
+  ShopProduct,
+  StudioPath,
+  StudioProfile,
+  StudioProfileUpdate,
+} from "./onboarding";
+export type {
   ExecutionEvent,
   ExecutionEventType,
   ExecutionRun,

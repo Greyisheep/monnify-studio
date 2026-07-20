@@ -16,6 +16,8 @@ import type {
   NodeMeta,
   RemediateResult,
   StartExecutionResult,
+  StudioProfile,
+  StudioProfileUpdate,
   TemplateInfo,
   Workflow,
   WorkflowPayload,
@@ -46,7 +48,9 @@ export interface ValidateConnectionResult {
   message: string;
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8010";
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_URL?.trim() ||
+  (typeof window === "undefined" ? "http://127.0.0.1:8010" : "/studio-backend");
 
 const LOCAL_WORKFLOWS: Record<string, WorkflowPayload> = {
   "marketplace-unsafe": unsafePayload as WorkflowPayload,
@@ -60,7 +64,10 @@ const LOCAL_ANALYSIS: Record<string, AnalysisReport> = {
 
 async function tryGetJson<T>(path: string): Promise<T | null> {
   try {
-    const response = await fetch(`${API_BASE}${path}`, { cache: "no-store" });
+    const response = await fetch(`${API_BASE}${path}`, {
+      cache: "no-store",
+      credentials: "include",
+    });
     if (!response.ok) return null;
     return (await response.json()) as T;
   } catch {
@@ -73,6 +80,7 @@ async function postJson<T>(path: string, body: unknown): Promise<T> {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
+    credentials: "include",
   });
   if (!response.ok) {
     const text = await response.text();
@@ -86,6 +94,7 @@ async function putJson<T>(path: string, body: unknown): Promise<T> {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
+    credentials: "include",
   });
   if (!response.ok) {
     const text = await response.text();
@@ -272,6 +281,16 @@ export async function generateArtifact(
 export function absoluteApiUrl(path: string): string {
   if (path.startsWith("http://") || path.startsWith("https://")) return path;
   return `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
+}
+
+export async function fetchStudioProfile(): Promise<StudioProfile | null> {
+  return tryGetJson<StudioProfile>("/studio/profile");
+}
+
+export async function putStudioProfile(
+  patch: StudioProfileUpdate,
+): Promise<StudioProfile> {
+  return putJson<StudioProfile>("/studio/profile", patch);
 }
 
 export { API_BASE };

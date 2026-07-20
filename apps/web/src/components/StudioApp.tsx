@@ -28,9 +28,17 @@ import {
   withNodeHighlights,
 } from "@/lib/findings";
 import { flowToWorkflow } from "@/lib/flowIo";
+import { fetchStudioProfile, putStudioProfile } from "@/lib/api";
 import { ConfigPanel } from "./ConfigPanel";
 import { CredentialsForm } from "./CredentialsForm";
+import {
+  BusinessDashboard,
+  type BusinessNav,
+} from "./BusinessDashboard";
 import { NodePalette } from "./NodePalette";
+import { OnboardingChrome } from "./OnboardingChrome";
+import { PathGate } from "./PathGate";
+import { ProductsStep } from "./ProductsStep";
 import { PreviewArtifactPanel } from "./PreviewArtifactPanel";
 import { ReviewPanel } from "./ReviewPanel";
 import { RightSidebar } from "./RightSidebar";
@@ -38,6 +46,7 @@ import { TemplatePicker } from "./TemplatePicker";
 import { TracePanel } from "./TracePanel";
 import { WorkflowCanvas } from "./WorkflowCanvas";
 import { WorkflowOpener } from "./WorkflowOpener";
+import type { ShopProduct, StudioPath, StudioProfile } from "@/types";
 
 function CanvasInner() {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<StudioNodeData>>([]);
@@ -48,7 +57,12 @@ function CanvasInner() {
   const [previewMode, setPreviewMode] = useState<
     "review" | "trace" | "artifact"
   >("artifact");
-  const [templatesOpen, setTemplatesOpen] = useState(true);
+  const [profile, setProfile] = useState<StudioProfile | null>(null);
+  const [profileReady, setProfileReady] = useState(false);
+  const [profileBusy, setProfileBusy] = useState(false);
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const [businessNav, setBusinessNav] = useState<BusinessNav>("dashboard");
+  const [templatesOpen, setTemplatesOpen] = useState(false);
   const [sellerSeed, setSellerSeed] = useState<ArtifactConfigInput | null>(null);
   const [sellerResult, setSellerResult] = useState<GenerateArtifactResult | null>(
     null,
@@ -70,6 +84,63 @@ function CanvasInner() {
     setWorkflow: session.setWorkflow,
   });
   const trace = useExecutionTrace();
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetchStudioProfile()
+      .then((loaded) => {
+        if (cancelled) return;
+        if (!loaded) {
+          setProfile({
+            session_id: "",
+            path: null,
+            step: "user_type",
+            products: [],
+          });
+          setProfileError(
+            "Cannot reach the Studio API. Keep the backend running on port 8010, then refresh.",
+          );
+          setProfileReady(true);
+          return;
+        }
+        setProfile(loaded);
+        setProfileError(null);
+        // Older sessions stopped on "template"; Figma's next step is Dashboard.
+        if (loaded.path === "business" && loaded.step === "template") {
+          void putStudioProfile({ step: "dashboard" }).then((next) => {
+            if (!cancelled) {
+              setProfile(next);
+              setBusinessNav("dashboard");
+            }
+          });
+        }
+        if (loaded.path === "business" && loaded.step === "dashboard") {
+          setBusinessNav("dashboard");
+        }
+        if (loaded.path === "business" && loaded.step === "done") {
+          setLeftTab("chat");
+          setBusinessNav("workflow");
+        }
+        setProfileReady(true);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setProfile({
+            session_id: "",
+            path: null,
+            step: "user_type",
+            products: [],
+          });
+          setProfileError(
+            "Cannot reach the Studio API. Keep the backend running on port 8010, then refresh.",
+          );
+          setProfileReady(true);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const currentIr = useMemo(() => {
     if (!session.workflow) return null;
@@ -133,11 +204,167 @@ function CanvasInner() {
     setPreviewMode("artifact");
   }
 
+  function seedFromProducts(products: ShopProduct[]) {
+    const first = products[0];
+    if (!first) return;
+    goSeller({
+      product_name: first.name,
+      price_ngn:
+        first.price_ngn == null || first.price_ngn === ""
+          ? undefined
+          : Number(first.price_ngn),
+      logo_url: first.image_url ?? undefined,
+      business_name: "My Business",
+    });
+  }
+
+  async function onPathContinue(path: StudioPath) {
+    setProfileBusy(true);
+    setProfileError(null);
+    try {
+      const next = await putStudioProfile({
+        path,
+        step: path === "business" ? "products" : "done",
+      });
+      setProfile(next);
+      if (path === "developer") {
+        setTemplatesOpen(false);
+        setLeftTab("api");
+      } else {
+        setLeftTab("chat");
+        setPreviewMode("artifact");
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Could not save path";
+      setProfileError(message);
+      session.setTypeError(message);
+    } finally {
+      setProfileBusy(false);
+    }
+  }
+
+  async function onProductsNext(products: ShopProduct[]) {
+    setProfileBusy(true);
+    try {
+      const next = await putStudioProfile({ products, step: "dashboard" });
+      setProfile(next);
+      setBusinessNav("dashboard");
+      seedFromProducts(products);
+    } catch (error) {
+      session.setTypeError(
+        error instanceof Error ? error.message : "Could not save products",
+      );
+    } finally {
+      setProfileBusy(false);
+    }
+  }
+
+  async function onProductsBack() {
+    setProfileBusy(true);
+    try {
+      const next = await putStudioProfile({ step: "user_type", path: null });
+      setProfile(next);
+    } finally {
+      setProfileBusy(false);
+    }
+  }
+
+  async function goBusinessWorkflow() {
+    setBusinessNav("workflow");
+    if (profile?.step === "dashboard" || profile?.step === "template") {
+      const next = await putStudioProfile({ step: "done" });
+      setProfile(next);
+    }
+    setLeftTab("chat");
+    setPreviewMode("artifact");
+  }
+
+  async function markOnboardingDone() {
+    const next = await putStudioProfile({ step: "done" });
+    setProfile(next);
+    setTemplatesOpen(false);
+  }
+
+  const onboardingStep = profile?.step ?? "user_type";
+  const showOnboarding =
+    profileReady &&
+    profile != null &&
+    (profile.step === "user_type" || profile.step === "products");
+  const showBusinessDashboard =
+    profileReady &&
+    profile?.path === "business" &&
+    (profile.step === "dashboard" ||
+      (profile.step === "done" && businessNav === "dashboard") ||
+      profile.step === "template");
+
+  if (showBusinessDashboard) {
+    return (
+      <>
+        <BusinessDashboard
+          products={profile?.products ?? []}
+          activeNav={businessNav === "workflow" ? "workflow" : "dashboard"}
+          onNav={(nav) => {
+            if (nav === "workflow") void goBusinessWorkflow();
+            else setBusinessNav("dashboard");
+          }}
+          onNew={() => setTemplatesOpen(true)}
+        />
+        <TemplatePicker
+          open={templatesOpen}
+          busy={session.busy || profileBusy}
+          dismissible
+          onClose={() => setTemplatesOpen(false)}
+          onPick={(templateId) => {
+            void session.startFromTemplate(templateId).then(async () => {
+              await markOnboardingDone();
+              setBusinessNav("workflow");
+              setSellerResult(null);
+              if (profile?.products?.length) seedFromProducts(profile.products);
+              else {
+                setSellerSeed(null);
+                goSeller();
+              }
+            });
+          }}
+          onBlank={() => {
+            void session.startBlank().then(async () => {
+              await markOnboardingDone();
+              setBusinessNav("workflow");
+              setLeftTab("api");
+              setPreviewMode("review");
+            });
+          }}
+        />
+      </>
+    );
+  }
+
   return (
     <div
       className={`studio-shell${leftCollapsed ? " is-left-collapsed" : ""}`}
       style={sidebars.shellStyle}
     >
+      {showOnboarding && (
+        <OnboardingChrome
+          active={onboardingStep === "products" ? "products" : "user_type"}
+        >
+          {onboardingStep === "products" ? (
+            <ProductsStep
+              initial={profile?.products ?? []}
+              busy={profileBusy}
+              onBack={() => void onProductsBack()}
+              onNext={(products) => void onProductsNext(products)}
+            />
+          ) : (
+            <PathGate
+              busy={profileBusy}
+              error={profileError}
+              onContinue={(path) => void onPathContinue(path)}
+            />
+          )}
+        </OnboardingChrome>
+      )}
       <NodePalette
         catalog={{ ...session.nodeTypesMeta, ...session.catalog }}
         workflowName={session.workflow?.name ?? "Workflow"}
@@ -166,6 +393,15 @@ function CanvasInner() {
 
       <main className="studio-main">
         <div className="studio-hero-switch">
+          {profile?.path === "business" && (
+            <button
+              type="button"
+              className="studio-btn studio-btn--ghost"
+              onClick={() => setBusinessNav("dashboard")}
+            >
+              ← Dashboard
+            </button>
+          )}
           <WorkflowOpener
             workflows={session.workflows}
             activeId={session.activeWorkflowId}
@@ -192,7 +428,7 @@ function CanvasInner() {
               setRightTab("code");
             }}
           >
-            Credentials
+            Connect your Monnify account
           </button>
           <button
             type="button"
@@ -348,23 +584,28 @@ function CanvasInner() {
       </RightSidebar>
 
       <TemplatePicker
-        open={templatesOpen}
-        busy={session.busy}
-        dismissible={!!session.activeWorkflowId}
+        open={templatesOpen && !showOnboarding}
+        busy={session.busy || profileBusy}
+        dismissible={profile?.step === "done" && !!session.activeWorkflowId}
         onClose={() => {
-          if (session.activeWorkflowId) setTemplatesOpen(false);
+          if (profile?.step === "done" && session.activeWorkflowId) {
+            setTemplatesOpen(false);
+          }
         }}
         onPick={(templateId) => {
-          void session.startFromTemplate(templateId).then(() => {
-            setTemplatesOpen(false);
+          void session.startFromTemplate(templateId).then(async () => {
+            await markOnboardingDone();
             setSellerResult(null);
-            setSellerSeed(null);
-            goSeller();
+            if (profile?.products?.length) seedFromProducts(profile.products);
+            else {
+              setSellerSeed(null);
+              goSeller();
+            }
           });
         }}
         onBlank={() => {
-          void session.startBlank().then(() => {
-            setTemplatesOpen(false);
+          void session.startBlank().then(async () => {
+            await markOnboardingDone();
             setLeftTab("api");
             setPreviewMode("review");
           });

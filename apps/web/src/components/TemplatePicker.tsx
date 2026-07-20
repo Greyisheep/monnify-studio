@@ -1,6 +1,6 @@
 /**
  * First-run / New template picker.
- * Provenance: #55, #51.
+ * Provenance: #55, #51, #103 (onboarding Template step).
  */
 "use client";
 
@@ -13,9 +13,12 @@ export interface TemplatePickerProps {
   open: boolean;
   busy: boolean;
   dismissible?: boolean;
+  /** Render inside onboarding chrome instead of a full-screen modal. */
+  embedded?: boolean;
   onClose: () => void;
   onPick: (templateId: string) => void;
   onBlank?: () => void;
+  onBack?: () => void;
 }
 
 const CANNED: TemplateInfo[] = [
@@ -38,9 +41,11 @@ export function TemplatePicker({
   open,
   busy,
   dismissible = true,
+  embedded = false,
   onClose,
   onPick,
   onBlank,
+  onBack,
 }: TemplatePickerProps) {
   const [templates, setTemplates] = useState<TemplateInfo[]>(CANNED);
   const [error, setError] = useState<string | null>(null);
@@ -70,47 +75,71 @@ export function TemplatePicker({
 
   if (!open) return null;
 
-  return (
-    <div className="studio-modal" role="dialog" aria-label="What do you want to set up?">
-      <div className="studio-modal__card">
-        <div className="studio-modal__head">
-          <div>
-            <h2>What do you want to set up?</h2>
-            <p>Pick a vetted product template. Safety nodes come built in.</p>
-          </div>
-          {dismissible && (
-            <button type="button" className="studio-btn studio-btn--ghost" onClick={onClose}>
-              Close
-            </button>
-          )}
+  const body = (
+    <>
+      <div className="studio-modal__head">
+        <div>
+          <h2>What do you want to set up?</h2>
+          <p>Pick a vetted product template. Safety nodes come built in.</p>
         </div>
-        {error && <p className="studio-modal__error">{error}</p>}
-        <div className="studio-template-grid">
-          {templates.map((template) => (
-            <button
-              key={template.id}
-              type="button"
-              className="studio-template-card"
-              disabled={busy}
-              onClick={() => onPick(template.id)}
-            >
-              <strong>{template.title}</strong>
-              <span className="studio-template-card__persona">{template.persona}</span>
-              <span className="studio-template-card__desc">{template.description}</span>
-            </button>
-          ))}
-        </div>
-        {onBlank && (
-          <button
-            type="button"
-            className="studio-btn studio-btn--ghost studio-modal__blank"
-            disabled={busy}
-            onClick={onBlank}
-          >
-            Start from blank canvas
+        {dismissible && !embedded && (
+          <button type="button" className="studio-btn studio-btn--ghost" onClick={onClose}>
+            Close
           </button>
         )}
       </div>
+      {error && <p className="studio-modal__error">{error}</p>}
+      <div className="studio-template-grid">
+        {templates.map((template) => (
+          <button
+            key={template.id}
+            type="button"
+            className="studio-template-card"
+            disabled={busy}
+            onClick={() => onPick(template.id)}
+          >
+            <strong>{template.title}</strong>
+            <span className="studio-template-card__persona">{template.persona}</span>
+            <span className="studio-template-card__desc">{template.description}</span>
+          </button>
+        ))}
+      </div>
+      {onBlank && (
+        <button
+          type="button"
+          className="studio-btn studio-btn--ghost studio-modal__blank"
+          disabled={busy}
+          onClick={onBlank}
+        >
+          Start from blank canvas
+        </button>
+      )}
+      {embedded && onBack && (
+        <footer className="studio-onboard__footer">
+          <button
+            type="button"
+            className="studio-onboard__back"
+            disabled={busy}
+            onClick={onBack}
+          >
+            Back
+          </button>
+        </footer>
+      )}
+    </>
+  );
+
+  if (embedded) {
+    return (
+      <div className="studio-onboard__card studio-onboard__card--templates" role="region" aria-label="Pick a template">
+        {body}
+      </div>
+    );
+  }
+
+  return (
+    <div className="studio-modal" role="dialog" aria-label="What do you want to set up?">
+      <div className="studio-modal__card">{body}</div>
     </div>
   );
 }

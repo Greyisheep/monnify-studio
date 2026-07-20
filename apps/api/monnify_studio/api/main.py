@@ -42,6 +42,12 @@ from monnify_studio.credentials import (
     MonnifyCredentials,
     credential_store,
 )
+from monnify_studio.onboarding import (
+    SESSION_COOKIE,
+    StudioProfile,
+    StudioProfileUpdate,
+    profile_store,
+)
 from monnify_studio.integrations.monnify import MonnifyError, MonnifySandboxClient
 from monnify_studio.money import money
 from monnify_studio.notifications import (
@@ -86,7 +92,12 @@ class Settings(BaseSettings):
 
     studio_env: str = "development"
     allow_production_execution: bool = False
-    cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
+    # Next often hops 3000→3001 when a port is busy; keep local origins wide.
+    cors_origins: str = (
+        "http://localhost:3000,http://127.0.0.1:3000,"
+        "http://localhost:3001,http://127.0.0.1:3001,"
+        "http://localhost:3002,http://127.0.0.1:3002"
+    )
 
 
 settings = Settings()
@@ -104,9 +115,23 @@ app = FastAPI(
     ),
 )
 
+
+def _cors_allow_origins() -> list[str]:
+    configured = [o.strip() for o in settings.cors_origins.split(",") if o.strip()]
+    if settings.studio_env != "development":
+        return configured
+    # Local Next hops ports; never 400 a browser preflight during the demo.
+    extras = [
+        f"http://{host}:{port}"
+        for host in ("localhost", "127.0.0.1")
+        for port in range(3000, 3011)
+    ]
+    return list(dict.fromkeys([*configured, *extras]))
+
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[o.strip() for o in settings.cors_origins.split(",") if o.strip()],
+    allow_origins=_cors_allow_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -257,6 +282,40 @@ def health() -> dict:
         "env": settings.studio_env,
         "allow_production_execution": settings.allow_production_execution,
     }
+
+
+def _session_id(request: Request, response: Response) -> str:
+    existing = request.cookies.get(SESSION_COOKIE)
+    if existing:
+        return existing
+    sid = new_id("sess")
+    response.set_cookie(
+        key=SESSION_COOKIE,
+        value=sid,
+        httponly=True,
+        samesite="lax",
+        secure=settings.studio_env != "development",
+        max_age=60 * 60 * 24 * 30,
+    )
+    return sid
+
+
+@app.get("/studio/profile", response_model=StudioProfile)
+def get_studio_profile(request: Request, response: Response) -> StudioProfile:
+    """Who this browser is (business/developer) and onboarding progress (#103)."""
+    sid = _session_id(request, response)
+    return profile_store.get_or_create(sid)
+
+
+@app.put("/studio/profile", response_model=StudioProfile)
+def put_studio_profile(
+    body: StudioProfileUpdate,
+    request: Request,
+    response: Response,
+) -> StudioProfile:
+    """Persist path, products, and step. Backend is the source of truth."""
+    sid = _session_id(request, response)
+    return profile_store.update(sid, body)
 
 
 @app.get("/catalog", response_model=dict[str, NodeMeta])
