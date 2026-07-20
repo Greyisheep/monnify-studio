@@ -43,6 +43,7 @@ class CapabilityTag(str, Enum):
     REFERENCE_VALIDATION = "reference_validation"
     IDEMPOTENCY_BOUNDARY = "idempotency_boundary"
     BENEFICIARY_VALIDATION = "beneficiary_validation"  # confirmed payout account (Name Enquiry/KYC)
+    BALANCE_CHECK = "balance_check"  # confirmed the source balance covers the amount (#108)
 
     # --- money & effects ---
     FINANCIAL_FULFILMENT = "financial_fulfilment"  # grants value / marks paid
