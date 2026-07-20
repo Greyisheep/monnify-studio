@@ -1,9 +1,13 @@
 /**
  * Execution-trace overlay: streamed events with redacted req/resp (#28).
- * Floats over the canvas; does not shrink the diagram (#44). Provenance: #28, D14, D15.
+ * Floats over the canvas; does not shrink the diagram (#44).
+ * Provenance: #28, #79, D14, D15.
  */
 "use client";
 
+import { useEffect, useState } from "react";
+
+import { eventFriendlySummary, eventHasTechnicalDetail } from "@/lib/traceEvent";
 import type { ExecutionEvent, ExecutionRun } from "@/types";
 
 export interface TracePanelProps {
@@ -16,17 +20,83 @@ export interface TracePanelProps {
   onClose: () => void;
 }
 
-function eventLabel(event: ExecutionEvent): string {
-  if (event.node_id) return `${event.type} · ${event.node_id}`;
-  return event.type;
-}
-
 function pretty(value: unknown): string {
   try {
     return JSON.stringify(value, null, 2);
   } catch {
     return String(value);
   }
+}
+
+function TraceEventDetail({ event }: { event: ExecutionEvent }) {
+  const [showTechnical, setShowTechnical] = useState(false);
+  const hasTechnical = eventHasTechnicalDetail(event);
+
+  useEffect(() => {
+    setShowTechnical(false);
+  }, [event.seq]);
+
+  return (
+    <div className="studio-trace__detail">
+      <h3>{eventFriendlySummary(event)}</h3>
+      {hasTechnical && (
+        <button
+          type="button"
+          className="studio-trace__technical-toggle"
+          aria-expanded={showTechnical}
+          onClick={() => setShowTechnical((open) => !open)}
+        >
+          {showTechnical ? "Hide technical details" : "Show technical details"}
+        </button>
+      )}
+      {showTechnical && hasTechnical && (
+        <div className="studio-trace__technical">
+          {event.message && (
+            <>
+              <h4>Message</h4>
+              <pre>{event.message}</pre>
+            </>
+          )}
+          {(event.node_id || event.node_type) && (
+            <>
+              <h4>Node</h4>
+              <pre>
+                {pretty({
+                  node_id: event.node_id ?? undefined,
+                  node_type: event.node_type ?? undefined,
+                })}
+              </pre>
+            </>
+          )}
+          {event.error && (
+            <>
+              <h4>Error</h4>
+              <pre className="studio-trace__error-text">{event.error}</pre>
+            </>
+          )}
+          {event.request && (
+            <>
+              <h4>Request (redacted)</h4>
+              <pre>{pretty(event.request)}</pre>
+            </>
+          )}
+          {event.response && (
+            <>
+              <h4>Response (redacted)</h4>
+              <pre>{pretty(event.response)}</pre>
+            </>
+          )}
+          {Object.keys(event.outputs ?? {}).length > 0 && (
+            <>
+              <h4>Outputs</h4>
+              <pre>{pretty(event.outputs)}</pre>
+            </>
+          )}
+        </div>
+      )}
+      {!hasTechnical && <p className="muted">No extra detail on this event.</p>}
+    </div>
+  );
 }
 
 export function TracePanel({
@@ -87,8 +157,7 @@ export function TracePanel({
             >
               <span className="studio-trace__seq">{event.seq}</span>
               <span className="studio-trace__meta">
-                <strong>{eventLabel(event)}</strong>
-                {event.message && <span>{event.message}</span>}
+                <strong>{eventFriendlySummary(event)}</strong>
               </span>
               {event.duration_ms != null && (
                 <span className="studio-trace__dur">{event.duration_ms}ms</span>
@@ -98,41 +167,7 @@ export function TracePanel({
         ))}
       </ul>
 
-      {selected && (
-        <div className="studio-trace__detail">
-          <h3>Event detail</h3>
-          {selected.node_type && (
-            <p className="muted">{selected.node_type}</p>
-          )}
-          {selected.error && (
-            <p className="type-error">{selected.error}</p>
-          )}
-          {selected.request && (
-            <>
-              <h4>Request (redacted)</h4>
-              <pre>{pretty(selected.request)}</pre>
-            </>
-          )}
-          {selected.response && (
-            <>
-              <h4>Response (redacted)</h4>
-              <pre>{pretty(selected.response)}</pre>
-            </>
-          )}
-          {Object.keys(selected.outputs ?? {}).length > 0 && (
-            <>
-              <h4>Outputs</h4>
-              <pre>{pretty(selected.outputs)}</pre>
-            </>
-          )}
-          {!selected.request &&
-            !selected.response &&
-            Object.keys(selected.outputs ?? {}).length === 0 &&
-            !selected.error && (
-              <p className="muted">No payload on this event.</p>
-            )}
-        </div>
-      )}
+      {selected && <TraceEventDetail event={selected} />}
     </aside>
   );
 }

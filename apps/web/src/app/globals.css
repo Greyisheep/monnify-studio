@@ -1214,6 +1214,29 @@ body.is-resizing-sidebar iframe {
 .studio-trace__detail h3 {
   margin: 0 0 0.35rem;
   font-size: 0.82rem;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.studio-trace__technical-toggle {
+  margin: 0.35rem 0 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 0.72rem;
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 0.12em;
+}
+
+.studio-trace__technical {
+  margin-top: 0.55rem;
+}
+
+.studio-trace__error-text {
+  color: var(--danger);
 }
 
 .studio-trace__detail h4 {

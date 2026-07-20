@@ -1,6 +1,6 @@
 /**
  * Execution trace contracts (mirror monnify_studio.executor.events).
- * Interim hand port until D6 JSON Schema codegen. Provenance: #28, #8, D2, D15.
+ * Interim hand port until D6 JSON Schema codegen. Provenance: #28, #8, #79, D2, D15.
  */
 
 export type RunStatus =
@@ -29,6 +29,7 @@ export interface ExecutionEvent {
   node_id?: string | null;
   node_type?: string | null;
   message: string;
+  friendly_text: string;
   duration_ms?: number | null;
   request?: Record<string, unknown> | null;
   response?: Record<string, unknown> | null;
