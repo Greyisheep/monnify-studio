@@ -131,3 +131,28 @@ def test_dashboard_shows_the_shop_link_and_qr():
     html = client.get(f"/preview/{artifact_id}/dashboard").text
     assert "Your shop link" in html and "Share on WhatsApp" in html
     assert "shop/qr.svg" in html
+
+
+def test_seller_edits_catalog_from_dashboard():
+    artifact_id = _shop_artifact(CATALOG)
+    # Replace the price list with the seller's own two items.
+    res = client.put(
+        f"/preview/{artifact_id}/catalog",
+        json={"items": [
+            {"name": "Ankara gown", "price_ngn": 18000},
+            {"name": "Head tie", "price_ngn": 3500},
+            {"name": "  ", "price_ngn": 999},  # blank name dropped
+        ]},
+    )
+    assert res.status_code == 200
+    names = [i["name"] for i in res.json()]
+    assert names == ["Ankara gown", "Head tie"]
+    # The shop reflects it immediately.
+    shop = client.get(f"/preview/{artifact_id}/shop").text
+    assert "Ankara gown" in shop and "Head tie" in shop and "Logo design" not in shop
+
+
+def test_dashboard_has_the_item_editor():
+    artifact_id = _shop_artifact(CATALOG)
+    html = client.get(f"/preview/{artifact_id}/dashboard").text
+    assert "What you sell" in html and "Save my items" in html

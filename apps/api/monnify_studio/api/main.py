@@ -29,6 +29,7 @@ from monnify_studio.ai import (
 from monnify_studio.analysis import Report, analyze
 from monnify_studio.artifacts import (
     ArtifactConfig,
+    CatalogItem,
     artifact_store,
     generate_artifact,
     render_invoice_page,
@@ -697,6 +698,36 @@ def shop_qr(artifact_id: str, request: Request) -> Response:
         buf, kind="svg", scale=5, border=2, dark="#0f6b57"
     )
     return Response(content=buf.getvalue(), media_type="image/svg+xml")
+
+
+class CatalogItemInput(BaseModel):
+    name: str
+    price_ngn: Decimal = Field(ge=0)
+
+
+class CatalogUpdate(BaseModel):
+    items: list[CatalogItemInput] = Field(default_factory=list)
+
+
+@app.get("/preview/{artifact_id}/catalog", response_model=list[CatalogItem])
+def get_shop_catalog(artifact_id: str) -> list[CatalogItem]:
+    """What the seller currently sells (their editable price list) (#91)."""
+    artifact = _artifact_or_404(artifact_id)
+    return artifact.config.shop_items()
+
+
+@app.put("/preview/{artifact_id}/catalog", response_model=list[CatalogItem])
+def set_shop_catalog(artifact_id: str, body: CatalogUpdate) -> list[CatalogItem]:
+    """The seller edits their price list from the dashboard: a name and a price
+    per row, no dev and no config file. The shop reflects it immediately (#91)."""
+    artifact = _artifact_or_404(artifact_id)
+    artifact.config.catalog = [
+        CatalogItem(name=i.name.strip(), price_ngn=i.price_ngn)
+        for i in body.items
+        if i.name.strip()
+    ]
+    log.info("shop.catalog.updated", artifact_id=artifact_id, items=len(artifact.config.catalog))
+    return artifact.config.catalog
 
 
 class ShopSelection(BaseModel):

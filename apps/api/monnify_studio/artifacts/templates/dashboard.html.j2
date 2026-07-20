@@ -50,7 +50,61 @@
       </div>
     </section>
 
+    <section class="card">
+      <div class="table-head">
+        <h2>What you sell</h2>
+        <button class="btn-ghost" id="cat-add" type="button">+ Add item</button>
+      </div>
+      <p class="empty" style="margin:0 0 12px">Type a name and a price for each thing you sell. This is your shop; changes show up right away.</p>
+      <div id="cat-rows" class="cat-rows"></div>
+      <div class="cat-actions">
+        <button class="btn-primary" id="cat-save" type="button">Save my items</button>
+        <span id="cat-status" class="cat-status"></span>
+      </div>
+    </section>
+
     <script>
+      (function () {
+        var host = document.getElementById("cat-rows");
+        var status = document.getElementById("cat-status");
+        function row(name, price) {
+          var div = document.createElement("div");
+          div.className = "cat-row";
+          div.innerHTML =
+            '<input class="cat-name" placeholder="What you sell, e.g. Logo design" />' +
+            '<input class="cat-price" type="number" min="0" step="1" placeholder="Price (NGN)" />' +
+            '<button class="btn-ghost cat-del" type="button" aria-label="Remove">Remove</button>';
+          div.querySelector(".cat-name").value = name || "";
+          if (price !== undefined && price !== null) div.querySelector(".cat-price").value = price;
+          div.querySelector(".cat-del").onclick = function () { div.remove(); };
+          host.appendChild(div);
+        }
+        document.getElementById("cat-add").onclick = function () { row("", ""); };
+        fetch("/preview/{{ artifact_id }}/catalog").then(function (r) { return r.json(); })
+          .then(function (items) {
+            if (!items.length) { row("", ""); return; }
+            items.forEach(function (it) { row(it.name, Math.round(parseFloat(it.price_ngn))); });
+          }).catch(function () { row("", ""); });
+        document.getElementById("cat-save").onclick = async function () {
+          var items = [];
+          host.querySelectorAll(".cat-row").forEach(function (r) {
+            var name = r.querySelector(".cat-name").value.trim();
+            var price = parseFloat(r.querySelector(".cat-price").value);
+            if (name && !isNaN(price)) items.push({ name: name, price_ngn: price });
+          });
+          status.textContent = "Saving...";
+          try {
+            var res = await fetch("/preview/{{ artifact_id }}/catalog", {
+              method: "PUT", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ items: items }),
+            });
+            if (!res.ok) throw new Error();
+            status.textContent = "Saved. Your shop is updated.";
+            setTimeout(function () { status.textContent = ""; }, 2500);
+          } catch (e) { status.textContent = "Could not save. Try again."; }
+        };
+      })();
+
       (function () {
         var abs = window.location.origin + "/preview/{{ artifact_id }}/shop";
         var code = document.getElementById("shop-url");

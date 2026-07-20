@@ -107,3 +107,14 @@ table.orders td { padding: 10px; border-bottom: 1px solid var(--line); }
 .qr-wrap { text-align:center; display:flex; flex-direction:column; gap:6px; align-items:center; }
 .qr-wrap small { color:var(--muted); font-size:.78rem; }
 .qr-img { border:1px solid color-mix(in srgb, var(--ink) 12%, transparent); border-radius:10px; background:#fff; padding:6px; }
+
+/* Seller's item editor (#91) */
+.cat-rows { display:flex; flex-direction:column; gap:8px; }
+.cat-row { display:flex; gap:8px; align-items:center; }
+.cat-row .cat-name { flex:1 1 auto; }
+.cat-row .cat-price { flex:0 0 140px; text-align:right; }
+.cat-row input { padding:10px 12px; border:1px solid color-mix(in srgb, var(--ink) 14%, transparent);
+  border-radius:9px; font:inherit; background:transparent; color:inherit; }
+.cat-actions { display:flex; align-items:center; gap:14px; margin-top:14px; }
+.cat-status { color:var(--muted); font-size:.85rem; }
+@media (max-width:560px){ .cat-row .cat-price { flex-basis:100px; } }
