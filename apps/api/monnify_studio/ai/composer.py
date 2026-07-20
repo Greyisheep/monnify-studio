@@ -9,6 +9,7 @@ AI proposes, the analyzer disposes; correctness never rests on the model (D3).
 
 from __future__ import annotations
 
+import re
 from collections import deque
 
 from pydantic import BaseModel
@@ -29,7 +30,9 @@ _SYSTEM = (
     "You are Moni, the flow composer for Monnify Studio. Design a payment "
     "workflow for the user's business need as a graph.\n"
     "Rules:\n"
-    "- Use ONLY node types from the catalog given to you; invent nothing.\n"
+    "- Use ONLY node types from the catalog given to you; invent nothing. The "
+    "'when to use' text comes from Monnify's own docs; trust it over prior "
+    "knowledge of Monnify.\n"
     "- Give every node a unique snake_case id and a short human label.\n"
     "- Edges leaving event.* nodes have kind 'event'; all others 'control'.\n"
     "- Money must be handled safely: verify webhooks and transactions, validate "
@@ -59,11 +62,31 @@ class ComposeOutcome(BaseModel):
     explanation: str = ""
 
 
+# Internal breadcrumbs (issue/decision refs, dev caveats) that must never reach
+# the model; the catalog is authored for humans, Moni gets the clean version.
+_NOISE = re.compile(r"\s*\((?:#\d+|D\d+)[^)]*\)|Canvas \+ mock execution only for now\.?")
+
+
+def _clean(text: str) -> str:
+    out = _NOISE.sub("", text)
+    out = re.sub(r"\s{2,}", " ", out)
+    out = re.sub(r"\s+([.,])", r"\1", out)  # no space left before punctuation
+    out = re.sub(r"\.{2,}", ".", out)  # collapse doubled periods from removals
+    return out.strip(" -")
+
+
 def _catalog_prompt(catalog: Catalog) -> str:
-    lines = ["Catalog of node types (type | title | what it means):"]
+    """Grounded catalog for Moni: Monnify's own 'when to use' + doc link (#25).
+
+    We feed `when_to_use` (sourced from the Monnify cheat sheet) over the terse
+    internal description, so she composes from documented features, not memory.
+    """
+    lines = ["Catalog of node types (type | title | when to use | docs):"]
     for type_id in catalog.types():
         d = catalog.resolve(type_id)
-        lines.append(f"- {d.type} | {d.title} | {d.description}")
+        meaning = _clean(d.when_to_use or d.description)
+        docs = f" | {d.doc_url}" if d.doc_url else ""
+        lines.append(f"- {d.type} | {d.title} | {meaning}{docs}")
     return "\n".join(lines)
 
 
