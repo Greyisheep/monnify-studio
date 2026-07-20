@@ -5,7 +5,6 @@
  */
 "use client";
 
-import Image from "next/image";
 import { FileText, PanelLeft, Share2 } from "lucide-react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 
