@@ -1,13 +1,12 @@
 /**
- * First-run / New template picker.
- * Provenance: #55, #51, #103 (onboarding Template step).
+ * Template picker matching Figma 103:3264 (default) / 104:3372 (selected).
+ * Selected thumb: teal border + grey fill + "Use Template" pill.
+ * Provenance: #55, #51, #103, Figma Monnify-challenge.
  */
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
-
-import { listTemplates } from "@/lib/api";
-import type { TemplateInfo } from "@/types";
 
 export interface TemplatePickerProps {
   open: boolean;
@@ -21,101 +20,149 @@ export interface TemplatePickerProps {
   onBack?: () => void;
 }
 
-const CANNED: TemplateInfo[] = [
+type PickerOption = {
+  id: string;
+  title: string;
+  description: string;
+  image: string;
+  kind: "blank" | "template";
+};
+
+const OPTIONS: PickerOption[] = [
+  {
+    id: "__blank__",
+    title: "Blank Canvas",
+    description: "Start your workflow from a blank canvas",
+    image: "",
+    kind: "blank",
+  },
   {
     id: "sell-online",
-    title: "Sell online with verified payments",
-    persona: "Small online seller",
-    description:
-      "Checkout link + orders dashboard. Paid only after Monnify verifies.",
+    title: "Get Verified Payments",
+    description: "Setup a payment link and a dashboard for your orders",
+    image: "/figma/templates/template-payments.png",
+    kind: "template",
+  },
+  {
+    id: "invoice",
+    title: "Invoice a customer",
+    description: "Create invoices to share to customers",
+    image: "/figma/templates/template-invoice.png",
+    kind: "template",
   },
   {
     id: "payroll",
-    title: "Payroll",
-    persona: "Team lead / ops",
-    description: "Bulk payouts with verification and reconciliation guards.",
+    title: "Pay salaries",
+    description: "Verify staff accounts before payouts",
+    image: "/figma/templates/template-payroll.png",
+    kind: "template",
   },
 ];
 
 export function TemplatePicker({
   open,
   busy,
-  dismissible = true,
   embedded = false,
-  onClose,
   onPick,
   onBlank,
   onBack,
 }: TemplatePickerProps) {
-  const [templates, setTemplates] = useState<TemplateInfo[]>(CANNED);
-  const [error, setError] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!open) return;
-    let cancelled = false;
-    void listTemplates()
-      .then((items) => {
-        if (cancelled) return;
-        setTemplates(items.length > 0 ? items : CANNED);
-        setError(items.length > 0 ? null : "Using offline template list.");
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        setTemplates(CANNED);
-        setError(
-          err instanceof Error
-            ? `${err.message}, showing offline templates.`
-            : "Showing offline templates.",
-        );
-      });
-    return () => {
-      cancelled = true;
-    };
+    if (!open) setSelected(null);
   }, [open]);
 
   if (!open) return null;
 
+  const choices = onBlank
+    ? OPTIONS
+    : OPTIONS.filter((option) => option.kind !== "blank");
+
+  function confirm(option: PickerOption) {
+    if (busy) return;
+    if (option.kind === "blank") {
+      onBlank?.();
+      return;
+    }
+    onPick(option.id);
+  }
+
   const body = (
-    <>
-      <div className="studio-modal__head">
-        <div>
-          <h2>What do you want to set up?</h2>
-          <p>Pick a vetted product template. Safety nodes come built in.</p>
-        </div>
-        {dismissible && !embedded && (
-          <button type="button" className="studio-btn studio-btn--ghost" onClick={onClose}>
-            Close
-          </button>
-        )}
+    <div className="studio-template-picker">
+      <header className="studio-template-picker__header">
+        <h2>What do you want to set up?</h2>
+        <p>Pick a vetted product template. Safety nodes come built in.</p>
+      </header>
+
+      <div
+        className="studio-template-picker__grid"
+        role="radiogroup"
+        aria-label="Templates"
+      >
+        {choices.map((option) => {
+          const isSelected = selected === option.id;
+          return (
+            <div
+              key={option.id}
+              role="radio"
+              aria-checked={isSelected}
+              tabIndex={0}
+              className={`studio-template-picker__card${isSelected ? " is-selected" : ""}`}
+              onClick={() => {
+                if (!busy) setSelected(option.id);
+              }}
+              onKeyDown={(event) => {
+                if (busy) return;
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  setSelected(option.id);
+                }
+              }}
+            >
+              <div
+                className={`studio-template-picker__thumb${isSelected ? " is-selected" : ""}${
+                  option.kind === "blank" ? " is-blank" : ""
+                }`}
+              >
+                {option.kind === "blank" ? (
+                  <span className="studio-template-picker__plus" aria-hidden>
+                    +
+                  </span>
+                ) : (
+                  <Image
+                    src={option.image}
+                    alt=""
+                    width={200}
+                    height={200}
+                    unoptimized
+                  />
+                )}
+                {isSelected ? (
+                  <button
+                    type="button"
+                    className="studio-template-picker__use"
+                    disabled={busy}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      confirm(option);
+                    }}
+                  >
+                    {busy ? "Opening…" : "Use Template"}
+                  </button>
+                ) : null}
+              </div>
+              <strong>{option.title}</strong>
+              <span className="studio-template-picker__desc">
+                {option.description}
+              </span>
+            </div>
+          );
+        })}
       </div>
-      {error && <p className="studio-modal__error">{error}</p>}
-      <div className="studio-template-grid">
-        {templates.map((template) => (
-          <button
-            key={template.id}
-            type="button"
-            className="studio-template-card"
-            disabled={busy}
-            onClick={() => onPick(template.id)}
-          >
-            <strong>{template.title}</strong>
-            <span className="studio-template-card__persona">{template.persona}</span>
-            <span className="studio-template-card__desc">{template.description}</span>
-          </button>
-        ))}
-      </div>
-      {onBlank && (
-        <button
-          type="button"
-          className="studio-btn studio-btn--ghost studio-modal__blank"
-          disabled={busy}
-          onClick={onBlank}
-        >
-          Start from blank canvas
-        </button>
-      )}
-      {embedded && onBack && (
-        <footer className="studio-onboard__footer">
+
+      {embedded && onBack ? (
+        <div className="studio-template-picker__actions">
           <button
             type="button"
             className="studio-onboard__back"
@@ -124,22 +171,32 @@ export function TemplatePicker({
           >
             Back
           </button>
-        </footer>
-      )}
-    </>
+        </div>
+      ) : null}
+    </div>
   );
 
   if (embedded) {
     return (
-      <div className="studio-onboard__card studio-onboard__card--templates" role="region" aria-label="Pick a template">
+      <div
+        className="studio-onboard__card studio-onboard__card--templates"
+        role="region"
+        aria-label="Pick a template"
+      >
         {body}
       </div>
     );
   }
 
   return (
-    <div className="studio-modal" role="dialog" aria-label="What do you want to set up?">
-      <div className="studio-modal__card">{body}</div>
+    <div
+      className="studio-modal"
+      role="dialog"
+      aria-label="What do you want to set up?"
+    >
+      <div className="studio-modal__card studio-modal__card--templates">
+        {body}
+      </div>
     </div>
   );
 }

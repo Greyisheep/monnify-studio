@@ -8,7 +8,6 @@ import { useEffect } from "react";
 import {
   Background,
   BackgroundVariant,
-  Controls,
   MiniMap,
   ReactFlow,
   useReactFlow,
@@ -25,6 +24,7 @@ import "@xyflow/react/dist/style.css";
 import type { ConnectionFeedback } from "@/hooks/useStudioGraph";
 import type { StudioNodeData } from "@/types";
 import { StudioNode } from "./StudioNode";
+import { StudioZoomControls } from "./StudioZoomControls";
 
 const nodeTypes: NodeTypes = { studio: StudioNode };
 
@@ -37,6 +37,8 @@ export interface WorkflowCanvasProps {
   diffNote: string | null;
   connectionFeedback: ConnectionFeedback;
   layoutNonce: number;
+  /** Hide minimap in Maincollapsed (Figma 21:1732). */
+  showMiniMap?: boolean;
   onNodesChange: OnNodesChange<Node<StudioNodeData>>;
   onEdgesChange: OnEdgesChange<Edge>;
   onConnect: (connection: Connection) => void;
@@ -67,6 +69,7 @@ export function WorkflowCanvas({
   diffNote,
   connectionFeedback,
   layoutNonce,
+  showMiniMap = true,
   onNodesChange,
   onEdgesChange,
   onConnect,
@@ -119,9 +122,9 @@ export function WorkflowCanvas({
         connectionLineStyle={{ stroke: connectionStroke, strokeWidth: 2 }}
       >
         <FitViewOnLayout layoutNonce={layoutNonce} />
-        <Background variant={BackgroundVariant.Dots} gap={18} size={1} />
-        <Controls />
-        <MiniMap pannable zoomable />
+        <Background variant={BackgroundVariant.Dots} gap={22} size={1.1} color="#d0d0d0" />
+        <StudioZoomControls />
+        {showMiniMap ? <MiniMap pannable zoomable /> : null}
       </ReactFlow>
     </main>
   );

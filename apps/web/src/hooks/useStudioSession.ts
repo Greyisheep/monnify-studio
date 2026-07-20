@@ -310,74 +310,85 @@ export function useStudioSession({ setNodes, setEdges }: UseStudioSessionOptions
     [reanalyze],
   );
 
-  const askMoni = useCallback(async (message: string): Promise<MoniAskResult> => {
-    setBusy(true);
-    setTypeError(null);
-    try {
+  const askMoni = useCallback(
+    async (
+      message: string,
+      onStatus?: (text: string) => void,
+    ): Promise<MoniAskResult> => {
+      setBusy(true);
+      setTypeError(null);
       try {
-        const composed = await composeWorkflow(message);
-        applyPayload(
-          composed.workflow,
-          { ...catalog, ...composed.node_types },
-          composed.analysis,
-          { relayout: true },
-        );
-        setSource("api");
-        const caught =
-          composed.findings_caught.length > 0
-            ? ` · caught ${composed.findings_caught.join(", ")}`
-            : "";
-        setDiffNote(
-          `Moni composed “${composed.workflow.name}” (${composed.provider})${caught}`,
-        );
-        await refreshWorkflows();
-        return {
-          kind: "compose",
-          explanation:
-            composed.explanation ||
-            `Built “${composed.workflow.name}” and loaded it on the canvas.`,
-          workflowName: composed.workflow.name,
-        };
-      } catch (composeError) {
-        const msg =
-          composeError instanceof Error ? composeError.message : String(composeError);
-        if (!msg.startsWith("503")) throw composeError;
-      }
+        try {
+          onStatus?.("Composing a flow…");
+          const composed = await composeWorkflow(message);
+          applyPayload(
+            composed.workflow,
+            { ...catalog, ...composed.node_types },
+            composed.analysis,
+            { relayout: true },
+          );
+          setSource("api");
+          const caught =
+            composed.findings_caught.length > 0
+              ? ` · caught ${composed.findings_caught.join(", ")}`
+              : "";
+          setDiffNote(
+            `Moni composed “${composed.workflow.name}” (${composed.provider})${caught}`,
+          );
+          await refreshWorkflows();
+          return {
+            kind: "compose",
+            explanation:
+              composed.explanation ||
+              `Built “${composed.workflow.name}” and loaded it on the canvas.`,
+            workflowName: composed.workflow.name,
+          };
+        } catch (composeError) {
+          const msg =
+            composeError instanceof Error
+              ? composeError.message
+              : String(composeError);
+          if (!msg.startsWith("503")) throw composeError;
+        }
 
-      const intent = await classifyIntent(message);
-      if (
-        !intent.template_id ||
-        intent.template_id === "unknown" ||
-        intent.confidence < 0.4
-      ) {
+        onStatus?.("Matching a vetted template…");
+        const intent = await classifyIntent(message);
+        if (
+          !intent.template_id ||
+          intent.template_id === "unknown" ||
+          intent.confidence < 0.4
+        ) {
+          return {
+            kind: "clarify",
+            explanation:
+              intent.clarifying_question ||
+              intent.explanation ||
+              "I need a bit more detail before I can set that up.",
+            workflowName: null,
+          };
+        }
+
         return {
-          kind: "clarify",
+          kind: "intent",
           explanation:
-            intent.clarifying_question ||
             intent.explanation ||
-            "I need a bit more detail before I can set that up.",
+            `I can set up the “${intent.template_id}” template for you.`,
           workflowName: null,
+          templateId: intent.template_id,
+          config: intent.config,
+          confidence: intent.confidence,
         };
+      } catch (error) {
+        const text =
+          error instanceof Error ? error.message : "Moni request failed";
+        setTypeError(text);
+        throw error;
+      } finally {
+        setBusy(false);
       }
-
-      return {
-        kind: "intent",
-        explanation:
-          intent.explanation ||
-          `I can set up the “${intent.template_id}” template for you.`,
-        workflowName: null,
-        templateId: intent.template_id,
-        config: intent.config,
-        confidence: intent.confidence,
-      };
-    } catch (error) {
-      const text = error instanceof Error ? error.message : "Moni request failed";
-      setTypeError(text);
-      throw error;
-    } finally {
-      setBusy(false);
-    }
-  }, [applyPayload, catalog, refreshWorkflows]);
+    },
+    [applyPayload, catalog, refreshWorkflows],
+  );
 
   const setupFromIntent = useCallback(
     async (
