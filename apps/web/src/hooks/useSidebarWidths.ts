@@ -11,8 +11,8 @@ import {
 
 const MIN = 220;
 const MAX = 520;
-const DEFAULT_LEFT = 280;
-const DEFAULT_RIGHT = 320;
+const DEFAULT_LEFT = 300;
+const DEFAULT_RIGHT = 340;
 
 function clamp(value: number) {
   return Math.min(MAX, Math.max(MIN, value));

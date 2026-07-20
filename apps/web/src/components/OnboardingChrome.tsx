@@ -5,15 +5,16 @@ import type { ReactNode } from "react";
 
 import type { OnboardingStep } from "@/types";
 
-const STEPS: { id: OnboardingStep; label: string; icon: string }[] = [
+type CrumbId = "user_type" | "setup";
+
+const STEPS: { id: CrumbId; label: string; icon: string }[] = [
   { id: "user_type", label: "User Type", icon: "/figma/icon-business.svg" },
-  {
-    id: "products",
-    label: "Product & Services",
-    icon: "/figma/icon-webhook.svg",
-  },
-  { id: "dashboard", label: "Dashboard", icon: "/figma/icon-panel-left.svg" },
+  { id: "setup", label: "Set up", icon: "/figma/icon-webhook.svg" },
 ];
+
+function crumbFor(step: OnboardingStep): CrumbId {
+  return step === "user_type" ? "user_type" : "setup";
+}
 
 export function OnboardingChrome({
   active,
@@ -22,8 +23,8 @@ export function OnboardingChrome({
   active: OnboardingStep;
   children: ReactNode;
 }) {
-  const normalized = active === "template" ? "dashboard" : active;
-  const activeIndex = STEPS.findIndex((step) => step.id === normalized);
+  const activeCrumb = crumbFor(active);
+  const activeIndex = STEPS.findIndex((step) => step.id === activeCrumb);
 
   return (
     <div className="studio-onboard" role="dialog" aria-modal="true">
@@ -40,7 +41,7 @@ export function OnboardingChrome({
         </div>
         <nav className="studio-onboard__crumbs" aria-label="Onboarding steps">
           {STEPS.map((step, index) => {
-            const isActive = step.id === normalized;
+            const isActive = step.id === activeCrumb;
             const isPast = index < activeIndex;
             return (
               <span
@@ -57,9 +58,9 @@ export function OnboardingChrome({
                   unoptimized
                 />
                 {step.label}
-                {index < STEPS.length - 1 && (
+                {index < STEPS.length - 1 ? (
                   <span className="studio-onboard__sep" aria-hidden />
-                )}
+                ) : null}
               </span>
             );
           })}

@@ -1,10 +1,10 @@
 /**
- * Right inspect sidebar: Run / Deploy + Preview | Code (Figma 15:742).
- * Provenance: #28, #44, Figma Monnify-challenge.
+ * Right inspect sidebar: moon / Run / Deploy + Preview | Code (Figma Main 21:1670).
+ * Icons: Lucide Moon + Play.
  */
 "use client";
 
-import Image from "next/image";
+import { Moon, Play } from "lucide-react";
 import type { PointerEvent as ReactPointerEvent, ReactNode } from "react";
 
 export interface RightSidebarProps {
@@ -43,26 +43,29 @@ export function RightSidebar({
         aria-orientation="vertical"
         aria-label="Resize right sidebar"
       />
-      <div className="studio-sidebar__actions studio-sidebar__actions--end">
+      <div className="studio-sidebar__actions">
+        <button
+          type="button"
+          className="studio-sidebar__moon"
+          title="Theme (coming soon)"
+          aria-label="Theme"
+          disabled
+        >
+          <Moon aria-hidden size={16} strokeWidth={1.5} />
+        </button>
         <div className="studio-sidebar__action-row">
           <button
             type="button"
-            className="studio-btn studio-btn--ghost"
+            className="studio-btn studio-btn--ghost studio-btn--run"
             disabled={busy || running || !canAct}
             onClick={onRun}
           >
-            <Image
-              src="/figma/icon-play.svg"
-              alt=""
-              width={12}
-              height={12}
-              unoptimized
-            />
-            {running ? "Running…" : "Practice run (no real money)"}
+            <Play aria-hidden size={12} strokeWidth={1.5} fill="currentColor" />
+            {running ? "Running…" : "Run"}
           </button>
           <button
             type="button"
-            className="studio-btn studio-btn--primary"
+            className="studio-btn studio-btn--deploy"
             disabled={deployDisabled || busy || !canAct}
             title={deployTitle}
             onClick={onDeploy}
@@ -72,7 +75,11 @@ export function RightSidebar({
         </div>
       </div>
 
-      <div className="studio-tabs" role="tablist" aria-label="Right panel">
+      <div
+        className="studio-tabs studio-tabs--inspect"
+        role="tablist"
+        aria-label="Right panel"
+      >
         <button
           type="button"
           role="tab"
