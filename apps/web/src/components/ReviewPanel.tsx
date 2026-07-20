@@ -1,13 +1,13 @@
 /**
- * Architecture Review panel: findings list, explain, Apply Fix.
- * Floats as an overlay over the canvas (#44). Provenance: #27, #44.
+ * Architecture Review panel: findings list, severity filter, Apply Fix.
+ * Provenance: #27, #44.
  */
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { findingKey, severityCount } from "@/lib/findings";
-import type { AnalysisReport, Finding } from "@/types";
+import type { AnalysisReport, Finding, Severity } from "@/types";
 
 export interface ReviewPanelProps {
   workflowName: string;
@@ -30,6 +30,8 @@ export interface FindingCardProps {
   onApplyFix: () => void;
 }
 
+type SeverityFilter = Severity | null;
+
 export function ReviewPanel({
   workflowName,
   report,
@@ -41,6 +43,25 @@ export function ReviewPanel({
   onClose,
 }: ReviewPanelProps) {
   const [expandedExplain, setExpandedExplain] = useState<number | null>(null);
+  const [severityFilter, setSeverityFilter] = useState<SeverityFilter>(null);
+
+  const indexedFindings = useMemo(() => {
+    const findings = report?.findings ?? [];
+    return findings.map((finding, index) => ({ finding, index }));
+  }, [report]);
+
+  const visibleFindings = useMemo(() => {
+    if (!severityFilter) return indexedFindings;
+    return indexedFindings.filter(
+      ({ finding }) => finding.severity === severityFilter,
+    );
+  }, [indexedFindings, severityFilter]);
+
+  function toggleSeverity(severity: Severity) {
+    setSeverityFilter((current) => (current === severity ? null : severity));
+    onSelectFinding(null);
+    setExpandedExplain(null);
+  }
 
   return (
     <aside className="studio-review">
@@ -55,16 +76,42 @@ export function ReviewPanel({
           </button>
         )}
       </div>
-      <div className="studio-counts">
-        <span data-sev="critical">{severityCount(report, "critical")} Critical</span>
-        <span data-sev="high">{severityCount(report, "high")} High</span>
-        <span data-sev="medium">{severityCount(report, "medium")} Medium</span>
+      <div className="studio-counts" aria-label="Finding severity filters">
+        {(
+          [
+            ["critical", "Critical"],
+            ["high", "High"],
+            ["medium", "Medium"],
+          ] as const
+        ).map(([severity, label]) => (
+          <button
+            key={severity}
+            type="button"
+            className={`studio-count${
+              severityFilter === severity ? " is-active" : ""
+            }`}
+            data-sev={severity}
+            aria-pressed={severityFilter === severity}
+            onClick={() => toggleSeverity(severity)}
+            title={
+              severityFilter === severity
+                ? `Clear ${label} filter`
+                : `Show only ${label} findings`
+            }
+          >
+            {severityCount(report, severity)} {label}
+          </button>
+        ))}
       </div>
       <ul className="studio-findings">
-        {(report?.findings ?? []).length === 0 && !loading && (
-          <li className="studio-clean">No architectural findings. Ship it.</li>
+        {visibleFindings.length === 0 && !loading && (
+          <li className="studio-clean">
+            {severityFilter
+              ? `No ${severityFilter} findings.`
+              : "No architectural findings. Ship it."}
+          </li>
         )}
-        {(report?.findings ?? []).map((finding, findingIndex) => (
+        {visibleFindings.map(({ finding, index: findingIndex }) => (
           <FindingCard
             key={findingKey(finding, findingIndex)}
             finding={finding}

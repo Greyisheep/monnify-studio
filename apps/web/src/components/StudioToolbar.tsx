@@ -10,12 +10,10 @@ export interface StudioToolbarProps {
   canAct: boolean;
   hasFindings: boolean;
   paletteOpen: boolean;
-  chatOpen: boolean;
   reviewOpen: boolean;
   traceOpen: boolean;
   running: boolean;
   onTogglePalette: () => void;
-  onToggleChat: () => void;
   onToggleReview: () => void;
   onToggleTrace: () => void;
   onDelete: () => void;
@@ -31,12 +29,10 @@ export function StudioToolbar({
   canAct,
   hasFindings,
   paletteOpen,
-  chatOpen,
   reviewOpen,
   traceOpen,
   running,
   onTogglePalette,
-  onToggleChat,
   onToggleReview,
   onToggleTrace,
   onDelete,
@@ -54,13 +50,6 @@ export function StudioToolbar({
           onClick={onTogglePalette}
         >
           Nodes
-        </button>
-        <button
-          type="button"
-          className={chatOpen ? "is-active" : ""}
-          onClick={onToggleChat}
-        >
-          Chat
         </button>
         <button
           type="button"

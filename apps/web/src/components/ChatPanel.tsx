@@ -16,7 +16,6 @@ export interface ChatPanelProps {
     workflowName: string | null;
     templateId?: string;
   }>;
-  onClose: () => void;
 }
 
 const STARTER: ChatMessage[] = [
@@ -34,7 +33,7 @@ const PROMPTS = [
   "Build me a payroll for my team",
 ];
 
-export function ChatPanel({ busy, onAsk, onClose }: ChatPanelProps) {
+export function ChatPanel({ busy, onAsk }: ChatPanelProps) {
   const [messages, setMessages] = useState<ChatMessage[]>(STARTER);
   const [draft, setDraft] = useState("");
 
@@ -87,57 +86,46 @@ export function ChatPanel({ busy, onAsk, onClose }: ChatPanelProps) {
   }
 
   return (
-    <aside className="studio-overlay studio-overlay--chat" aria-label="Moni chat">
-      <div className="studio-overlay__head">
-        <div>
-          <h2>Moni</h2>
-          <p>Compose a flow · lands on the canvas</p>
-        </div>
-        <button type="button" className="ghost-btn" onClick={onClose}>
-          Close
-        </button>
-      </div>
-      <div className="studio-chat">
-        <div className="studio-chat__chips" role="group" aria-label="Try these">
-          {PROMPTS.map((prompt) => (
-            <button
-              key={prompt}
-              type="button"
-              className="studio-chat__chip"
-              disabled={busy}
-              onClick={() => void submit(prompt)}
-            >
-              {prompt}
-            </button>
-          ))}
-        </div>
-        <div className="studio-chat__messages">
-          {messages.map((message) => (
-            <div
-              key={message.id}
-              className={`studio-chat__bubble studio-chat__bubble--${message.role}`}
-            >
-              {message.text}
-            </div>
-          ))}
-        </div>
-        <form className="studio-chat__composer" onSubmit={onSubmit}>
-          <input
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            placeholder="e.g. collect caution fees from tenants…"
-            aria-label="Message for Moni"
-            disabled={busy}
-          />
+    <div className="studio-chat" aria-label="Moni chat">
+      <div className="studio-chat__chips" role="group" aria-label="Try these">
+        {PROMPTS.map((prompt) => (
           <button
-            type="submit"
-            className="primary-btn"
-            disabled={!draft.trim() || busy}
+            key={prompt}
+            type="button"
+            className="studio-chat__chip"
+            disabled={busy}
+            onClick={() => void submit(prompt)}
           >
-            {busy ? "…" : "Send"}
+            {prompt}
           </button>
-        </form>
+        ))}
       </div>
-    </aside>
+      <div className="studio-chat__messages">
+        {messages.map((message) => (
+          <div
+            key={message.id}
+            className={`studio-chat__bubble studio-chat__bubble--${message.role}`}
+          >
+            {message.text}
+          </div>
+        ))}
+      </div>
+      <form className="studio-chat__composer" onSubmit={onSubmit}>
+        <input
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          placeholder="e.g. collect caution fees from tenants…"
+          aria-label="Message for Moni"
+          disabled={busy}
+        />
+        <button
+          type="submit"
+          className="studio-btn studio-btn--primary"
+          disabled={!draft.trim() || busy}
+        >
+          {busy ? "…" : "Send"}
+        </button>
+      </form>
+    </div>
   );
 }

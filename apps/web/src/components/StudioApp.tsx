@@ -1,6 +1,6 @@
 /**
- * Studio shell: full-bleed canvas with overlay panels (#44).
- * Execution trace overlay for mock runs (#28). Provenance: #4, #27, #28, #44, D14.
+ * Studio shell aligned to Figma Main (15:742): sidebars + canvas card.
+ * Provenance: #4, #27, #28, #44, Figma Monnify-challenge, D14.
  */
 "use client";
 
@@ -23,22 +23,20 @@ import {
   withNodeHighlights,
 } from "@/lib/findings";
 import { flowToWorkflow } from "@/lib/flowIo";
-import { ChatPanel } from "./ChatPanel";
 import { ConfigPanel } from "./ConfigPanel";
 import { NodePalette } from "./NodePalette";
 import { ReviewPanel } from "./ReviewPanel";
-import { StudioHeader } from "./StudioHeader";
-import { StudioToolbar } from "./StudioToolbar";
+import { RightSidebar } from "./RightSidebar";
 import { TracePanel } from "./TracePanel";
 import { WorkflowCanvas } from "./WorkflowCanvas";
 
 function CanvasInner() {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<StudioNodeData>>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
-  const [paletteOpen, setPaletteOpen] = useState(true);
-  const [chatOpen, setChatOpen] = useState(false);
-  const [reviewOpen, setReviewOpen] = useState(true);
-  const [traceOpen, setTraceOpen] = useState(false);
+  const [leftTab, setLeftTab] = useState<"api" | "chat">("api");
+  const [leftCollapsed, setLeftCollapsed] = useState(false);
+  const [rightTab, setRightTab] = useState<"preview" | "code">("preview");
+  const [previewMode, setPreviewMode] = useState<"review" | "trace">("review");
 
   const session = useStudioSession({ setNodes, setEdges });
   const graph = useStudioGraph({
@@ -95,130 +93,179 @@ function CanvasInner() {
     );
   }, [currentIr, session.selectedNodeId]);
 
-  const configOpen = !!selectedIrNode;
-
   useEffect(() => {
-    if (session.selectedFindingIndex != null) setReviewOpen(true);
+    if (session.selectedFindingIndex != null) {
+      setRightTab("preview");
+      setPreviewMode("review");
+    }
   }, [session.selectedFindingIndex]);
 
+  useEffect(() => {
+    if (selectedIrNode) {
+      setRightTab("code");
+    }
+  }, [selectedIrNode?.id]);
+
   return (
-    <div className="studio-shell">
-      <StudioHeader
-        source={session.source}
-        version={session.workflow?.version ?? null}
-        dirty={session.dirty}
-        heroId={session.heroId}
-        onHeroChange={session.setHeroId}
+    <div
+      className={`studio-shell${leftCollapsed ? " is-left-collapsed" : ""}`}
+    >
+      <NodePalette
+        catalog={{ ...session.nodeTypesMeta, ...session.catalog }}
+        workflowName={session.workflow?.name ?? "Workflow"}
+        teamLabel={
+          session.source === "api"
+            ? "Live API"
+            : session.source === "fixture"
+              ? "Local fixtures"
+              : "Connecting…"
+        }
+        leftTab={leftTab}
+        collapsed={leftCollapsed}
+        busy={session.busy}
+        onLeftTabChange={setLeftTab}
+        onToggleCollapsed={() => setLeftCollapsed((value) => !value)}
+        onAdd={(typeKey) => graph.addNode(typeKey)}
+        onAsk={session.askMoni}
       />
 
-      <StudioToolbar
-        canDelete={!!session.selectedNodeId}
-        busy={session.busy}
-        canAct={!!currentIr}
-        hasFindings={(session.report?.findings.length ?? 0) > 0}
-        paletteOpen={paletteOpen}
-        chatOpen={chatOpen}
-        reviewOpen={reviewOpen}
-        traceOpen={traceOpen}
+      <main className="studio-main">
+        <div className="studio-hero-switch">
+          <button
+            type="button"
+            className={session.heroId === "marketplace-unsafe" ? "is-active" : ""}
+            onClick={() => session.setHeroId("marketplace-unsafe")}
+          >
+            Unsafe hero
+          </button>
+          <button
+            type="button"
+            className={session.heroId === "marketplace-safe" ? "is-active" : ""}
+            onClick={() => session.setHeroId("marketplace-safe")}
+          >
+            Safe hero
+          </button>
+          {session.selectedNodeId && (
+            <button
+              type="button"
+              className="studio-btn studio-btn--ghost"
+              onClick={graph.deleteSelected}
+            >
+              Delete node
+            </button>
+          )}
+          <button
+            type="button"
+            className="studio-btn studio-btn--ghost"
+            disabled={session.busy || !currentIr}
+            onClick={() => currentIr && void session.runAnalyze(currentIr)}
+          >
+            Re-analyze
+          </button>
+          <button
+            type="button"
+            className="studio-btn studio-btn--ghost"
+            disabled={
+              session.busy ||
+              !currentIr ||
+              (session.report?.findings.length ?? 0) === 0
+            }
+            onClick={() => currentIr && void session.applyFix(currentIr, "ALL")}
+          >
+            Apply Fix
+          </button>
+        </div>
+
+        <div className="studio-canvas-card">
+          <WorkflowCanvas
+            nodes={displayNodes}
+            edges={displayEdges}
+            loading={session.loading}
+            busy={session.busy || trace.running}
+            typeError={session.typeError}
+            diffNote={session.diffNote}
+            connectionFeedback={graph.connectionFeedback}
+            layoutNonce={session.layoutNonce}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onConnect={graph.onConnect}
+            onSelectionChange={graph.onSelectionChange}
+            onGraphDirty={() => session.setDirty(true)}
+          />
+        </div>
+      </main>
+
+      <RightSidebar
+        rightTab={rightTab}
+        onRightTabChange={setRightTab}
         running={trace.running}
-        onTogglePalette={() => setPaletteOpen((open) => !open)}
-        onToggleChat={() => setChatOpen((open) => !open)}
-        onToggleReview={() => setReviewOpen((open) => !open)}
-        onToggleTrace={() => setTraceOpen((open) => !open)}
-        onDelete={graph.deleteSelected}
-        onReanalyze={() => currentIr && void session.runAnalyze(currentIr)}
-        onSave={() => currentIr && void session.save(currentIr)}
-        onApplyAll={() => currentIr && void session.applyFix(currentIr, "ALL")}
+        canAct={!!currentIr}
+        busy={session.busy}
         onRun={() => {
           if (!currentIr) return;
-          setTraceOpen(true);
-          setReviewOpen(false);
+          setRightTab("preview");
+          setPreviewMode("trace");
           void trace.runWorkflow(currentIr);
         }}
-      />
-
-      <div className="studio-stage">
-        <WorkflowCanvas
-          nodes={displayNodes}
-          edges={displayEdges}
-          loading={session.loading}
-          busy={session.busy || trace.running}
-          typeError={session.typeError}
-          diffNote={session.diffNote}
-          connectionFeedback={graph.connectionFeedback}
-          layoutNonce={session.layoutNonce}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onConnect={graph.onConnect}
-          onSelectionChange={graph.onSelectionChange}
-          onGraphDirty={() => session.setDirty(true)}
-        />
-
-        <NodePalette
-          catalog={{ ...session.nodeTypesMeta, ...session.catalog }}
-          open={paletteOpen && !chatOpen}
-          onClose={() => setPaletteOpen(false)}
-          onAdd={(typeKey) => {
-            graph.addNode(typeKey);
-          }}
-        />
-
-        {chatOpen && (
-          <ChatPanel
-            busy={session.busy}
-            onAsk={session.askMoni}
-            onClose={() => setChatOpen(false)}
+        onDeploy={() => currentIr && void session.save(currentIr)}
+      >
+        {rightTab === "code" ? (
+          <ConfigPanel
+            node={selectedIrNode}
+            meta={
+              selectedIrNode
+                ? session.catalog[selectedIrNode.type] ??
+                  session.nodeTypesMeta[selectedIrNode.type]
+                : undefined
+            }
+            selectedFinding={selectedFinding}
+            onChange={graph.updateSelectedNode}
+            onClose={() => session.setSelectedNodeId(null)}
           />
+        ) : (
+          <>
+            <div className="studio-segment">
+              <button
+                type="button"
+                className={previewMode === "review" ? "is-active" : ""}
+                onClick={() => setPreviewMode("review")}
+              >
+                Review
+              </button>
+              <button
+                type="button"
+                className={previewMode === "trace" ? "is-active" : ""}
+                onClick={() => setPreviewMode("trace")}
+              >
+                Trace
+              </button>
+            </div>
+            {previewMode === "trace" ? (
+              <TracePanel
+                run={trace.run}
+                events={trace.events}
+                selectedSeq={trace.selectedSeq}
+                running={trace.running}
+                error={trace.error}
+                onSelect={trace.setSelectedSeq}
+                onClose={() => setPreviewMode("review")}
+              />
+            ) : (
+              <ReviewPanel
+                workflowName={session.workflow?.name ?? ""}
+                report={session.report}
+                loading={session.loading}
+                busy={session.busy}
+                selectedFindingIndex={session.selectedFindingIndex}
+                onSelectFinding={session.setSelectedFindingIndex}
+                onApplyFix={(ruleId) =>
+                  currentIr && void session.applyFix(currentIr, ruleId)
+                }
+              />
+            )}
+          </>
         )}
-
-        {configOpen && (
-          <div className="studio-overlay studio-overlay--config">
-            <ConfigPanel
-              node={selectedIrNode}
-              meta={
-                selectedIrNode
-                  ? session.catalog[selectedIrNode.type] ??
-                    session.nodeTypesMeta[selectedIrNode.type]
-                  : undefined
-              }
-              selectedFinding={selectedFinding}
-              onChange={graph.updateSelectedNode}
-              onClose={() => session.setSelectedNodeId(null)}
-            />
-          </div>
-        )}
-
-        {reviewOpen && !traceOpen && (
-          <div className="studio-overlay studio-overlay--review">
-            <ReviewPanel
-              workflowName={session.workflow?.name ?? ""}
-              report={session.report}
-              loading={session.loading}
-              busy={session.busy}
-              selectedFindingIndex={session.selectedFindingIndex}
-              onSelectFinding={session.setSelectedFindingIndex}
-              onApplyFix={(ruleId) =>
-                currentIr && void session.applyFix(currentIr, ruleId)
-              }
-              onClose={() => setReviewOpen(false)}
-            />
-          </div>
-        )}
-
-        {traceOpen && (
-          <div className="studio-overlay studio-overlay--trace">
-            <TracePanel
-              run={trace.run}
-              events={trace.events}
-              selectedSeq={trace.selectedSeq}
-              running={trace.running}
-              error={trace.error}
-              onSelect={trace.setSelectedSeq}
-              onClose={() => setTraceOpen(false)}
-            />
-          </div>
-        )}
-      </div>
+      </RightSidebar>
     </div>
   );
 }
