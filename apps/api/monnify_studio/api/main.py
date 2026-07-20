@@ -44,6 +44,7 @@ from monnify_studio.integrations.monnify import MonnifyError, MonnifySandboxClie
 from monnify_studio.money import money
 from monnify_studio.notifications import (
     Notification,
+    email_notifier,
     notification_log,
     whatsapp_notifier,
 )
@@ -743,6 +744,7 @@ class ShopSelection(BaseModel):
 class ShopInvoiceRequest(BaseModel):
     customer: str = ""
     customer_whatsapp: str = ""  # optional: we message the buyer the invoice (#99)
+    customer_email: str = ""  # optional: alternative/additional channel (#99)
     selections: list[ShopSelection] = Field(min_length=1)
 
 
@@ -773,19 +775,30 @@ def shop_invoice(artifact_id: str, body: ShopInvoiceRequest, request: Request) -
         kind="invoice",
         customer=body.customer.strip() or "Customer",
         customer_whatsapp=body.customer_whatsapp.strip(),
+        customer_email=body.customer_email.strip(),
         description=summary,
         line_items=line_items,
     )
     invoice_url = f"/preview/{artifact_id}/invoice/{reference}"
-    if inv.customer_whatsapp:
+    if inv.customer_whatsapp or inv.customer_email:
         base = str(request.base_url).rstrip("/")
-        whatsapp_notifier.invoice_ready(
-            artifact_id=artifact_id,
-            number=inv.customer_whatsapp,
-            business=artifact.config.business_name,
-            amount=inv.amount,
-            url=f"{base}{invoice_url}",
-        )
+        full_url = f"{base}{invoice_url}"
+        if inv.customer_whatsapp:
+            whatsapp_notifier.invoice_ready(
+                artifact_id=artifact_id,
+                number=inv.customer_whatsapp,
+                business=artifact.config.business_name,
+                amount=inv.amount,
+                url=full_url,
+            )
+        if inv.customer_email:
+            email_notifier.invoice_ready(
+                artifact_id=artifact_id,
+                to=inv.customer_email,
+                business=artifact.config.business_name,
+                amount=inv.amount,
+                url=full_url,
+            )
     log.info(
         "shop.invoice.created",
         artifact_id=artifact_id,
@@ -798,16 +811,24 @@ def shop_invoice(artifact_id: str, body: ShopInvoiceRequest, request: Request) -
 
 def _thank_you_on_verified(order: Order) -> None:
     """When Monnify confirms a payment, message the buyer a thank-you (#99)."""
-    if not order.customer_whatsapp:
+    if not (order.customer_whatsapp or order.customer_email):
         return
     artifact = artifact_store.get(order.artifact_id)
     business = artifact.config.business_name if artifact else "the seller"
-    whatsapp_notifier.payment_thank_you(
-        artifact_id=order.artifact_id,
-        number=order.customer_whatsapp,
-        business=business,
-        amount=order.amount,
-    )
+    if order.customer_whatsapp:
+        whatsapp_notifier.payment_thank_you(
+            artifact_id=order.artifact_id,
+            number=order.customer_whatsapp,
+            business=business,
+            amount=order.amount,
+        )
+    if order.customer_email:
+        email_notifier.payment_thank_you(
+            artifact_id=order.artifact_id,
+            to=order.customer_email,
+            business=business,
+            amount=order.amount,
+        )
 
 
 orders_service.on_verified = _thank_you_on_verified

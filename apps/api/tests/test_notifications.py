@@ -1,4 +1,4 @@
-"""Real WhatsApp notifications: invoice link + payment thank-you (#99)."""
+"""Real notifications: invoice link + payment thank-you, WhatsApp and email (#99)."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 import monnify_studio.notifications as notif
 from monnify_studio.api.main import app
 from monnify_studio.integrations.whatsapp import normalize_ng
-from monnify_studio.notifications import WhatsAppNotifier, notification_log
+from monnify_studio.notifications import EmailNotifier, WhatsAppNotifier, notification_log
 from monnify_studio.orders import orders_service
 
 client = TestClient(app)
@@ -30,10 +30,30 @@ class FakeEvo:
         return {}
 
 
+class FakeSMTP:
+    def __init__(self, configured: bool = True) -> None:
+        self._configured = configured
+        self.sent: list[tuple[str, str, str]] = []
+
+    @property
+    def configured(self) -> bool:
+        return self._configured
+
+    def send(self, to: str, subject: str, html_body: str) -> None:
+        self.sent.append((to, subject, html_body))
+
+
 @pytest.fixture
 def fake_evo(monkeypatch):
     fake = FakeEvo()
     monkeypatch.setattr(notif.whatsapp_notifier, "client", fake)
+    return fake
+
+
+@pytest.fixture
+def fake_smtp(monkeypatch):
+    fake = FakeSMTP()
+    monkeypatch.setattr(notif.email_notifier, "client", fake)
     return fake
 
 
@@ -116,3 +136,70 @@ def test_whatsapp_node_is_on_the_canvas():
     catalog = client.get("/catalog").json()
     assert "app.notify_whatsapp" in catalog
     assert catalog["app.notify_whatsapp"]["title"] == "Send WhatsApp"
+
+
+def test_unconfigured_email_notifier_records_but_does_not_deliver():
+    n = EmailNotifier(client=FakeSMTP(configured=False))
+    ok = n.invoice_ready(
+        artifact_id="art_e1", to="chidi@example.com", business="Ada",
+        amount=Decimal("5000"), url="http://x/i",
+    )
+    assert ok is False
+    recorded = notification_log.for_artifact("art_e1")
+    assert recorded and recorded[0].delivered is False and recorded[0].channel == "email"
+
+
+def test_configured_email_notifier_sends():
+    fake = FakeSMTP()
+    n = EmailNotifier(client=fake)
+    ok = n.payment_thank_you(
+        artifact_id="art_e2", to="chidi@example.com", business="Ada", amount=Decimal("5000")
+    )
+    assert ok is True
+    to, subject, html = fake.sent[0]
+    assert to == "chidi@example.com" and "Ada" in subject and "5,000.00" in html
+
+
+def test_shop_invoice_messages_the_buyer_by_email(fake_smtp):
+    artifact_id = _shop_artifact()
+    res = client.post(
+        f"/preview/{artifact_id}/shop/invoice",
+        json={"customer": "Chidi", "customer_email": "chidi@example.com",
+              "selections": [{"id": "logo", "qty": 1}]},
+    )
+    assert res.status_code == 200
+    assert fake_smtp.sent
+    to, subject, html = fake_smtp.sent[0]
+    assert to == "chidi@example.com"
+    assert res.json()["invoice_reference"] in html and "Kunle Designs" in html
+    notes = client.get(f"/preview/{artifact_id}/notifications").json()
+    assert any("Invoice sent to buyer by email" in n["text"] for n in notes)
+
+
+def test_thank_you_by_email_fires_when_payment_is_verified(fake_smtp):
+    artifact_id = _shop_artifact()
+    inv = orders_service.create(
+        reference="INV-EM1", artifact_id=artifact_id, product="Logo",
+        amount=Decimal("25000"), kind="invoice", customer="Chidi",
+        customer_email="chidi@example.com",
+    )
+    orders_service.attach_payment("INV-EM1", payment_reference="PAY-2")
+    original = orders_service.verifier
+    orders_service.verifier = lambda ref: {"status": "PAID", "amount_paid": 25000.0}
+    try:
+        orders_service.verify(inv.reference)
+    finally:
+        orders_service.verifier = original
+    assert fake_smtp.sent and "received your payment" in fake_smtp.sent[-1][2]
+
+
+def test_buyer_can_give_both_whatsapp_and_email(fake_evo, fake_smtp):
+    artifact_id = _shop_artifact()
+    res = client.post(
+        f"/preview/{artifact_id}/shop/invoice",
+        json={"customer": "Chidi", "customer_whatsapp": "08055556666",
+              "customer_email": "chidi@example.com",
+              "selections": [{"id": "logo", "qty": 1}]},
+    )
+    assert res.status_code == 200
+    assert fake_evo.sent and fake_smtp.sent

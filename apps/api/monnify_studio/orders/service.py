@@ -73,6 +73,7 @@ class Order(BaseModel):
     kind: str = "order"  # "order" | "invoice"
     customer: str = ""
     customer_whatsapp: str = ""  # so the product can message the buyer (#99)
+    customer_email: str = ""  # alternative/additional contact channel (#99)
     description: str = ""
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -115,6 +116,7 @@ class OrdersService:
         kind: str = "order",
         customer: str = "",
         customer_whatsapp: str = "",
+        customer_email: str = "",
         description: str = "",
         line_items: list[LineItem] | None = None,
     ) -> Order:
@@ -133,6 +135,7 @@ class OrdersService:
             kind=kind,
             customer=customer,
             customer_whatsapp=customer_whatsapp,
+            customer_email=customer_email,
             description=description,
             line_items=items,
         )

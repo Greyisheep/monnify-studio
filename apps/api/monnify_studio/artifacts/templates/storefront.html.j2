@@ -81,7 +81,8 @@
     <div class="bar">
       <div class="bar-inner">
         <input class="name-field" id="customer" placeholder="Your name (so they know who ordered)" />
-        <input class="name-field" id="whatsapp" type="tel" inputmode="tel" placeholder="Your WhatsApp number (get your invoice + receipt)" />
+        <input class="name-field" id="whatsapp" type="tel" inputmode="tel" placeholder="WhatsApp number (optional)" />
+        <input class="name-field" id="email" type="email" inputmode="email" placeholder="Email (optional - either works)" />
         <button class="cta" id="checkout" disabled>
           <span>Get my invoice</span><span class="amt" id="total"></span>
         </button>
@@ -131,6 +132,7 @@
           body: JSON.stringify({
           customer: document.getElementById("customer").value,
           customer_whatsapp: document.getElementById("whatsapp").value,
+          customer_email: document.getElementById("email").value,
           selections,
         }),
         });
