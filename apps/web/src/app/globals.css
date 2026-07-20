@@ -189,6 +189,103 @@ body {
   border-radius: 0.85rem;
 }
 
+.studio-overlay--chat {
+  top: 0.75rem;
+  left: 0.75rem;
+  bottom: 0.75rem;
+  width: min(340px, calc(100% - 1.5rem));
+  border-radius: 0.85rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.studio-overlay--chat .studio-chat {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.65rem 0.75rem 0.85rem;
+}
+
+.studio-chat__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.studio-chat__chip {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--ink-mid);
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 500;
+  padding: 0.25rem 0.45rem;
+  border-radius: 0.35rem;
+  cursor: pointer;
+  text-align: left;
+}
+
+.studio-chat__chip:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.studio-chat__chip:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.studio-chat__messages {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.studio-chat__bubble {
+  max-width: 95%;
+  padding: 0.5rem 0.65rem;
+  border-radius: 0.55rem;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  white-space: pre-wrap;
+}
+
+.studio-chat__bubble--assistant {
+  align-self: flex-start;
+  background: var(--paper);
+  color: var(--ink-mid);
+}
+
+.studio-chat__bubble--user {
+  align-self: flex-end;
+  background: var(--accent);
+  color: var(--paper);
+}
+
+.studio-chat__composer {
+  display: flex;
+  gap: 0.4rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid var(--line);
+}
+
+.studio-chat__composer input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 0.45rem;
+  padding: 0.4rem 0.55rem;
+  font: inherit;
+  font-size: 0.8rem;
+  background: var(--panel);
+  color: var(--ink);
+}
+
 .studio-overlay--config {
   top: 0.75rem;
   left: 0.75rem;
@@ -204,7 +301,8 @@ body {
   background: transparent;
 }
 
-.studio-stage:has(.studio-overlay--palette) .studio-overlay--config {
+.studio-stage:has(.studio-overlay--palette) .studio-overlay--config,
+.studio-stage:has(.studio-overlay--chat) .studio-overlay--config {
   left: calc(0.75rem + min(280px, calc(100% - 1.5rem)) + 0.6rem);
 }
 
@@ -981,13 +1079,15 @@ body {
 
 @media (max-width: 900px) {
   .studio-overlay--palette,
+  .studio-overlay--chat,
   .studio-overlay--config,
   .studio-overlay--review,
   .studio-overlay--trace {
     width: calc(100% - 1.5rem);
   }
 
-  .studio-stage:has(.studio-overlay--palette) .studio-overlay--config {
+  .studio-stage:has(.studio-overlay--palette) .studio-overlay--config,
+  .studio-stage:has(.studio-overlay--chat) .studio-overlay--config {
     left: 0.75rem;
     top: auto;
     bottom: 0.75rem;

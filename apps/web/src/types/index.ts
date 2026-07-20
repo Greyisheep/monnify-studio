@@ -11,8 +11,10 @@ export type { NodeCategory, NodeMeta, PortMeta } from "./catalog";
 export type { StudioNodeData } from "./canvas";
 export type {
   AnalysisReport,
+  ComposeResult,
   Finding,
   GraphDiff,
+  IntentResult,
   RemediateResult,
   RemediationStep,
   Severity,

@@ -23,6 +23,7 @@ import {
   withNodeHighlights,
 } from "@/lib/findings";
 import { flowToWorkflow } from "@/lib/flowIo";
+import { ChatPanel } from "./ChatPanel";
 import { ConfigPanel } from "./ConfigPanel";
 import { NodePalette } from "./NodePalette";
 import { ReviewPanel } from "./ReviewPanel";
@@ -35,6 +36,7 @@ function CanvasInner() {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<StudioNodeData>>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [paletteOpen, setPaletteOpen] = useState(true);
+  const [chatOpen, setChatOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(true);
   const [traceOpen, setTraceOpen] = useState(false);
 
@@ -115,10 +117,12 @@ function CanvasInner() {
         canAct={!!currentIr}
         hasFindings={(session.report?.findings.length ?? 0) > 0}
         paletteOpen={paletteOpen}
+        chatOpen={chatOpen}
         reviewOpen={reviewOpen}
         traceOpen={traceOpen}
         running={trace.running}
         onTogglePalette={() => setPaletteOpen((open) => !open)}
+        onToggleChat={() => setChatOpen((open) => !open)}
         onToggleReview={() => setReviewOpen((open) => !open)}
         onToggleTrace={() => setTraceOpen((open) => !open)}
         onDelete={graph.deleteSelected}
@@ -152,12 +156,20 @@ function CanvasInner() {
 
         <NodePalette
           catalog={{ ...session.nodeTypesMeta, ...session.catalog }}
-          open={paletteOpen}
+          open={paletteOpen && !chatOpen}
           onClose={() => setPaletteOpen(false)}
           onAdd={(typeKey) => {
             graph.addNode(typeKey);
           }}
         />
+
+        {chatOpen && (
+          <ChatPanel
+            busy={session.busy}
+            onAsk={session.askMoni}
+            onClose={() => setChatOpen(false)}
+          />
+        )}
 
         {configOpen && (
           <div className="studio-overlay studio-overlay--config">
