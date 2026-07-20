@@ -122,12 +122,23 @@ def _require_verified_spine(workflow: Workflow) -> None:
 
 
 def render_invoice_page(artifact: "GeneratedArtifact", invoice) -> str:
-    """Buyer-facing page for one invoice, rendered at request time (#85)."""
+    """Buyer-facing page for one invoice, rendered to a document (#85, #87).
+
+    Laid out like a real invoice (Dockie/Carlofty reference): number, issued and
+    due dates, from/billed-to blocks, a line-item table, a totals stack, and
+    payment info. Due date is a courteous default (issued + 7 days).
+    """
+    from datetime import timedelta
+
+    issued = invoice.created_at
+    due = issued + timedelta(days=7)
     return _env.get_template("invoice_page.html.j2").render(
         config=artifact.config,
         artifact_id=artifact.artifact_id,
         invoice=invoice,
-        amount_display=f"{invoice.amount:,.0f}",
+        amount_display=f"{invoice.amount:,.2f}",
+        issued_display=issued.strftime("%d %B, %Y"),
+        due_display=due.strftime("%d %B, %Y"),
     )
 
 
