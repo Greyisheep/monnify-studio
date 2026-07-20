@@ -17,9 +17,11 @@ from .generator import (
     artifact_store,
     flow_features,
     generate_artifact,
+    render_invoice_page,
 )
 
 __all__ = [
+    "render_invoice_page",
     "FlowFeatures",
     "flow_features",
     "ArtifactConfig",

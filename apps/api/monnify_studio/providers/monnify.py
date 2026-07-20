@@ -125,6 +125,26 @@ MONNIFY_NODE_TYPES: list[NodeTypeDef] = [
         outputs=[PortSpec(name="account_name", type=D.ANY)],
     ),
     NodeTypeDef(
+        type="monnify.create_invoice",
+        category=C.MONNIFY,
+        title="Create Invoice",
+        description="A trackable invoice with an explicit amount the buyer pays online.",
+        when_to_use="Trackable, customised payment invoices with explicit amounts and "
+        "expiry: ideal for B2B services, recurring billing, marketplace orders, or "
+        "post-delivery merchant payments. The buyer pays the invoice link; settlement "
+        "lands in the merchant's Monnify (Moniepoint) account.",
+        doc_url=DOCS_COLLECTIONS,
+        default_tags=[T.EXTERNAL_CALL, T.SECRET_BOUNDARY],
+        inputs=[
+            PortSpec(name="amount", type=D.MONEY),
+            PortSpec(name="customer", type=D.CUSTOMER, required=False),
+        ],
+        outputs=[
+            PortSpec(name="payment_reference", type=D.PAYMENT_REFERENCE),
+            PortSpec(name="checkout_url", type=D.CHECKOUT_URL),
+        ],
+    ),
+    NodeTypeDef(
         type="monnify.create_reserved_account",
         category=C.MONNIFY,
         title="Create Reserved Account",

@@ -16,6 +16,7 @@ from typing import Callable
 from pydantic import BaseModel
 
 from ..ir.models import Workflow
+from .invoice import invoice
 from .payroll import payroll
 from .sell_online import sell_online
 
@@ -47,6 +48,19 @@ _TEMPLATES: dict[str, TemplateDef] = {
             ),
         ),
         builder=sell_online,
+    ),
+    "invoice": TemplateDef(
+        info=TemplateInfo(
+            id="invoice",
+            title="Invoice a client, get paid",
+            persona="Freelancer / B2B billing",
+            description=(
+                "Create an invoice, share the link. The buyer pays online and the "
+                "invoice is only marked paid after Monnify confirms the money in "
+                "your Monnify (Moniepoint) account."
+            ),
+        ),
+        builder=invoice,
     ),
     "payroll": TemplateDef(
         info=TemplateInfo(
