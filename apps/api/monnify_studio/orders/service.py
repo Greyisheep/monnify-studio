@@ -16,10 +16,11 @@ Design notes:
 from __future__ import annotations
 
 import inspect
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Callable, Protocol
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from ..observability import get_logger
 
@@ -54,6 +55,7 @@ class Order(BaseModel):
     kind: str = "order"  # "order" | "invoice"
     customer: str = ""
     description: str = ""
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class _SupportsQuery(Protocol):  # what the real client provides

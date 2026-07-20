@@ -65,6 +65,28 @@ def test_create_list_and_buyer_page():
     assert "Pay now" in page
 
 
+def test_invoice_page_reads_like_a_document():  # noqa: E501 (#87)
+    """Reference standard (Dockie/Carlofty): number, dates, table, totals, footer."""
+    artifact_id = _invoice_artifact()
+    inv = client.post(
+        f"/preview/{artifact_id}/invoices",
+        json={"customer": "Chidi", "description": "Logo design", "amount": 25000},
+    ).json()
+    page = client.get(f"/preview/{artifact_id}/invoice/{inv['reference']}").text
+    for marker in (
+        "Invoice number:",
+        "Issued:",
+        "Due:",
+        "Billed to",
+        "Description",
+        "Subtotal",
+        "Amount due",
+        "page 1 of 1",
+        inv["reference"],
+    ):
+        assert marker in page, f"invoice document missing {marker!r}"
+
+
 def test_unpaid_invoice_verify_stays_pending_no_provider_call():
     artifact_id = _invoice_artifact()
     inv = client.post(
