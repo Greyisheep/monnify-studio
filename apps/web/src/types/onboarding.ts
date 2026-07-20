@@ -1,11 +1,24 @@
 export type StudioPath = "business" | "developer";
 
-/** template kept only so older sessions still load; new business flow uses dashboard. */
+/** What a business wants to do after picking User Type. */
+export type BusinessGoal =
+  | "sell"
+  | "invoice"
+  | "payroll"
+  | "savings"
+  | "other";
+
+/**
+ * template = existing template picker ("What do you want to set up?").
+ * intent kept so older mistaken sessions still load (UI treats as template).
+ * products only for sell-online / shop path.
+ */
 export type OnboardingStep =
   | "user_type"
+  | "intent"
+  | "template"
   | "products"
   | "dashboard"
-  | "template"
   | "done";
 
 export interface ShopProduct {
@@ -20,11 +33,13 @@ export interface StudioProfile {
   session_id: string;
   path: StudioPath | null;
   step: OnboardingStep;
+  goal: BusinessGoal | null;
   products: ShopProduct[];
 }
 
 export interface StudioProfileUpdate {
   path?: StudioPath | null;
   step?: OnboardingStep;
+  goal?: BusinessGoal | null;
   products?: ShopProduct[];
 }

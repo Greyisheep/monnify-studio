@@ -1,5 +1,5 @@
 /**
- * Studio shell aligned to Figma Main (15:742): sidebars + canvas card.
+ * Studio shell aligned to Figma Main (21:1670) + Maincollapsed (21:1732).
  * Provenance: #4, #27, #28, #44, #55, Figma Monnify-challenge, D14.
  */
 "use client";
@@ -14,8 +14,6 @@ import {
 } from "@xyflow/react";
 
 import type {
-  ArtifactConfigInput,
-  GenerateArtifactResult,
   StudioNodeData,
 } from "@/types";
 import { useExecutionTrace } from "@/hooks/useExecutionTrace";
@@ -29,8 +27,6 @@ import {
 } from "@/lib/findings";
 import { flowToWorkflow } from "@/lib/flowIo";
 import { fetchStudioProfile, putStudioProfile } from "@/lib/api";
-import { ConfigPanel } from "./ConfigPanel";
-import { CredentialsForm } from "./CredentialsForm";
 import {
   BusinessDashboard,
   type BusinessNav,
@@ -39,34 +35,39 @@ import { NodePalette } from "./NodePalette";
 import { OnboardingChrome } from "./OnboardingChrome";
 import { PathGate } from "./PathGate";
 import { ProductsStep } from "./ProductsStep";
-import { PreviewArtifactPanel } from "./PreviewArtifactPanel";
-import { ReviewPanel } from "./ReviewPanel";
 import { RightSidebar } from "./RightSidebar";
+import { StudioFloatingChrome } from "./StudioFloatingChrome";
+import { StudioIconRail } from "./StudioIconRail";
 import { TemplatePicker } from "./TemplatePicker";
-import { TracePanel } from "./TracePanel";
 import { WorkflowCanvas } from "./WorkflowCanvas";
-import { WorkflowOpener } from "./WorkflowOpener";
-import type { ShopProduct, StudioPath, StudioProfile } from "@/types";
+import type {
+  BusinessGoal,
+  ShopProduct,
+  StudioPath,
+  StudioProfile,
+} from "@/types";
+
+/** Template choice decides products vs dashboard (shop path only adds products). */
+function goalFromTemplate(templateId: string): BusinessGoal {
+  if (templateId === "sell-online") return "sell";
+  if (templateId === "invoice") return "invoice";
+  if (templateId === "payroll") return "payroll";
+  return "other";
+}
 
 function CanvasInner() {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<StudioNodeData>>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [leftTab, setLeftTab] = useState<"api" | "chat">("api");
-  const [leftCollapsed, setLeftCollapsed] = useState(false);
+  /** Both sidebars hidden — Figma Maincollapsed (21:1732). */
+  const [panelsCollapsed, setPanelsCollapsed] = useState(false);
   const [rightTab, setRightTab] = useState<"preview" | "code">("preview");
-  const [previewMode, setPreviewMode] = useState<
-    "review" | "trace" | "artifact"
-  >("artifact");
   const [profile, setProfile] = useState<StudioProfile | null>(null);
   const [profileReady, setProfileReady] = useState(false);
   const [profileBusy, setProfileBusy] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
   const [businessNav, setBusinessNav] = useState<BusinessNav>("dashboard");
   const [templatesOpen, setTemplatesOpen] = useState(false);
-  const [sellerSeed, setSellerSeed] = useState<ArtifactConfigInput | null>(null);
-  const [sellerResult, setSellerResult] = useState<GenerateArtifactResult | null>(
-    null,
-  );
 
   const session = useStudioSession({ setNodes, setEdges });
   const sidebars = useSidebarWidths();
@@ -95,6 +96,7 @@ function CanvasInner() {
             session_id: "",
             path: null,
             step: "user_type",
+            goal: null,
             products: [],
           });
           setProfileError(
@@ -105,13 +107,10 @@ function CanvasInner() {
         }
         setProfile(loaded);
         setProfileError(null);
-        // Older sessions stopped on "template"; Figma's next step is Dashboard.
-        if (loaded.path === "business" && loaded.step === "template") {
-          void putStudioProfile({ step: "dashboard" }).then((next) => {
-            if (!cancelled) {
-              setProfile(next);
-              setBusinessNav("dashboard");
-            }
+        // "intent" was a brief wrong step — treat it as the template picker.
+        if (loaded.path === "business" && loaded.step === "intent") {
+          void putStudioProfile({ step: "template" }).then((next) => {
+            if (!cancelled) setProfile(next);
           });
         }
         if (loaded.path === "business" && loaded.step === "dashboard") {
@@ -129,6 +128,7 @@ function CanvasInner() {
             session_id: "",
             path: null,
             step: "user_type",
+            goal: null,
             products: [],
           });
           setProfileError(
@@ -184,7 +184,6 @@ function CanvasInner() {
   useEffect(() => {
     if (session.selectedFindingIndex != null) {
       setRightTab("preview");
-      setPreviewMode("review");
     }
   }, [session.selectedFindingIndex]);
 
@@ -194,28 +193,13 @@ function CanvasInner() {
     }
   }, [selectedIrNode?.id]);
 
-  function goSeller(
-    seed?: ArtifactConfigInput | null,
-    artifact?: GenerateArtifactResult | null,
-  ) {
-    if (seed) setSellerSeed(seed);
-    if (artifact) setSellerResult(artifact);
+  function focusPreview() {
     setRightTab("preview");
-    setPreviewMode("artifact");
   }
 
   function seedFromProducts(products: ShopProduct[]) {
-    const first = products[0];
-    if (!first) return;
-    goSeller({
-      product_name: first.name,
-      price_ngn:
-        first.price_ngn == null || first.price_ngn === ""
-          ? undefined
-          : Number(first.price_ngn),
-      logo_url: first.image_url ?? undefined,
-      business_name: "My Business",
-    });
+    if (!products[0]) return;
+    focusPreview();
   }
 
   async function onPathContinue(path: StudioPath) {
@@ -224,7 +208,8 @@ function CanvasInner() {
     try {
       const next = await putStudioProfile({
         path,
-        step: path === "business" ? "products" : "done",
+        step: path === "business" ? "template" : "done",
+        goal: null,
       });
       setProfile(next);
       if (path === "developer") {
@@ -232,13 +217,75 @@ function CanvasInner() {
         setLeftTab("api");
       } else {
         setLeftTab("chat");
-        setPreviewMode("artifact");
+        focusPreview();
       }
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Could not save path";
       setProfileError(message);
       session.setTypeError(message);
+    } finally {
+      setProfileBusy(false);
+    }
+  }
+
+  async function onTemplateBack() {
+    setProfileBusy(true);
+    try {
+      const next = await putStudioProfile({
+        step: "user_type",
+        path: null,
+        goal: null,
+      });
+      setProfile(next);
+    } finally {
+      setProfileBusy(false);
+    }
+  }
+
+  /** Onboarding template pick: shop → products; everything else → dashboard (blank → Moni). */
+  async function onOnboardingTemplatePick(templateId: string) {
+    setProfileBusy(true);
+    try {
+      const goal = goalFromTemplate(templateId);
+      if (goal === "sell") {
+        const next = await putStudioProfile({ goal, step: "products" });
+        setProfile(next);
+        return;
+      }
+      const next = await putStudioProfile({
+        goal,
+        step: "dashboard",
+        products: [],
+      });
+      setProfile(next);
+      setBusinessNav("dashboard");
+    } catch (error) {
+      session.setTypeError(
+        error instanceof Error ? error.message : "Could not save template choice",
+      );
+    } finally {
+      setProfileBusy(false);
+    }
+  }
+
+  async function onOnboardingBlank() {
+    setProfileBusy(true);
+    try {
+      // Blank / Other → Moni chat in Studio.
+      const next = await putStudioProfile({
+        goal: "other",
+        step: "done",
+        products: [],
+      });
+      setProfile(next);
+      setBusinessNav("workflow");
+      setLeftTab("chat");
+      focusPreview();
+    } catch (error) {
+      session.setTypeError(
+        error instanceof Error ? error.message : "Could not start blank setup",
+      );
     } finally {
       setProfileBusy(false);
     }
@@ -263,7 +310,7 @@ function CanvasInner() {
   async function onProductsBack() {
     setProfileBusy(true);
     try {
-      const next = await putStudioProfile({ step: "user_type", path: null });
+      const next = await putStudioProfile({ step: "template" });
       setProfile(next);
     } finally {
       setProfileBusy(false);
@@ -277,7 +324,7 @@ function CanvasInner() {
       setProfile(next);
     }
     setLeftTab("chat");
-    setPreviewMode("artifact");
+    focusPreview();
   }
 
   async function markOnboardingDone() {
@@ -290,13 +337,15 @@ function CanvasInner() {
   const showOnboarding =
     profileReady &&
     profile != null &&
-    (profile.step === "user_type" || profile.step === "products");
+    (profile.step === "user_type" ||
+      profile.step === "template" ||
+      profile.step === "intent" ||
+      profile.step === "products");
   const showBusinessDashboard =
     profileReady &&
     profile?.path === "business" &&
     (profile.step === "dashboard" ||
-      (profile.step === "done" && businessNav === "dashboard") ||
-      profile.step === "template");
+      (profile.step === "done" && businessNav === "dashboard"));
 
   if (showBusinessDashboard) {
     return (
@@ -309,6 +358,17 @@ function CanvasInner() {
             else setBusinessNav("dashboard");
           }}
           onNew={() => setTemplatesOpen(true)}
+          onLogout={() => {
+            void putStudioProfile({
+              path: null,
+              step: "user_type",
+              goal: null,
+              products: [],
+            }).then((next) => {
+              setProfile(next);
+              setBusinessNav("dashboard");
+            });
+          }}
         />
         <TemplatePicker
           open={templatesOpen}
@@ -319,12 +379,8 @@ function CanvasInner() {
             void session.startFromTemplate(templateId).then(async () => {
               await markOnboardingDone();
               setBusinessNav("workflow");
-              setSellerResult(null);
               if (profile?.products?.length) seedFromProducts(profile.products);
-              else {
-                setSellerSeed(null);
-                goSeller();
-              }
+              else focusPreview();
             });
           }}
           onBlank={() => {
@@ -332,7 +388,7 @@ function CanvasInner() {
               await markOnboardingDone();
               setBusinessNav("workflow");
               setLeftTab("api");
-              setPreviewMode("review");
+              focusPreview();
             });
           }}
         />
@@ -342,19 +398,27 @@ function CanvasInner() {
 
   return (
     <div
-      className={`studio-shell${leftCollapsed ? " is-left-collapsed" : ""}`}
-      style={sidebars.shellStyle}
+      className={`studio-shell${panelsCollapsed ? " is-panels-collapsed" : ""}`}
+      style={panelsCollapsed ? undefined : sidebars.shellStyle}
     >
       {showOnboarding && (
-        <OnboardingChrome
-          active={onboardingStep === "products" ? "products" : "user_type"}
-        >
+        <OnboardingChrome active={onboardingStep}>
           {onboardingStep === "products" ? (
             <ProductsStep
               initial={profile?.products ?? []}
               busy={profileBusy}
               onBack={() => void onProductsBack()}
               onNext={(products) => void onProductsNext(products)}
+            />
+          ) : onboardingStep === "template" || onboardingStep === "intent" ? (
+            <TemplatePicker
+              open
+              embedded
+              busy={profileBusy}
+              onClose={() => undefined}
+              onBack={() => void onTemplateBack()}
+              onPick={(templateId) => void onOnboardingTemplatePick(templateId)}
+              onBlank={() => void onOnboardingBlank()}
             />
           ) : (
             <PathGate
@@ -365,102 +429,72 @@ function CanvasInner() {
           )}
         </OnboardingChrome>
       )}
-      <NodePalette
-        catalog={{ ...session.nodeTypesMeta, ...session.catalog }}
-        workflowName={session.workflow?.name ?? "Workflow"}
-        teamLabel={
-          session.source === "api"
-            ? "Live API"
-            : session.source === "fixture"
-              ? "Local fixtures"
-              : session.ready
-                ? "Ready"
-                : "Connecting…"
-        }
-        leftTab={leftTab}
-        collapsed={leftCollapsed}
-        busy={session.busy}
-        onLeftTabChange={setLeftTab}
-        onToggleCollapsed={() => setLeftCollapsed((value) => !value)}
-        onAdd={(typeKey) => graph.addNode(typeKey)}
-        onAsk={session.askMoni}
-        onSetupIntent={async (templateId, config) => {
-          const result = await session.setupFromIntent(templateId, config);
-          goSeller(result.seed, result.artifact);
-        }}
-        onResizeStart={(event) => sidebars.beginResize("left", event)}
-      />
+      {!panelsCollapsed ? (
+        <StudioIconRail
+          active="workflow"
+          onNew={() => setTemplatesOpen(true)}
+          onDashboard={() => {
+            if (profile?.path !== "business") return;
+            setBusinessNav("dashboard");
+          }}
+        />
+      ) : null}
+      {!panelsCollapsed ? (
+        <NodePalette
+          catalog={{ ...session.nodeTypesMeta, ...session.catalog }}
+          workflowName={session.workflow?.name ?? "Workflow 1"}
+          teamLabel={
+            session.source === "api"
+              ? "Your team"
+              : session.source === "fixture"
+                ? "Local fixtures"
+                : session.ready
+                  ? "Your team"
+                  : "Connecting…"
+          }
+          leftTab={leftTab}
+          collapsed={false}
+          busy={session.busy}
+          onLeftTabChange={setLeftTab}
+          onToggleCollapsed={() => setPanelsCollapsed(true)}
+          onAdd={(typeKey) => graph.addNode(typeKey)}
+          onAsk={session.askMoni}
+          onSetupIntent={async (templateId, config) => {
+            await session.setupFromIntent(templateId, config);
+            focusPreview();
+          }}
+          onResizeStart={(event) => sidebars.beginResize("left", event)}
+        />
+      ) : null}
 
       <main className="studio-main">
-        <div className="studio-hero-switch">
-          {profile?.path === "business" && (
+        <div className="studio-canvas-card">
+          {panelsCollapsed ? (
+            <StudioFloatingChrome
+              workflowName={session.workflow?.name ?? "Workflow 1"}
+              running={trace.running}
+              canAct={!!currentIr}
+              busy={session.busy}
+              onExpandPanels={() => setPanelsCollapsed(false)}
+              onRun={() => {
+                if (!currentIr) return;
+                setPanelsCollapsed(false);
+                setRightTab("preview");
+                void trace.runWorkflow(currentIr);
+              }}
+              onDeploy={() => undefined}
+              deployDisabled
+            />
+          ) : null}
+          {panelsCollapsed && profile?.path === "business" ? (
             <button
               type="button"
-              className="studio-btn studio-btn--ghost"
+              className="studio-float-dashboard"
               onClick={() => setBusinessNav("dashboard")}
             >
               ← Dashboard
             </button>
-          )}
-          <WorkflowOpener
-            workflows={session.workflows}
-            activeId={session.activeWorkflowId}
-            busy={session.busy || session.loading}
-            onOpen={(id) => void session.openWorkflow(id)}
-            onRefresh={() => void session.refreshWorkflows()}
-            onNewTemplate={() => setTemplatesOpen(true)}
-          />
-          {session.selectedNodeId && (
-            <button
-              type="button"
-              className="studio-btn studio-btn--ghost"
-              onClick={graph.deleteSelected}
-            >
-              Delete node
-            </button>
-          )}
-          <button
-            type="button"
-            className="studio-btn studio-btn--ghost"
-            disabled={session.busy || !session.activeWorkflowId}
-            onClick={() => {
-              session.setSelectedNodeId(null);
-              setRightTab("code");
-            }}
-          >
-            Connect your Monnify account
-          </button>
-          <button
-            type="button"
-            className="studio-btn studio-btn--ghost"
-            disabled={session.busy || !currentIr}
-            onClick={() => currentIr && void session.runAnalyze(currentIr)}
-          >
-            Re-analyze
-          </button>
-          <button
-            type="button"
-            className="studio-btn studio-btn--ghost"
-            disabled={session.busy || !currentIr}
-            onClick={() => currentIr && void session.save(currentIr)}
-          >
-            Save
-          </button>
-          <button
-            type="button"
-            className="studio-btn studio-btn--ghost"
-            disabled={
-              session.busy ||
-              !currentIr ||
-              (session.report?.findings.length ?? 0) === 0
-            }
-            onClick={() => currentIr && void session.applyFix(currentIr, "ALL")}
-          >
-            Apply Fix
-          </button>
-        </div>
-
-        <div className="studio-canvas-card">
+          ) : null}
           <WorkflowCanvas
             nodes={displayNodes}
             edges={displayEdges}
@@ -475,6 +509,7 @@ function CanvasInner() {
             }
             connectionFeedback={graph.connectionFeedback}
             layoutNonce={session.layoutNonce}
+            showMiniMap={false}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={graph.onConnect}
@@ -484,104 +519,26 @@ function CanvasInner() {
         </div>
       </main>
 
-      <RightSidebar
-        rightTab={rightTab}
-        onRightTabChange={setRightTab}
-        running={trace.running}
-        canAct={!!currentIr}
-        busy={session.busy}
-        onRun={() => {
-          if (!currentIr) return;
-          setRightTab("preview");
-          setPreviewMode("trace");
-          void trace.runWorkflow(currentIr);
-        }}
-        onDeploy={() => undefined}
-        deployDisabled
-        deployTitle="Coming soon"
-        onResizeStart={(event) => sidebars.beginResize("right", event)}
-      >
-        {rightTab === "code" ? (
-          selectedIrNode ? (
-            <ConfigPanel
-              node={selectedIrNode}
-              meta={
-                session.catalog[selectedIrNode.type] ??
-                session.nodeTypesMeta[selectedIrNode.type]
-              }
-              selectedFinding={selectedFinding}
-              onChange={graph.updateSelectedNode}
-              onClose={() => session.setSelectedNodeId(null)}
-            />
-          ) : (
-            <CredentialsForm
-              workflowId={session.activeWorkflowId}
-              busy={session.busy}
-            />
-          )
-        ) : (
-          <>
-            <div className="studio-segment">
-              <button
-                type="button"
-                className={previewMode === "artifact" ? "is-active" : ""}
-                onClick={() => setPreviewMode("artifact")}
-              >
-                Seller
-              </button>
-              <button
-                type="button"
-                className={previewMode === "review" ? "is-active" : ""}
-                onClick={() => setPreviewMode("review")}
-              >
-                Review
-              </button>
-              <button
-                type="button"
-                className={previewMode === "trace" ? "is-active" : ""}
-                onClick={() => setPreviewMode("trace")}
-              >
-                Trace
-              </button>
-            </div>
-            {previewMode === "trace" ? (
-              <TracePanel
-                run={trace.run}
-                events={trace.events}
-                selectedSeq={trace.selectedSeq}
-                running={trace.running}
-                error={trace.error}
-                onSelect={trace.setSelectedSeq}
-                onClose={() => setPreviewMode("artifact")}
-              />
-            ) : previewMode === "review" ? (
-              <ReviewPanel
-                workflowName={session.workflow?.name ?? ""}
-                report={session.report}
-                loading={session.loading}
-                busy={session.busy}
-                selectedFindingIndex={session.selectedFindingIndex}
-                onSelectFinding={session.setSelectedFindingIndex}
-                onApplyFix={(ruleId) =>
-                  currentIr && void session.applyFix(currentIr, ruleId)
-                }
-              />
-            ) : (
-              <PreviewArtifactPanel
-                workflowId={session.activeWorkflowId}
-                busy={session.busy}
-                seedConfig={sellerSeed}
-                initialResult={sellerResult}
-                onBeforeGenerate={async () => {
-                  if (currentIr && session.dirty) {
-                    await session.save(currentIr);
-                  }
-                }}
-              />
-            )}
-          </>
-        )}
-      </RightSidebar>
+      {!panelsCollapsed ? (
+        <RightSidebar
+          rightTab={rightTab}
+          onRightTabChange={setRightTab}
+          running={trace.running}
+          canAct={!!currentIr}
+          busy={session.busy}
+          onRun={() => {
+            if (!currentIr) return;
+            setRightTab("preview");
+            void trace.runWorkflow(currentIr);
+          }}
+          onDeploy={() => undefined}
+          deployDisabled
+          deployTitle="Coming soon"
+          onResizeStart={(event) => sidebars.beginResize("right", event)}
+        >
+          {null}
+        </RightSidebar>
+      ) : null}
 
       <TemplatePicker
         open={templatesOpen && !showOnboarding}
@@ -595,19 +552,15 @@ function CanvasInner() {
         onPick={(templateId) => {
           void session.startFromTemplate(templateId).then(async () => {
             await markOnboardingDone();
-            setSellerResult(null);
             if (profile?.products?.length) seedFromProducts(profile.products);
-            else {
-              setSellerSeed(null);
-              goSeller();
-            }
+            else focusPreview();
           });
         }}
         onBlank={() => {
           void session.startBlank().then(async () => {
             await markOnboardingDone();
             setLeftTab("api");
-            setPreviewMode("review");
+            focusPreview();
           });
         }}
       />
