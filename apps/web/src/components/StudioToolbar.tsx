@@ -90,7 +90,7 @@ export function StudioToolbar({
           disabled={busy || running || !canAct}
           onClick={onRun}
         >
-          {running ? "Running…" : "Run (mock)"}
+          {running ? "Running…" : "Practice run (no real money)"}
         </button>
       </div>
     </div>

@@ -28,10 +28,10 @@ export function StudioNode({ data, selected }: NodeProps<StudioFlowNode>) {
       <Handle type="target" position={Position.Left} className="studio-handle" />
       <span className="studio-node__cat">{data.category}</span>
       <strong className="studio-node__label">{data.label}</strong>
-      <span className="studio-node__type">{data.nodeType}</span>
       {selected && (
         <div className="studio-node__detail">
           <span>{data.title || data.label}</span>
+          <span className="studio-node__type">{data.nodeType}</span>
           <span>Open panel for ports and config</span>
         </div>
       )}
