@@ -1,53 +1,70 @@
 /**
- * Palette + Save / Re-analyze / Apply Fix actions. Provenance: #4, #27.
+ * Slim action bar + panel toggles. Palette is a vertical overlay (#44).
+ * Provenance: #4, #27, #28, #44.
  */
 "use client";
 
-import { NODE_PALETTE } from "@/lib/constants";
-import type { NodeMeta } from "@/types";
-
 export interface StudioToolbarProps {
-  catalog: Record<string, NodeMeta>;
-  nodeTypesMeta: Record<string, NodeMeta>;
   canDelete: boolean;
   busy: boolean;
   canAct: boolean;
   hasFindings: boolean;
-  onAdd: (typeKey: string) => void;
+  paletteOpen: boolean;
+  reviewOpen: boolean;
+  traceOpen: boolean;
+  running: boolean;
+  onTogglePalette: () => void;
+  onToggleReview: () => void;
+  onToggleTrace: () => void;
   onDelete: () => void;
   onReanalyze: () => void;
   onSave: () => void;
   onApplyAll: () => void;
+  onRun: () => void;
 }
 
 export function StudioToolbar({
-  catalog,
-  nodeTypesMeta,
   canDelete,
   busy,
   canAct,
   hasFindings,
-  onAdd,
+  paletteOpen,
+  reviewOpen,
+  traceOpen,
+  running,
+  onTogglePalette,
+  onToggleReview,
+  onToggleTrace,
   onDelete,
   onReanalyze,
   onSave,
   onApplyAll,
+  onRun,
 }: StudioToolbarProps) {
   return (
     <div className="studio-toolbar">
-      <div className="palette">
-        <span className="palette__label">Add</span>
-        {NODE_PALETTE.map((paletteItem) => (
-          <button
-            key={paletteItem.type}
-            type="button"
-            onClick={() => onAdd(paletteItem.type)}
-          >
-            +{" "}
-            {(catalog[paletteItem.type] ?? nodeTypesMeta[paletteItem.type])?.title ??
-              paletteItem.type}
-          </button>
-        ))}
+      <div className="toolbar-panels">
+        <button
+          type="button"
+          className={paletteOpen ? "is-active" : ""}
+          onClick={onTogglePalette}
+        >
+          Nodes
+        </button>
+        <button
+          type="button"
+          className={reviewOpen ? "is-active" : ""}
+          onClick={onToggleReview}
+        >
+          Review
+        </button>
+        <button
+          type="button"
+          className={traceOpen ? "is-active" : ""}
+          onClick={onToggleTrace}
+        >
+          Trace
+        </button>
       </div>
       <div className="toolbar-actions">
         <button type="button" disabled={!canDelete} onClick={onDelete}>
@@ -66,6 +83,14 @@ export function StudioToolbar({
           onClick={onApplyAll}
         >
           Apply Fix (all)
+        </button>
+        <button
+          type="button"
+          className="primary-btn"
+          disabled={busy || running || !canAct}
+          onClick={onRun}
+        >
+          {running ? "Running…" : "Run (mock)"}
         </button>
       </div>
     </div>

@@ -58,6 +58,11 @@ def _scrub(value: Any) -> Any:
     return value
 
 
+def redact(value: Any) -> Any:
+    """Public redaction entrypoint for execution traces and exports (#8, D15)."""
+    return _scrub(value)
+
+
 def redact_processor(logger: Any, method_name: str, event_dict: dict) -> dict:
     """structlog processor: redact sensitive keys and scrub registered secrets."""
     return {k: (REDACTED if _is_sensitive_key(k) else _scrub(v)) for k, v in event_dict.items()}

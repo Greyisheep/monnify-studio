@@ -10,6 +10,7 @@ dependencies = [
     "structlog>=24.1",
     "opentelemetry-api>=1.24",
     "opentelemetry-sdk>=1.24",
+    "segno>=1.6.6",
 ]
 
 [project.optional-dependencies]
@@ -19,9 +20,15 @@ api = [
     "sqlalchemy>=2.0",
     "alembic>=1.13",
     "psycopg[binary]>=3.1",
+    "jinja2>=3.1",
     "opentelemetry-instrumentation-fastapi>=0.45b0",
     "opentelemetry-instrumentation-httpx>=0.45b0",
     "opentelemetry-exporter-otlp-proto-http>=1.24",
+]
+ai = [
+    "anthropic>=0.40",
+    "openai>=1.40",
+    "google-genai>=1.0",
 ]
 dev = [
     "pytest>=8.0",

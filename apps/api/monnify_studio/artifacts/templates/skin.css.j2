@@ -1,0 +1,120 @@
+/* The artifact skin (#52). ONE file owns the whole look so design (#59 item 1)
+   can be applied without touching generated structure. Accent comes from the
+   seller's config. */
+:root {
+  --accent: {{ config.accent_color }};
+  --ink: #17211d;
+  --muted: #5c6a63;
+  --paper: #fafaf7;
+  --card: #ffffff;
+  --line: #e5e7e3;
+  --ok: #0f6b57;
+  --wait: #9a6b00;
+  --bad: #b3261e;
+}
+* { box-sizing: border-box; margin: 0; }
+body {
+  font: 16px/1.5 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: var(--paper); color: var(--ink);
+  display: flex; justify-content: center; min-height: 100vh; padding: 32px 16px;
+}
+.page { width: 100%; max-width: 440px; }
+.page.wide { max-width: 760px; }
+.brand { display: flex; gap: 14px; align-items: center; margin-bottom: 20px; }
+.brand h1 { font-size: 1.25rem; }
+.brand .tagline { color: var(--muted); font-size: 0.85rem; }
+.brand-mark {
+  width: 44px; height: 44px; border-radius: 12px; flex: none;
+  background: var(--accent); color: #fff; font-weight: 700; font-size: 1.3rem;
+  display: flex; align-items: center; justify-content: center;
+}
+.brand-logo {
+  width: 44px; height: 44px; border-radius: 12px; flex: none;
+  object-fit: cover; border: 1px solid var(--line); background: #fff;
+}
+.brand .btn-ghost { margin-left: auto; }
+.card {
+  background: var(--card); border: 1px solid var(--line); border-radius: 16px;
+  padding: 24px; box-shadow: 0 1px 2px rgba(23, 33, 29, 0.04);
+}
+.product h2 { font-size: 1.05rem; margin-bottom: 6px; }
+.price { font-size: 2rem; font-weight: 700; margin-bottom: 18px; }
+.price .naira { font-size: 0.9rem; font-weight: 600; color: var(--muted); vertical-align: middle; }
+.btn-primary {
+  width: 100%; padding: 13px 16px; border: 0; border-radius: 12px; cursor: pointer;
+  background: var(--accent); color: #fff; font-size: 1rem; font-weight: 600;
+}
+.btn-primary:disabled { opacity: 0.6; cursor: wait; }
+.btn-ghost {
+  padding: 8px 14px; border: 1px solid var(--line); border-radius: 10px;
+  background: transparent; color: var(--ink); font-size: 0.85rem;
+  text-decoration: none; cursor: pointer;
+}
+.status { min-height: 1.2em; margin-top: 10px; font-size: 0.85rem; color: var(--muted); }
+.trust {
+  margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--line);
+  font-size: 0.8rem; color: var(--muted);
+}
+.trust .dot {
+  display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+  background: var(--ok); margin-right: 6px;
+}
+.table-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.table-head h2 { font-size: 1rem; }
+table.orders { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+table.orders th {
+  text-align: left; color: var(--muted); font-weight: 600; font-size: 0.78rem;
+  text-transform: uppercase; letter-spacing: 0.04em;
+  padding: 8px 10px; border-bottom: 1px solid var(--line);
+}
+table.orders td { padding: 10px; border-bottom: 1px solid var(--line); }
+.badge {
+  display: inline-block; padding: 3px 10px; border-radius: 999px;
+  font-size: 0.75rem; font-weight: 600;
+}
+.badge.ok { background: color-mix(in srgb, var(--ok) 12%, white); color: var(--ok); }
+.badge.wait { background: color-mix(in srgb, var(--wait) 14%, white); color: var(--wait); }
+.badge.bad { background: color-mix(in srgb, var(--bad) 10%, white); color: var(--bad); }
+.empty { color: var(--muted); font-size: 0.9rem; padding: 18px 4px 4px; }
+.note { color: var(--muted); font-size: 0.72rem; margin-top: 4px; max-width: 220px; }
+.btn-ghost.claim { display: block; width: 100%; margin-top: 10px; text-align: center; }
+.foot {
+  display: flex; justify-content: space-between; margin-top: 18px;
+  font-size: 0.78rem; color: var(--muted);
+}
+.foot a { color: var(--accent); }
+
+/* Feeds: notifications / ledger / activity (#78) */
+.feed { list-style: none; margin: 0; padding: 4px 0 0; }
+.feed li { padding: 8px 4px; border-bottom: 1px solid color-mix(in srgb, var(--ink) 8%, transparent); font-size: 0.92rem; }
+.feed li:last-child { border-bottom: none; }
+.feed-time { color: var(--muted); font-variant-numeric: tabular-nums; margin-right: 8px; font-size: 0.8rem; }
+
+/* Invoice creation form (#85) */
+.inv-form { display: grid; grid-template-columns: 1fr 1.4fr 0.9fr auto; gap: 8px; margin-bottom: 14px; }
+.inv-form input { padding: 9px 10px; border: 1px solid color-mix(in srgb, var(--ink) 15%, transparent); border-radius: 8px; font: inherit; background: transparent; color: inherit; }
+@media (max-width: 640px) { .inv-form { grid-template-columns: 1fr; } }
+
+/* Seller's shop-link share panel (#91) */
+.shop-share .share-grid { display:flex; gap:24px; align-items:flex-start; flex-wrap:wrap; }
+.shop-share .share-main { flex:1 1 260px; min-width:0; }
+.shop-share .qr-wrap { flex:0 0 auto; }
+.linkbox { display:flex; gap:8px; align-items:center; background:color-mix(in srgb, var(--ink) 4%, transparent);
+  border:1px solid color-mix(in srgb, var(--ink) 12%, transparent); border-radius:10px; padding:8px 10px 8px 12px; }
+.linkbox code { flex:1 1 auto; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.84rem; }
+.btn-primary.wa { display:inline-block; margin-top:10px; text-decoration:none; text-align:center; }
+.qr-wrap { text-align:center; display:flex; flex-direction:column; gap:6px; align-items:center; }
+.qr-wrap small { color:var(--muted); font-size:.78rem; }
+.qr-img { border:1px solid color-mix(in srgb, var(--ink) 12%, transparent); border-radius:10px; background:#fff; padding:6px; }
+
+/* Seller's item editor (#91) */
+.cat-rows { display:flex; flex-direction:column; gap:8px; }
+.cat-row { display:flex; gap:8px; align-items:center; }
+.cat-row .cat-name { flex:1 1 auto; }
+.cat-row .cat-price { flex:0 0 140px; text-align:right; }
+.cat-row input { padding:10px 12px; border:1px solid color-mix(in srgb, var(--ink) 14%, transparent);
+  border-radius:9px; font:inherit; background:transparent; color:inherit; }
+.cat-actions { display:flex; align-items:center; gap:14px; margin-top:14px; }
+.cat-status { color:var(--muted); font-size:.85rem; }
+@media (max-width:560px){ .cat-row .cat-price { flex-basis:100px; } }

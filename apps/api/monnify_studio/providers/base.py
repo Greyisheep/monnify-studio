@@ -29,6 +29,11 @@ class NodeTypeDef(BaseModel):
     category: NodeCategory
     title: str
     description: str = ""
+    # Grounding from Monnify's own docs (#25): `when_to_use` is the cheat-sheet
+    # one-liner, `doc_url` the reference page. These are what Moni is fed, so she
+    # reasons from Monnify's documented features, not from training memory.
+    when_to_use: str = ""
+    doc_url: str = ""
     default_tags: list[CapabilityTag] = Field(default_factory=list)
     inputs: list[PortSpec] = Field(default_factory=list)
     outputs: list[PortSpec] = Field(default_factory=list)

@@ -1,13 +1,25 @@
 /**
  * Studio HTTP client: live FastAPI preferred, offline fixtures as fallback.
- * Hides transport details from hooks/components. Provenance: #4, #27, D6.
+ * Hides transport details from hooks/components.
+ * Provenance: #4, #27, #28, #44, #15, #55, #51, #52, #68, D6, D17, D19.
  */
 import type {
   AnalysisReport,
+  ArtifactConfigInput,
+  ComposeResult,
+  CredentialStatus,
+  ExecutionEvent,
+  ExecutionRun,
+  GenerateArtifactResult,
+  IntentResult,
+  MonnifyCredentialInput,
   NodeMeta,
   RemediateResult,
+  StartExecutionResult,
+  TemplateInfo,
   Workflow,
   WorkflowPayload,
+  WorkflowSummary,
 } from "@/types";
 
 import unsafePayload from "@/data/marketplace-unsafe.json";
@@ -141,6 +153,125 @@ export async function remediateWorkflow(
     workflow,
     rule_id: ruleId ?? "ALL",
   });
+}
+
+/** Start a mock IR run (#8). Live API required; no fixture fallback. */
+export async function startExecution(
+  workflow: Workflow,
+  adapter: "mock" = "mock",
+): Promise<StartExecutionResult> {
+  return postJson<StartExecutionResult>("/executions", { workflow, adapter });
+}
+
+export async function fetchExecution(runId: string): Promise<ExecutionRun> {
+  const live = await tryGetJson<ExecutionRun>(`/executions/${runId}`);
+  if (!live) throw new Error(`Unknown run: ${runId}`);
+  return live;
+}
+
+export async function fetchExecutionEvents(
+  runId: string,
+): Promise<ExecutionEvent[]> {
+  const live = await tryGetJson<ExecutionEvent[]>(`/executions/${runId}/events`);
+  if (!live) throw new Error(`Unknown run events: ${runId}`);
+  return live;
+}
+
+/**
+ * Consume the SSE execution stream (#8 / #28). Calls `onEvent` for each
+ * ExecutionEvent payload, then resolves when `event: done` arrives.
+ */
+export async function streamExecutionEvents(
+  runId: string,
+  onEvent: (event: ExecutionEvent) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  const response = await fetch(`${API_BASE}/executions/${runId}/events/stream`, {
+    headers: { Accept: "text/event-stream" },
+    signal,
+    cache: "no-store",
+  });
+  if (!response.ok || !response.body) {
+    throw new Error(`${response.status} /executions/${runId}/events/stream`);
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const chunks = buffer.split("\n\n");
+    buffer = chunks.pop() ?? "";
+
+    for (const chunk of chunks) {
+      const lines = chunk.split("\n");
+      let eventName = "message";
+      const dataLines: string[] = [];
+      for (const line of lines) {
+        if (line.startsWith("event:")) eventName = line.slice(6).trim();
+        if (line.startsWith("data:")) dataLines.push(line.slice(5).trim());
+      }
+      if (eventName === "done") return;
+      if (dataLines.length === 0) continue;
+      const payload = dataLines.join("\n");
+      if (!payload || payload === "{}") continue;
+      onEvent(JSON.parse(payload) as ExecutionEvent);
+    }
+  }
+}
+
+export async function composeWorkflow(message: string): Promise<ComposeResult> {
+  return postJson<ComposeResult>("/assistant/compose", { message });
+}
+
+export async function classifyIntent(message: string): Promise<IntentResult> {
+  return postJson<IntentResult>("/assistant/intent", { message });
+}
+
+export async function createFromTemplate(
+  templateId: string,
+): Promise<WorkflowPayload> {
+  return postJson<WorkflowPayload>(`/workflows/from-template/${templateId}`, {});
+}
+
+export async function listWorkflows(): Promise<WorkflowSummary[]> {
+  const live = await tryGetJson<WorkflowSummary[]>("/workflows");
+  return live ?? [];
+}
+
+export async function listTemplates(): Promise<TemplateInfo[]> {
+  const live = await tryGetJson<TemplateInfo[]>("/templates");
+  return live ?? [];
+}
+
+export async function fetchCredentialStatus(
+  workflowId: string,
+): Promise<CredentialStatus | null> {
+  return tryGetJson<CredentialStatus>(`/workflows/${workflowId}/credentials`);
+}
+
+export async function putCredentials(
+  workflowId: string,
+  creds: MonnifyCredentialInput,
+): Promise<CredentialStatus> {
+  return putJson<CredentialStatus>(`/workflows/${workflowId}/credentials`, creds);
+}
+
+export async function generateArtifact(
+  workflowId: string,
+  config: ArtifactConfigInput = {},
+): Promise<GenerateArtifactResult> {
+  return postJson<GenerateArtifactResult>(`/workflows/${workflowId}/generate`, {
+    config,
+  });
+}
+
+export function absoluteApiUrl(path: string): string {
+  if (path.startsWith("http://") || path.startsWith("https://")) return path;
+  return `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
 }
 
 export { API_BASE };

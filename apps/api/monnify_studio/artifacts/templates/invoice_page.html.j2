@@ -1,0 +1,197 @@
+<!doctype html>
+{# The buyer-facing invoice, as a document (#85, #87, D14/D17). Modelled on the
+   Dockie/Carlofty reference sheets: brand + Invoice title, number and dates,
+   from/billed-to, a line-item table, a totals stack, payment info, footer.
+   Same trust boundary as the shop: "Pay now" opens a real sandbox checkout;
+   "I have sent the money" only asks Monnify for the truth. #}
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Invoice {{ invoice.reference }} | {{ config.business_name }}</title>
+  <style>
+    :root {
+      --ink: #14181f; --muted: #6b7280; --line: #e7e9ee; --accent: {{ config.accent_color }};
+      --paper: #ffffff; --bg: #f3f4f6;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--bg); color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif;
+      -webkit-font-smoothing: antialiased; padding: 32px 16px;
+    }
+    .sheet {
+      max-width: 820px; margin: 0 auto; background: var(--paper);
+      border-radius: 18px; box-shadow: 0 10px 40px rgba(20,24,31,0.08);
+      padding: 56px 56px 40px;
+    }
+    .top { display: flex; justify-content: space-between; align-items: flex-start; }
+    .brand-logo { max-height: 40px; max-width: 200px; }
+    .brand-name { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em; color: var(--accent); }
+    h1.title { font-size: 2.4rem; font-weight: 800; margin: 0; letter-spacing: -0.03em; }
+    .meta { text-align: right; margin-top: 10px; font-size: 0.92rem; color: var(--muted); line-height: 1.9; }
+    .meta b { color: var(--ink); }
+    .parties { display: flex; justify-content: space-between; gap: 40px; margin-top: 36px; }
+    .party h3 { font-size: 0.95rem; margin: 0 0 8px; }
+    .party p { margin: 0; color: var(--muted); font-size: 0.92rem; line-height: 1.65; }
+    .amount-due-hero { text-align: right; }
+    .amount-due-hero .label { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+    .amount-due-hero .value { font-size: 2rem; font-weight: 800; letter-spacing: -0.02em; }
+    table.lines { width: 100%; border-collapse: collapse; margin-top: 40px; }
+    table.lines th {
+      text-align: left; font-size: 0.85rem; color: var(--muted); font-weight: 600;
+      padding: 0 0 12px; border-bottom: 1px solid var(--line);
+    }
+    table.lines th.num, table.lines td.num { text-align: right; }
+    table.lines td { padding: 16px 0; border-bottom: 1px solid var(--line); font-size: 0.95rem; }
+    .totals { margin: 8px 0 0; margin-left: auto; width: 300px; }
+    .totals .row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--line); font-size: 0.95rem; }
+    .totals .row.grand { border-bottom: none; font-weight: 800; font-size: 1.05rem; }
+    .totals .row .k { color: var(--muted); }
+    .totals .row.grand .k { color: var(--ink); }
+    .pay { margin-top: 40px; padding-top: 28px; border-top: 1px solid var(--line); }
+    .pay h3 { font-size: 0.95rem; margin: 0 0 10px; }
+    .pay p.sub { color: var(--muted); font-size: 0.9rem; margin: 0 0 18px; max-width: 460px; }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .btn {
+      appearance: none; border: 1px solid transparent; border-radius: 10px;
+      padding: 12px 22px; font: inherit; font-weight: 600; cursor: pointer;
+    }
+    .btn.primary { background: var(--accent); color: #fff; }
+    .btn.primary:disabled { opacity: 0.6; cursor: wait; }
+    .btn.ghost { background: transparent; border-color: var(--line); color: var(--ink); }
+    .status { margin: 14px 0 0; font-size: 0.88rem; color: var(--muted); min-height: 1.1em; }
+    .paid-badge {
+      display: inline-flex; align-items: center; gap: 8px; background: color-mix(in srgb, var(--accent) 12%, #fff);
+      color: var(--accent); font-weight: 700; padding: 10px 16px; border-radius: 999px; font-size: 0.95rem;
+    }
+    .foot {
+      display: flex; justify-content: space-between; margin-top: 44px; padding-top: 20px;
+      border-top: 1px solid var(--line); color: var(--muted); font-size: 0.82rem;
+    }
+    @media (max-width: 640px) {
+      .sheet { padding: 32px 24px; }
+      .parties { flex-direction: column; gap: 24px; }
+      .totals { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <main class="sheet">
+    <div class="top">
+      <div>
+        {% if config.logo_url %}
+        <img class="brand-logo" src="{{ config.logo_url }}" alt="{{ config.business_name }} logo" />
+        {% else %}
+        <div class="brand-name">{{ config.business_name }}</div>
+        {% endif %}
+      </div>
+      <div>
+        <h1 class="title">Invoice</h1>
+        <div class="meta">
+          <div>Invoice number: <b>{{ invoice.reference }}</b></div>
+          <div>Issued: <b>{{ issued_display }}</b></div>
+          <div>Due: <b>{{ due_display }}</b></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="parties">
+      <div class="party">
+        <h3>{{ config.business_name }}</h3>
+        <p>Paid into {{ config.business_name }}'s<br />Monnify (Moniepoint) account.</p>
+      </div>
+      <div class="party">
+        <h3>Billed to</h3>
+        <p>{{ invoice.customer or "Customer" }}</p>
+      </div>
+      <div class="party amount-due-hero">
+        <div class="label">Amount due</div>
+        <div class="value">NGN {{ amount_display }}</div>
+      </div>
+    </div>
+
+    <table class="lines">
+      <thead>
+        <tr>
+          <th>Description</th>
+          <th class="num">Qty</th>
+          <th class="num">Rate</th>
+          <th class="num">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in line_rows %}
+        <tr>
+          <td>{{ row.name }}</td>
+          <td class="num">{{ row.qty }}</td>
+          <td class="num">NGN {{ row.rate }}</td>
+          <td class="num">NGN {{ row.amount }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <div class="totals">
+      <div class="row"><span class="k">Subtotal</span><span>NGN {{ amount_display }}</span></div>
+      <div class="row"><span class="k">Total</span><span>NGN {{ amount_display }}</span></div>
+      <div class="row grand"><span class="k">Amount due</span><span>NGN {{ amount_display }}</span></div>
+    </div>
+
+    <div class="pay">
+      <h3>Payment</h3>
+      {% if invoice.status.value == "verified" %}
+      <span class="paid-badge">&#10003; Paid and verified by Monnify</span>
+      {% else %}
+      <p class="sub">
+        Pay online and your payment is confirmed automatically. This invoice is only
+        marked paid after Monnify confirms the money in {{ config.business_name }}'s account.
+      </p>
+      <div class="actions">
+        <button id="pay" class="btn primary" type="button">Pay now</button>
+        <button id="claim" class="btn ghost" type="button">I have sent the money</button>
+      </div>
+      <p id="status" class="status"></p>
+      {% endif %}
+    </div>
+
+    <div class="foot">
+      <span>Generated by Monnify Studio &middot; every payment verified</span>
+      <span>page 1 of 1</span>
+    </div>
+  </main>
+
+  {% if invoice.status.value != "verified" %}
+  <script>
+    const status = document.getElementById("status");
+    const pay = document.getElementById("pay");
+    pay.addEventListener("click", async () => {
+      pay.disabled = true;
+      status.textContent = "Opening secure checkout...";
+      try {
+        const res = await fetch(
+          "/preview/{{ artifact_id }}/invoice/{{ invoice.reference }}/pay",
+          { method: "POST" });
+        if (!res.ok) throw new Error(await res.text());
+        const data = await res.json();
+        window.open(data.checkout_url, "_blank");
+        status.textContent = "Checkout opened in a new tab. After paying, come back and tap ‘I have sent the money’.";
+      } catch (e) {
+        status.textContent = "Could not start checkout. Try again.";
+      } finally { pay.disabled = false; }
+    });
+    document.getElementById("claim").addEventListener("click", async () => {
+      status.textContent = "Checking with Monnify...";
+      try {
+        const res = await fetch(
+          "/preview/{{ artifact_id }}/orders/{{ invoice.reference }}/verify",
+          { method: "POST" });
+        const order = await res.json();
+        if (order.status === "verified") { location.reload(); return; }
+        status.textContent = order.note || "No confirmed payment yet.";
+      } catch { status.textContent = "Could not check right now. Try again."; }
+    });
+  </script>
+  {% endif %}
+</body>
+</html>

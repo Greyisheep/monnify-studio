@@ -1,11 +1,12 @@
 /**
  * Canvas graph mutations: connect (typed), add, delete, update selection.
- * Provenance: #4.
+ * Connection aliveness: green valid / red invalid (#44). Provenance: #4, #44.
  */
 "use client";
 
 import {
   useCallback,
+  useState,
   type Dispatch,
   type SetStateAction,
 } from "react";
@@ -29,6 +30,7 @@ import type {
 } from "@/types";
 
 export type StudioFlowNode = Node<StudioNodeData, "studio">;
+export type ConnectionFeedback = "valid" | "invalid" | null;
 
 export interface UseStudioGraphOptions {
   nodes: Node<StudioNodeData>[];
@@ -58,6 +60,13 @@ export function useStudioGraph({
   setWorkflow,
 }: UseStudioGraphOptions) {
   const { screenToFlowPosition, setCenter } = useReactFlow();
+  const [connectionFeedback, setConnectionFeedback] =
+    useState<ConnectionFeedback>(null);
+
+  const flashConnection = useCallback((feedback: ConnectionFeedback) => {
+    setConnectionFeedback(feedback);
+    window.setTimeout(() => setConnectionFeedback(null), 1600);
+  }, []);
 
   const onConnect = useCallback(
     async (connection: Connection) => {
@@ -72,9 +81,11 @@ export function useStudioGraph({
       });
       if (!check.ok) {
         setTypeError(check.message || "TYPE ERROR");
+        flashConnection("invalid");
         return;
       }
       setTypeError(null);
+      flashConnection("valid");
       const sourceMeta =
         catalog[sourceNode.data.nodeType] ?? nodeTypesMeta[sourceNode.data.nodeType];
       const kind = sourceMeta?.category === "event" ? "event" : "control";
@@ -94,7 +105,15 @@ export function useStudioGraph({
       );
       setDirty(true);
     },
-    [catalog, nodeTypesMeta, nodes, setDirty, setEdges, setTypeError],
+    [
+      catalog,
+      flashConnection,
+      nodeTypesMeta,
+      nodes,
+      setDirty,
+      setEdges,
+      setTypeError,
+    ],
   );
 
   const onSelectionChange = useCallback(
@@ -167,37 +186,80 @@ export function useStudioGraph({
 
   const updateSelectedNode = useCallback(
     (nextNode: IrNode) => {
+      // Always key off the selected canvas node so Apply JSON cannot silently
+      // no-op when the draft id drifts from the selection (#44).
+      if (!selectedNodeId) return;
+      const fromId = selectedNodeId;
+      const toId = (nextNode.id || fromId).trim() || fromId;
+      const normalized: IrNode = {
+        id: toId,
+        type: nextNode.type,
+        label: nextNode.label ?? null,
+        config: nextNode.config ?? {},
+        inputs: nextNode.inputs ?? {},
+        extra_tags: nextNode.extra_tags ?? [],
+        position: nextNode.position ?? { x: 0, y: 0 },
+      };
+
       setNodes((currentNodes) =>
         currentNodes.map((node) =>
-          node.id === nextNode.id
+          node.id === fromId
             ? {
                 ...node,
-                id: nextNode.id,
-                position: { x: nextNode.position.x, y: nextNode.position.y },
+                id: toId,
+                position: {
+                  x: normalized.position.x,
+                  y: normalized.position.y,
+                },
+                selected: true,
                 data: {
                   ...node.data,
-                  label: nextNode.label ?? node.data.label,
-                  nodeType: nextNode.type,
-                  title: catalog[nextNode.type]?.title ?? nextNode.type,
-                  category: (catalog[nextNode.type]?.category ??
+                  label: normalized.label ?? node.data.label,
+                  nodeType: normalized.type,
+                  title: catalog[normalized.type]?.title ?? normalized.type,
+                  category: (catalog[normalized.type]?.category ??
                     node.data.category) as NodeCategory,
                 },
               }
-            : node,
+            : { ...node, selected: false },
         ),
       );
+
+      if (toId !== fromId) {
+        setEdges((currentEdges) =>
+          currentEdges.map((edge) => ({
+            ...edge,
+            source: edge.source === fromId ? toId : edge.source,
+            target: edge.target === fromId ? toId : edge.target,
+          })),
+        );
+        setSelectedNodeId(toId);
+      }
+
       setWorkflow((currentWorkflow) => {
         if (!currentWorkflow) return currentWorkflow;
         return {
           ...currentWorkflow,
+          entrypoint:
+            currentWorkflow.entrypoint === fromId
+              ? toId
+              : currentWorkflow.entrypoint,
           nodes: currentWorkflow.nodes.map((irNode) =>
-            irNode.id === nextNode.id ? nextNode : irNode,
+            irNode.id === fromId ? normalized : irNode,
           ),
         };
       });
       setDirty(true);
     },
-    [catalog, setDirty, setNodes, setWorkflow],
+    [
+      catalog,
+      selectedNodeId,
+      setDirty,
+      setEdges,
+      setNodes,
+      setSelectedNodeId,
+      setWorkflow,
+    ],
   );
 
   return {
@@ -206,5 +268,6 @@ export function useStudioGraph({
     addNode,
     deleteSelected,
     updateSelectedNode,
+    connectionFeedback,
   };
 }

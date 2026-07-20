@@ -1,0 +1,276 @@
+<!doctype html>
+{# The generated dashboard (#52, #78, D17). Sections switch on FlowFeatures so
+   ANY flow (a shop, an ajo group, a payroll) ends in a usable product:
+   - Orders card only when the flow collects money in (#53 data)
+   - Ledger card when the flow credits a ledger (activity-driven)
+   - Notifications + Activity always, fed by real run events (kid-lens: results
+     in plain words, not a developer trace) #}
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ config.business_name }} | Dashboard</title>
+  <link rel="stylesheet" href="/preview/{{ artifact_id }}/skin.css" />
+</head>
+<body>
+  <main class="page wide">
+    <header class="brand">
+      {% if config.logo_url %}
+      <img class="brand-logo" src="{{ config.logo_url }}" alt="{{ config.business_name }} logo" />
+      {% else %}
+      <div class="brand-mark" aria-hidden="true">{{ config.business_name[:1] }}</div>
+      {% endif %}
+      <div>
+        <h1>{{ config.business_name }}</h1>
+        <p class="tagline">{{ workflow_name }} · money is only counted after Monnify confirms it.</p>
+      </div>
+      {% if features.collects %}
+      <a class="btn-ghost" href="/preview/{{ artifact_id }}">Payment page</a>
+      {% endif %}
+    </header>
+
+    <section class="card shop-share">
+      <div class="table-head">
+        <h2>Your shop link</h2>
+        <a class="btn-ghost" id="view-shop" href="/preview/{{ artifact_id }}/shop" target="_blank" rel="noopener">Open shop</a>
+      </div>
+      <p class="empty" style="margin:0 0 14px">Share this one link. People pick what they want and get an invoice. Put it in your WhatsApp status, your Instagram bio, or print the QR for your shop.</p>
+      <div class="share-grid">
+        <div class="share-main">
+          <div class="linkbox">
+            <code id="shop-url">/preview/{{ artifact_id }}/shop</code>
+            <button class="btn-ghost" id="copy-link" type="button">Copy</button>
+          </div>
+          <a class="btn-primary wa" id="wa-share" target="_blank" rel="noopener">Share on WhatsApp</a>
+        </div>
+        <div class="qr-wrap">
+          <img class="qr-img" src="/preview/{{ artifact_id }}/shop/qr.svg" alt="QR code that opens your shop" width="118" height="118" />
+          <small>Scan to open your shop</small>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="table-head">
+        <h2>What you sell</h2>
+        <button class="btn-ghost" id="cat-add" type="button">+ Add item</button>
+      </div>
+      <p class="empty" style="margin:0 0 12px">Type a name and a price for each thing you sell. This is your shop; changes show up right away.</p>
+      <div id="cat-rows" class="cat-rows"></div>
+      <div class="cat-actions">
+        <button class="btn-primary" id="cat-save" type="button">Save my items</button>
+        <span id="cat-status" class="cat-status"></span>
+      </div>
+    </section>
+
+    <script>
+      (function () {
+        var host = document.getElementById("cat-rows");
+        var status = document.getElementById("cat-status");
+        function row(name, price) {
+          var div = document.createElement("div");
+          div.className = "cat-row";
+          div.innerHTML =
+            '<input class="cat-name" placeholder="What you sell, e.g. Logo design" />' +
+            '<input class="cat-price" type="number" min="0" step="1" placeholder="Price (NGN)" />' +
+            '<button class="btn-ghost cat-del" type="button" aria-label="Remove">Remove</button>';
+          div.querySelector(".cat-name").value = name || "";
+          if (price !== undefined && price !== null) div.querySelector(".cat-price").value = price;
+          div.querySelector(".cat-del").onclick = function () { div.remove(); };
+          host.appendChild(div);
+        }
+        document.getElementById("cat-add").onclick = function () { row("", ""); };
+        fetch("/preview/{{ artifact_id }}/catalog").then(function (r) { return r.json(); })
+          .then(function (items) {
+            if (!items.length) { row("", ""); return; }
+            items.forEach(function (it) { row(it.name, Math.round(parseFloat(it.price_ngn))); });
+          }).catch(function () { row("", ""); });
+        document.getElementById("cat-save").onclick = async function () {
+          var items = [];
+          host.querySelectorAll(".cat-row").forEach(function (r) {
+            var name = r.querySelector(".cat-name").value.trim();
+            var price = parseFloat(r.querySelector(".cat-price").value);
+            if (name && !isNaN(price)) items.push({ name: name, price_ngn: price });
+          });
+          status.textContent = "Saving...";
+          try {
+            var res = await fetch("/preview/{{ artifact_id }}/catalog", {
+              method: "PUT", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ items: items }),
+            });
+            if (!res.ok) throw new Error();
+            status.textContent = "Saved. Your shop is updated.";
+            setTimeout(function () { status.textContent = ""; }, 2500);
+          } catch (e) { status.textContent = "Could not save. Try again."; }
+        };
+      })();
+
+      (function () {
+        var abs = window.location.origin + "/preview/{{ artifact_id }}/shop";
+        var code = document.getElementById("shop-url");
+        if (code) code.textContent = abs;
+        var view = document.getElementById("view-shop");
+        if (view) view.href = abs;
+        var wa = document.getElementById("wa-share");
+        if (wa) wa.href = "https://wa.me/?text=" +
+          encodeURIComponent("Order from {{ config.business_name }} here: " + abs);
+        var copy = document.getElementById("copy-link");
+        if (copy) copy.addEventListener("click", function () {
+          if (navigator.clipboard) navigator.clipboard.writeText(abs);
+          copy.textContent = "Copied";
+          setTimeout(function () { copy.textContent = "Copy"; }, 1500);
+        });
+      })();
+    </script>
+
+    {% if features.collects %}
+    <section class="card">
+      <div class="table-head">
+        <h2>Orders</h2>
+        <button id="refresh" class="btn-ghost" type="button">Refresh</button>
+      </div>
+      <table class="orders" aria-live="polite">
+        <thead>
+          <tr><th>Reference</th><th>Product</th><th>Amount</th><th>Status</th></tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+      <p id="empty" class="empty">No orders yet. Share your payment link to get started.</p>
+    </section>
+    {% endif %}
+
+    {% if features.has_invoices %}
+    <section class="card">
+      <div class="table-head"><h2>Invoices</h2></div>
+      <form id="inv-form" class="inv-form">
+        <input id="inv-customer" placeholder="Who is this for? e.g. Chidi" required />
+        <input id="inv-desc" placeholder="What for? e.g. Logo design" required />
+        <input id="inv-amount" type="number" min="100" placeholder="Amount (NGN)" required />
+        <button class="btn-primary" type="submit">Create invoice</button>
+      </form>
+      <table class="orders" aria-live="polite">
+        <thead>
+          <tr><th>Invoice</th><th>For</th><th>Amount</th><th>Status</th><th></th></tr>
+        </thead>
+        <tbody id="inv-rows"></tbody>
+      </table>
+      <p id="inv-empty" class="empty">No invoices yet. Create one and share the link.</p>
+    </section>
+    {% endif %}
+
+    {% if features.has_ledger %}
+    <section class="card">
+      <div class="table-head"><h2>Contributions ledger</h2></div>
+      <ul id="ledger" class="feed" aria-live="polite"></ul>
+      <p id="ledger-empty" class="empty">Nothing recorded yet. Entries appear when money is confirmed.</p>
+    </section>
+    {% endif %}
+
+    <section class="card">
+      <div class="table-head"><h2>Notifications</h2></div>
+      <ul id="notes" class="feed" aria-live="polite"></ul>
+      <p id="notes-empty" class="empty">No notifications yet.</p>
+    </section>
+
+    <section class="card">
+      <div class="table-head"><h2>Activity</h2></div>
+      <ul id="activity" class="feed" aria-live="polite"></ul>
+      <p id="activity-empty" class="empty">Nothing has run yet. Press Run in the Studio to see life here.</p>
+    </section>
+
+    <footer class="foot"><span>Generated by Monnify Studio</span></footer>
+  </main>
+
+  <script>
+    function fill(listId, emptyId, items) {
+      const list = document.getElementById(listId);
+      const empty = document.getElementById(emptyId);
+      if (!list) return;
+      list.innerHTML = items.map(i =>
+        '<li><span class="feed-time">' + new Date(i.ts).toLocaleTimeString() +
+        '</span> ' + i.text + '</li>').join("");
+      empty.style.display = items.length ? "none" : "block";
+    }
+    async function loadActivity() {
+      try {
+        const res = await fetch("/preview/{{ artifact_id }}/activity");
+        if (!res.ok) return;
+        const items = await res.json();
+        fill("activity", "activity-empty", items.filter(i => i.kind === "run"));
+        fill("notes", "notes-empty", items.filter(i => i.kind === "notification"));
+        fill("ledger", "ledger-empty", items.filter(i => i.kind === "ledger"));
+      } catch {}
+    }
+    loadActivity();
+    setInterval(loadActivity, 5000);
+
+    {% if features.has_invoices %}
+    const invRows = document.getElementById("inv-rows");
+    const invEmpty = document.getElementById("inv-empty");
+    const INV_BADGE = {
+      verified: '<span class="badge ok">Paid</span>',
+      pending: '<span class="badge wait">Unpaid</span>',
+      rejected: '<span class="badge bad">No confirmed payment</span>',
+    };
+    async function loadInvoices() {
+      try {
+        const res = await fetch("/preview/{{ artifact_id }}/invoices");
+        if (!res.ok) return;
+        const invoices = await res.json();
+        invRows.innerHTML = invoices.map(i =>
+          "<tr><td>" + i.reference + "</td><td>" + (i.customer || "-") + " · " +
+          (i.description || i.product) + "</td><td>NGN " +
+          Number(i.amount).toLocaleString() + "</td><td>" +
+          (INV_BADGE[i.status] || i.status) + "</td><td>" +
+          '<a class="btn-ghost" target="_blank" href="/preview/{{ artifact_id }}/invoice/' +
+          i.reference + '">Open link</a></td></tr>').join("");
+        invEmpty.style.display = invoices.length ? "none" : "block";
+      } catch {}
+    }
+    document.getElementById("inv-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const body = {
+        customer: document.getElementById("inv-customer").value,
+        description: document.getElementById("inv-desc").value,
+        amount: Number(document.getElementById("inv-amount").value),
+      };
+      const res = await fetch("/preview/{{ artifact_id }}/invoices", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (res.ok) { e.target.reset(); loadInvoices(); }
+    });
+    loadInvoices();
+    setInterval(loadInvoices, 5000);
+    {% endif %}
+
+    {% if features.collects %}
+    const rows = document.getElementById("rows");
+    const empty = document.getElementById("empty");
+    const BADGE = {
+      verified: '<span class="badge ok">Verified</span>',
+      pending: '<span class="badge wait">Pending</span>',
+      rejected: '<span class="badge bad">No confirmed payment</span>',
+    };
+    async function load() {
+      try {
+        const res = await fetch("/preview/{{ artifact_id }}/orders");
+        if (!res.ok) throw new Error("no orders endpoint yet");
+        const orders = await res.json();
+        rows.innerHTML = orders.map(o =>
+          "<tr><td>" + o.reference + "</td><td>" + o.product + "</td><td>NGN " +
+          Number(o.amount).toLocaleString() + "</td><td>" +
+          (BADGE[o.status] || o.status) +
+          (o.note && o.status !== "verified"
+            ? '<div class="note">' + o.note + "</div>" : "") +
+          "</td></tr>").join("");
+        empty.style.display = orders.length ? "none" : "block";
+      } catch { empty.style.display = "block"; }
+    }
+    document.getElementById("refresh").addEventListener("click", load);
+    load();
+    setInterval(load, 5000);
+    {% endif %}
+  </script>
+</body>
+</html>
