@@ -1,5 +1,7 @@
 # Monnify Studio
 
+[![CI](https://github.com/Greyisheep/monnify-studio/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Greyisheep/monnify-studio/actions/workflows/ci.yml)
+
 **An AI-native development environment for building _reliable_ payment integrations.**
 
 > An endpoint returning `200` does not mean the integration is correct.
