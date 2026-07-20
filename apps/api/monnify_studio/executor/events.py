@@ -44,6 +44,9 @@ class ExecutionEvent(BaseModel):
     node_id: Optional[str] = None
     node_type: Optional[str] = None
     message: str = ""
+    # Plain-words version of what happened, safe to show non-developers
+    # (kid-lens, #79). Technical detail stays in `message`.
+    friendly_text: str = ""
     duration_ms: Optional[int] = None
     # Redacted HTTP-ish envelopes + outputs for the trace viewer (#28).
     request: Optional[dict[str, Any]] = None

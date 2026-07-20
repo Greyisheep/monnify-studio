@@ -55,6 +55,7 @@ def _emit(
     node_id: str | None = None,
     node_type: str | None = None,
     message: str = "",
+    friendly: str = "",
     duration_ms: int | None = None,
     request: dict[str, Any] | None = None,
     response: dict[str, Any] | None = None,
@@ -69,6 +70,7 @@ def _emit(
             node_id=node_id,
             node_type=node_type,
             message=message,
+            friendly_text=friendly,
             duration_ms=duration_ms,
             request=request,
             response=response,
@@ -111,6 +113,9 @@ def run_workflow(
             run.id,
             ExecutionEventType.RUN_STARTED,
             message=f"run started via {adapter.name}",
+            friendly="Practice run started (no real money moves)"
+            if adapter.name == "mock"
+            else "Run started",
         )
 
         while queue:
@@ -127,6 +132,7 @@ def run_workflow(
                 node_id=node.id,
                 node_type=node.type,
                 message=node.label or node.type,
+                friendly=f"Working on: {node.label or node.type}",
             )
 
             result: AdapterResult = adapter.invoke(node, context)
@@ -140,7 +146,8 @@ def run_workflow(
                     ExecutionEventType.NODE_WAITING,
                     node_id=node.id,
                     node_type=node.type,
-                    message="suspended at wait/event node (D1)",
+                    message="suspended at wait/event node",
+                    friendly=f"Waiting: {node.label or node.type}",
                     duration_ms=result.duration_ms,
                     request=result.request,
                     response=result.response,
@@ -156,6 +163,7 @@ def run_workflow(
                     node_id=node.id,
                     node_type=node.type,
                     message="auto-resumed wait (mock)",
+                    friendly=f"{node.label or node.type}: happened (practice mode)",
                 )
                 store.set_status(run.id, RunStatus.RUNNING)
 
@@ -167,6 +175,7 @@ def run_workflow(
                     node_id=node.id,
                     node_type=node.type,
                     message=result.error or "adapter failed",
+                    friendly=f"Problem at: {node.label or node.type}",
                     duration_ms=result.duration_ms,
                     request=result.request,
                     response=result.response,
@@ -180,6 +189,7 @@ def run_workflow(
                     run.id,
                     ExecutionEventType.RUN_FAILED,
                     message=result.error or "run failed",
+                    friendly="Something went wrong; the run stopped safely.",
                     error=result.error,
                 )
                 return store.get(run.id)  # type: ignore[return-value]
@@ -191,6 +201,7 @@ def run_workflow(
                 node_id=node.id,
                 node_type=node.type,
                 message=node.label or node.type,
+                friendly=f"Done: {node.label or node.type}",
                 duration_ms=result.duration_ms,
                 request=result.request,
                 response=result.response,
@@ -207,7 +218,13 @@ def run_workflow(
                         queue.append(nxt)
 
         store.set_status(run.id, RunStatus.COMPLETED, finished=True)
-        _emit(store, run.id, ExecutionEventType.RUN_COMPLETED, message="run completed")
+        _emit(
+            store,
+            run.id,
+            ExecutionEventType.RUN_COMPLETED,
+            message="run completed",
+            friendly="All done. Everything worked.",
+        )
         log.info("executor.run.completed", run_id=run.id, nodes=len(seen))
         return store.get(run.id)  # type: ignore[return-value]
     except Exception as exc:  # noqa: BLE001 - surface as run failure for the viewer
@@ -217,6 +234,7 @@ def run_workflow(
             run.id,
             ExecutionEventType.RUN_FAILED,
             message=str(exc),
+            friendly="Something went wrong; the run stopped safely.",
             error=str(exc),
         )
         log.info("executor.run.failed", run_id=run.id, error=str(exc))
