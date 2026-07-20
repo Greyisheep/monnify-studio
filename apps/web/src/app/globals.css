@@ -53,23 +53,56 @@ body {
 
 .studio-shell {
   display: grid;
-  grid-template-columns: var(--sidebar-width) 1fr var(--sidebar-width);
+  grid-template-columns: var(--sidebar-left-width, 280px) 1fr var(--sidebar-right-width, 320px);
   height: 100vh;
   min-height: 100vh;
   background: var(--panel);
   border: 1px solid var(--line-strong);
-  transition: grid-template-columns 160ms ease;
 }
 
 .studio-shell.is-left-collapsed {
-  grid-template-columns: 52px 1fr var(--sidebar-width);
+  grid-template-columns: 52px 1fr var(--sidebar-right-width, 320px);
 }
 
 .studio-sidebar {
+  position: relative;
   display: flex;
   flex-direction: column;
   min-height: 0;
+  min-width: 0;
   background: var(--panel);
+}
+
+.studio-sidebar__resize {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  z-index: 5;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.studio-sidebar__resize--east {
+  right: -3px;
+}
+
+.studio-sidebar__resize--west {
+  left: -3px;
+}
+
+.studio-sidebar__resize:hover,
+.studio-sidebar__resize:active {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+body.is-resizing-sidebar {
+  cursor: col-resize;
+  user-select: none;
+}
+
+body.is-resizing-sidebar iframe {
+  pointer-events: none;
 }
 
 .studio-sidebar--left {

@@ -6,6 +6,7 @@
 "use client";
 
 import Image from "next/image";
+import type { PointerEvent as ReactPointerEvent } from "react";
 
 import type { NodeMeta } from "@/types";
 import { ChatPanel } from "./ChatPanel";
@@ -26,6 +27,7 @@ export interface NodePaletteProps {
     workflowName: string | null;
     templateId?: string;
   }>;
+  onResizeStart?: (event: ReactPointerEvent) => void;
 }
 
 const CATEGORY_LABEL: Record<string, string> = {
@@ -61,6 +63,7 @@ export function NodePalette({
   onToggleCollapsed,
   onAdd,
   onAsk,
+  onResizeStart,
 }: NodePaletteProps) {
   const groups = groupByCategory(catalog);
 
@@ -99,7 +102,13 @@ export function NodePalette({
 
   return (
     <aside className="studio-sidebar studio-sidebar--left" aria-label="API catalog">
-      <div className="studio-sidebar__brand">
+      <div
+        className="studio-sidebar__resize studio-sidebar__resize--east"
+        onPointerDown={onResizeStart}
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize left sidebar"
+      />      <div className="studio-sidebar__brand">
         <div className="studio-sidebar__brand-main">
           <Image
             src="/figma/monnify-logo.svg"

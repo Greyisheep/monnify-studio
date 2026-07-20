@@ -5,7 +5,7 @@
 "use client";
 
 import Image from "next/image";
-import type { ReactNode } from "react";
+import type { PointerEvent as ReactPointerEvent, ReactNode } from "react";
 
 export interface RightSidebarProps {
   rightTab: "preview" | "code";
@@ -17,6 +17,7 @@ export interface RightSidebarProps {
   onDeploy: () => void;
   deployDisabled?: boolean;
   deployTitle?: string;
+  onResizeStart?: (event: ReactPointerEvent) => void;
   children: ReactNode;
 }
 
@@ -30,10 +31,18 @@ export function RightSidebar({
   onDeploy,
   deployDisabled = false,
   deployTitle,
+  onResizeStart,
   children,
 }: RightSidebarProps) {
   return (
     <aside className="studio-sidebar studio-sidebar--right" aria-label="Inspect">
+      <div
+        className="studio-sidebar__resize studio-sidebar__resize--west"
+        onPointerDown={onResizeStart}
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize right sidebar"
+      />
       <div className="studio-sidebar__actions studio-sidebar__actions--end">
         <div className="studio-sidebar__action-row">
           <button

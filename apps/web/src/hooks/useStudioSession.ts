@@ -165,6 +165,44 @@ export function useStudioSession({ setNodes, setEdges }: UseStudioSessionOptions
     [applyPayload, catalog, refreshWorkflows],
   );
 
+  const startBlank = useCallback(async () => {
+    setBusy(true);
+    setTypeError(null);
+    try {
+      const catalogResult = Object.keys(catalog).length
+        ? catalog
+        : await fetchCatalog();
+      if (!Object.keys(catalog).length) setCatalog(catalogResult);
+      const blankId = `blank-${Date.now().toString(36)}`;
+      const blank: Workflow = {
+        id: blankId,
+        name: "Blank canvas",
+        version: 1,
+        provider: "monnify",
+        description: "Empty workflow — add nodes from the API catalog.",
+        variables: {},
+        nodes: [],
+        edges: [],
+        entrypoint: null,
+      };
+      const saved = await saveWorkflow(blank);
+      const analysis = await analyzeWorkflow(saved.workflow);
+      applyPayload(
+        saved.workflow,
+        { ...catalogResult, ...saved.node_types },
+        analysis,
+      );
+      setSource("api");
+      setDiffNote("Blank canvas ready — add nodes from the catalog");
+      await refreshWorkflows();
+    } catch (error) {
+      setTypeError(error instanceof Error ? error.message : "Blank canvas failed");
+      throw error;
+    } finally {
+      setBusy(false);
+    }
+  }, [applyPayload, catalog, refreshWorkflows]);
+
   useEffect(() => {
     void openWorkflow(heroId);
   }, []); // initial hero only
@@ -339,6 +377,7 @@ export function useStudioSession({ setNodes, setEdges }: UseStudioSessionOptions
     refreshWorkflows,
     openWorkflow,
     startFromTemplate,
+    startBlank,
     source,
     loading,
     busy,

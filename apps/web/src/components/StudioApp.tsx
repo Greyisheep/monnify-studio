@@ -15,6 +15,7 @@ import {
 
 import type { StudioNodeData } from "@/types";
 import { useExecutionTrace } from "@/hooks/useExecutionTrace";
+import { useSidebarWidths } from "@/hooks/useSidebarWidths";
 import { useStudioGraph } from "@/hooks/useStudioGraph";
 import { useStudioSession } from "@/hooks/useStudioSession";
 import {
@@ -46,6 +47,7 @@ function CanvasInner() {
   const [templatesOpen, setTemplatesOpen] = useState(false);
 
   const session = useStudioSession({ setNodes, setEdges });
+  const sidebars = useSidebarWidths();
   const graph = useStudioGraph({
     nodes,
     setNodes,
@@ -116,6 +118,7 @@ function CanvasInner() {
   return (
     <div
       className={`studio-shell${leftCollapsed ? " is-left-collapsed" : ""}`}
+      style={sidebars.shellStyle}
     >
       <NodePalette
         catalog={{ ...session.nodeTypesMeta, ...session.catalog }}
@@ -134,6 +137,7 @@ function CanvasInner() {
         onToggleCollapsed={() => setLeftCollapsed((value) => !value)}
         onAdd={(typeKey) => graph.addNode(typeKey)}
         onAsk={session.askMoni}
+        onResizeStart={(event) => sidebars.beginResize("left", event)}
       />
 
       <main className="studio-main">
@@ -219,6 +223,7 @@ function CanvasInner() {
         onDeploy={() => undefined}
         deployDisabled
         deployTitle="Coming soon"
+        onResizeStart={(event) => sidebars.beginResize("right", event)}
       >
         {rightTab === "code" ? (
           selectedIrNode ? (
@@ -311,7 +316,12 @@ function CanvasInner() {
             setPreviewMode("artifact");
           });
         }}
-        onBlank={() => setTemplatesOpen(false)}
+        onBlank={() => {
+          void session.startBlank().then(() => {
+            setTemplatesOpen(false);
+            setLeftTab("api");
+          });
+        }}
       />
     </div>
   );
