@@ -37,23 +37,24 @@ trap 'rm -f "$ENV_FILE"' EXIT
   echo "cors_origins: \"*\""                       # tightened after web deploys, below
 } > "$ENV_FILE"
 
-# Forward only known keys, only if present in .env — never print values.
-# Kept UPPERCASE exactly as-is: the AI provider module reads os.getenv() with
-# these exact literal names (case-sensitive), unlike the Settings/WhatsApp
-# pydantic-settings fields below which match case-insensitively either way.
-if [ -f "$ROOT/.env" ]; then
-  for key in CLAUDE_API_KEY ANTHROPIC_API_KEY OPENAI_API_KEY GOOGLE_API_KEY \
-             MONNIFY_API_KEY MONNIFY_SECRET_KEY MONNIFY_CONTRACT_CODE \
-             EVOLUTION_API_URL EVOLUTION_API_KEY EVOLUTION_INSTANCE; do
+# Forward only known keys — never print values. A real exported env var wins
+# (this is how CI hands us secrets, see .github/workflows/deploy.yml); local
+# runs fall back to the repo-root .env. Kept UPPERCASE exactly as-is: the AI
+# provider module reads os.getenv() with these exact literal names
+# (case-sensitive), unlike the Settings/WhatsApp pydantic-settings fields
+# below which match case-insensitively either way.
+for key in CLAUDE_API_KEY ANTHROPIC_API_KEY OPENAI_API_KEY GOOGLE_API_KEY \
+           MONNIFY_API_KEY MONNIFY_SECRET_KEY MONNIFY_CONTRACT_CODE \
+           EVOLUTION_API_URL EVOLUTION_API_KEY EVOLUTION_INSTANCE; do
+  value="${!key:-}"
+  if [ -z "$value" ] && [ -f "$ROOT/.env" ]; then
     value="$(grep -E "^${key}=" "$ROOT/.env" | head -1 | cut -d= -f2- || true)"
-    if [ -n "$value" ]; then
-      echo "${key}: \"${value}\"" >> "$ENV_FILE"
-      echo "   forwarding ${key} (value hidden)"
-    fi
-  done
-else
-  echo "   no .env found at repo root; API deploys with no provider keys (mock/keyword-only)"
-fi
+  fi
+  if [ -n "$value" ]; then
+    echo "${key}: \"${value}\"" >> "$ENV_FILE"
+    echo "   forwarding ${key} (value hidden)"
+  fi
+done
 
 echo "==> Deploying $API_SERVICE"
 gcloud run deploy "$API_SERVICE" \
