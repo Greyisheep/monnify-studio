@@ -12,6 +12,7 @@ Traceability: #7 (P1.5 sandbox proof-of-life); decisions D11, D15.
 from __future__ import annotations
 
 import base64
+from decimal import Decimal
 from typing import Any
 
 import httpx
@@ -63,7 +64,7 @@ class MonnifySandboxClient:
     def initialize_transaction(
         self,
         *,
-        amount: float,
+        amount: Decimal,
         customer_name: str,
         customer_email: str,
         reference: str,
@@ -74,7 +75,7 @@ class MonnifySandboxClient:
         if self._token is None:
             self.authenticate()
         payload: dict[str, Any] = {
-            "amount": amount,
+            "amount": float(amount),  # wire format is a number; value is already exact
             "customerName": customer_name,
             "customerEmail": customer_email,
             "paymentReference": reference,
@@ -84,7 +85,7 @@ class MonnifySandboxClient:
         }
         if redirect_url:
             payload["redirectUrl"] = redirect_url
-        with traced("monnify.initialize_transaction", amount=amount, reference=reference):
+        with traced("monnify.initialize_transaction", amount=str(amount), reference=reference):
             resp = self._http.post(
                 _INIT_PATH,
                 headers={"Authorization": f"Bearer {self._token}"},
@@ -121,7 +122,7 @@ class MonnifySandboxClient:
             body = _ok(resp)["responseBody"]
             result = {
                 "status": body.get("paymentStatus", "UNKNOWN"),
-                "amount_paid": float(body.get("amountPaid") or 0.0),
+                "amount_paid": str(body.get("amountPaid") or "0"),  # exact string; money() parses it
             }
             log.info(
                 "monnify.transaction.queried",

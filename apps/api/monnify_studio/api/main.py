@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import json
 
+from decimal import Decimal
 from uuid import uuid4
 
 from fastapi import FastAPI, HTTPException
@@ -38,6 +39,7 @@ from monnify_studio.credentials import (
     credential_store,
 )
 from monnify_studio.integrations.monnify import MonnifyError, MonnifySandboxClient
+from monnify_studio.money import money
 from monnify_studio.orders import Order, orders_service
 from monnify_studio.executor import (
     ExecutionEvent,
@@ -574,7 +576,7 @@ def preview_pay(artifact_id: str) -> dict:
     try:
         with MonnifySandboxClient(resolved) as client:
             tx = client.initialize_transaction(
-                amount=float(artifact.config.price_ngn),
+                amount=money(artifact.config.price_ngn),
                 customer_name="Studio Demo Customer",
                 customer_email="customer@example.com",
                 reference=reference,
@@ -586,7 +588,7 @@ def preview_pay(artifact_id: str) -> dict:
         reference=reference,
         artifact_id=artifact_id,
         product=artifact.config.product_name,
-        amount=float(artifact.config.price_ngn),
+        amount=money(artifact.config.price_ngn),
         payment_reference=tx["payment_reference"],
         transaction_reference=tx["transaction_reference"],
         workflow_id=artifact.workflow_id,
@@ -628,7 +630,7 @@ def delete_credentials(workflow_id: str) -> CredentialStatus:
 class InvoiceCreate(BaseModel):
     customer: str
     description: str
-    amount: float = Field(ge=100)
+    amount: Decimal = Field(ge=100)  # exact to the kobo, never a float (D21)
 
 
 @app.post("/preview/{artifact_id}/invoices", response_model=Order)
@@ -640,7 +642,7 @@ def create_invoice(artifact_id: str, body: InvoiceCreate) -> Order:
         reference=reference,
         artifact_id=artifact_id,
         product=body.description,
-        amount=float(body.amount),
+        amount=body.amount,
         workflow_id=artifact.workflow_id,
         kind="invoice",
         customer=body.customer,
