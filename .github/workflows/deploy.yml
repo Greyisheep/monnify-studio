@@ -1,9 +1,12 @@
 name: Deploy to Cloud Run
 
-# Every push to main auto-provisions the live API + web, so the shared link
-# always reflects what's on main (#84, #99 follow-up).
+# CD is GATED on CI (#119 follow-up): deploy runs only after the CI workflow
+# finishes green on main, so a red suite can never reach the judges' link.
+# A manual dispatch is the one bypass (for a hand-rolled redeploy).
 on:
-  push:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
     branches: [main]
   workflow_dispatch: {}
 
@@ -13,11 +16,18 @@ concurrency:
 
 jobs:
   deploy:
+    # Only when the CI run that triggered us passed (dispatch bypasses the gate).
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Deploy exactly the commit CI validated (workflow_run carries its sha).
+          ref: ${{ github.event.workflow_run.head_sha || github.ref }}
 
       - id: auth
         uses: google-github-actions/auth@v2
