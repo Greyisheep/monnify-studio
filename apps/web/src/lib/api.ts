@@ -230,4 +230,83 @@ export async function createFromTemplate(
   return postJson<WorkflowPayload>(`/workflows/from-template/${templateId}`, {});
 }
 
+export interface WorkflowSummary {
+  id: string;
+  name: string;
+  description: string;
+  version: number;
+  versions: number;
+}
+
+export interface TemplateInfo {
+  id: string;
+  title: string;
+  persona: string;
+  description: string;
+}
+
+export interface CredentialStatus {
+  workflow_id: string;
+  configured: boolean;
+  source: "workflow" | "platform" | "none" | string;
+}
+
+export interface MonnifyCredentialInput {
+  api_key: string;
+  secret_key: string;
+  contract_code: string;
+}
+
+export interface ArtifactConfigInput {
+  business_name?: string;
+  product_name?: string;
+  price_ngn?: number;
+  accent_color?: string;
+  tagline?: string;
+  logo_url?: string;
+}
+
+export interface GenerateArtifactResult {
+  artifact_id: string;
+  preview_url: string;
+  dashboard_url: string;
+}
+
+export async function listWorkflows(): Promise<WorkflowSummary[]> {
+  const live = await tryGetJson<WorkflowSummary[]>("/workflows");
+  return live ?? [];
+}
+
+export async function listTemplates(): Promise<TemplateInfo[]> {
+  const live = await tryGetJson<TemplateInfo[]>("/templates");
+  return live ?? [];
+}
+
+export async function fetchCredentialStatus(
+  workflowId: string,
+): Promise<CredentialStatus | null> {
+  return tryGetJson<CredentialStatus>(`/workflows/${workflowId}/credentials`);
+}
+
+export async function putCredentials(
+  workflowId: string,
+  creds: MonnifyCredentialInput,
+): Promise<CredentialStatus> {
+  return putJson<CredentialStatus>(`/workflows/${workflowId}/credentials`, creds);
+}
+
+export async function generateArtifact(
+  workflowId: string,
+  config: ArtifactConfigInput = {},
+): Promise<GenerateArtifactResult> {
+  return postJson<GenerateArtifactResult>(`/workflows/${workflowId}/generate`, {
+    config,
+  });
+}
+
+export function absoluteApiUrl(path: string): string {
+  if (path.startsWith("http://") || path.startsWith("https://")) return path;
+  return `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
+}
+
 export { API_BASE };

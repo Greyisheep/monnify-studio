@@ -1,6 +1,6 @@
 /**
  * Studio shell aligned to Figma Main (15:742): sidebars + canvas card.
- * Provenance: #4, #27, #28, #44, Figma Monnify-challenge, D14.
+ * Provenance: #4, #27, #28, #44, #55, Figma Monnify-challenge, D14.
  */
 "use client";
 
@@ -24,11 +24,15 @@ import {
 } from "@/lib/findings";
 import { flowToWorkflow } from "@/lib/flowIo";
 import { ConfigPanel } from "./ConfigPanel";
+import { CredentialsForm } from "./CredentialsForm";
 import { NodePalette } from "./NodePalette";
+import { PreviewArtifactPanel } from "./PreviewArtifactPanel";
 import { ReviewPanel } from "./ReviewPanel";
 import { RightSidebar } from "./RightSidebar";
+import { TemplatePicker } from "./TemplatePicker";
 import { TracePanel } from "./TracePanel";
 import { WorkflowCanvas } from "./WorkflowCanvas";
+import { WorkflowOpener } from "./WorkflowOpener";
 
 function CanvasInner() {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<StudioNodeData>>([]);
@@ -36,7 +40,10 @@ function CanvasInner() {
   const [leftTab, setLeftTab] = useState<"api" | "chat">("api");
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [rightTab, setRightTab] = useState<"preview" | "code">("preview");
-  const [previewMode, setPreviewMode] = useState<"review" | "trace">("review");
+  const [previewMode, setPreviewMode] = useState<
+    "review" | "trace" | "artifact"
+  >("review");
+  const [templatesOpen, setTemplatesOpen] = useState(false);
 
   const session = useStudioSession({ setNodes, setEdges });
   const graph = useStudioGraph({
@@ -131,20 +138,14 @@ function CanvasInner() {
 
       <main className="studio-main">
         <div className="studio-hero-switch">
-          <button
-            type="button"
-            className={session.heroId === "marketplace-unsafe" ? "is-active" : ""}
-            onClick={() => session.setHeroId("marketplace-unsafe")}
-          >
-            Unsafe hero
-          </button>
-          <button
-            type="button"
-            className={session.heroId === "marketplace-safe" ? "is-active" : ""}
-            onClick={() => session.setHeroId("marketplace-safe")}
-          >
-            Safe hero
-          </button>
+          <WorkflowOpener
+            workflows={session.workflows}
+            activeId={session.activeWorkflowId}
+            busy={session.busy || session.loading}
+            onOpen={(id) => void session.openWorkflow(id)}
+            onRefresh={() => void session.refreshWorkflows()}
+            onNewTemplate={() => setTemplatesOpen(true)}
+          />
           {session.selectedNodeId && (
             <button
               type="button"
@@ -161,6 +162,14 @@ function CanvasInner() {
             onClick={() => currentIr && void session.runAnalyze(currentIr)}
           >
             Re-analyze
+          </button>
+          <button
+            type="button"
+            className="studio-btn studio-btn--ghost"
+            disabled={session.busy || !currentIr}
+            onClick={() => currentIr && void session.save(currentIr)}
+          >
+            Save
           </button>
           <button
             type="button"
@@ -207,21 +216,28 @@ function CanvasInner() {
           setPreviewMode("trace");
           void trace.runWorkflow(currentIr);
         }}
-        onDeploy={() => currentIr && void session.save(currentIr)}
+        onDeploy={() => undefined}
+        deployDisabled
+        deployTitle="Coming soon"
       >
         {rightTab === "code" ? (
-          <ConfigPanel
-            node={selectedIrNode}
-            meta={
-              selectedIrNode
-                ? session.catalog[selectedIrNode.type] ??
-                  session.nodeTypesMeta[selectedIrNode.type]
-                : undefined
-            }
-            selectedFinding={selectedFinding}
-            onChange={graph.updateSelectedNode}
-            onClose={() => session.setSelectedNodeId(null)}
-          />
+          selectedIrNode ? (
+            <ConfigPanel
+              node={selectedIrNode}
+              meta={
+                session.catalog[selectedIrNode.type] ??
+                session.nodeTypesMeta[selectedIrNode.type]
+              }
+              selectedFinding={selectedFinding}
+              onChange={graph.updateSelectedNode}
+              onClose={() => session.setSelectedNodeId(null)}
+            />
+          ) : (
+            <CredentialsForm
+              workflowId={session.activeWorkflowId}
+              busy={session.busy}
+            />
+          )
         ) : (
           <>
             <div className="studio-segment">
@@ -239,6 +255,13 @@ function CanvasInner() {
               >
                 Trace
               </button>
+              <button
+                type="button"
+                className={previewMode === "artifact" ? "is-active" : ""}
+                onClick={() => setPreviewMode("artifact")}
+              >
+                Seller
+              </button>
             </div>
             {previewMode === "trace" ? (
               <TracePanel
@@ -249,6 +272,16 @@ function CanvasInner() {
                 error={trace.error}
                 onSelect={trace.setSelectedSeq}
                 onClose={() => setPreviewMode("review")}
+              />
+            ) : previewMode === "artifact" ? (
+              <PreviewArtifactPanel
+                workflowId={session.activeWorkflowId}
+                busy={session.busy}
+                onBeforeGenerate={async () => {
+                  if (currentIr && session.dirty) {
+                    await session.save(currentIr);
+                  }
+                }}
               />
             ) : (
               <ReviewPanel
@@ -266,6 +299,20 @@ function CanvasInner() {
           </>
         )}
       </RightSidebar>
+
+      <TemplatePicker
+        open={templatesOpen}
+        busy={session.busy}
+        onClose={() => setTemplatesOpen(false)}
+        onPick={(templateId) => {
+          void session.startFromTemplate(templateId).then(() => {
+            setTemplatesOpen(false);
+            setRightTab("preview");
+            setPreviewMode("artifact");
+          });
+        }}
+        onBlank={() => setTemplatesOpen(false)}
+      />
     </div>
   );
 }

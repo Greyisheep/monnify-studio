@@ -1,6 +1,6 @@
 /**
- * Session orchestration: load hero, save, analyze, Apply Fix.
- * Hides API/fixture source from the UI tree. Provenance: #4, #27, #6, #37.
+ * Session orchestration: load/open workflows, templates, Moni, Apply Fix.
+ * Provenance: #4, #27, #6, #37, #55.
  */
 "use client";
 
@@ -15,10 +15,12 @@ import {
   fetchAnalysis,
   fetchCatalog,
   fetchWorkflow,
+  listWorkflows,
   remediateWorkflow,
   resetWorkflow,
   saveWorkflow,
   type DataSource,
+  type WorkflowSummary,
 } from "@/lib/api";
 import type { HeroId } from "@/lib/constants";
 import { formatGraphDiff } from "@/lib/findings";
@@ -35,8 +37,12 @@ export interface UseStudioSessionOptions {
   setEdges: Dispatch<SetStateAction<Edge[]>>;
 }
 
+const HERO_IDS = new Set<string>(["marketplace-unsafe", "marketplace-safe"]);
+
 export function useStudioSession({ setNodes, setEdges }: UseStudioSessionOptions) {
   const [heroId, setHeroId] = useState<HeroId>("marketplace-unsafe");
+  const [activeWorkflowId, setActiveWorkflowId] = useState<string | null>(null);
+  const [workflows, setWorkflows] = useState<WorkflowSummary[]>([]);
   const [source, setSource] = useState<DataSource | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -70,6 +76,7 @@ export function useStudioSession({ setNodes, setEdges }: UseStudioSessionOptions
         setLayoutNonce((nonce) => nonce + 1);
       }
       setWorkflow(workflowToStore);
+      setActiveWorkflowId(workflowToStore.id);
       setNodeTypesMeta(nodeMetas);
       setNodes(flow.nodes);
       setEdges(flow.edges);
@@ -77,39 +84,94 @@ export function useStudioSession({ setNodes, setEdges }: UseStudioSessionOptions
       setSelectedNodeId(null);
       setSelectedFindingIndex(null);
       setDirty(false);
+      if (HERO_IDS.has(workflowToStore.id)) {
+        setHeroId(workflowToStore.id as HeroId);
+      }
     },
     [setEdges, setNodes],
   );
 
-  const loadHero = useCallback(
-    async (nextHeroId: HeroId) => {
+  const refreshWorkflows = useCallback(async () => {
+    try {
+      const listed = await listWorkflows();
+      setWorkflows(listed);
+    } catch {
+      setWorkflows([]);
+    }
+  }, []);
+
+  const openWorkflow = useCallback(
+    async (workflowId: string) => {
       setLoading(true);
       setTypeError(null);
       setDiffNote(null);
       try {
-        await resetWorkflow(nextHeroId).catch(() => null);
-        const [workflowResult, analysisResult, catalogResult] = await Promise.all([
-          fetchWorkflow(nextHeroId),
-          fetchAnalysis(nextHeroId),
-          fetchCatalog(),
-        ]);
+        if (HERO_IDS.has(workflowId)) {
+          await resetWorkflow(workflowId).catch(() => null);
+        }
+        const workflowResult = await fetchWorkflow(workflowId);
+        let analysis: AnalysisReport;
+        try {
+          analysis = (await fetchAnalysis(workflowId)).data;
+        } catch {
+          analysis = await analyzeWorkflow(workflowResult.data.workflow);
+        }
+        const catalogResult = await fetchCatalog();
         setCatalog(catalogResult);
         applyPayload(
           workflowResult.data.workflow,
           { ...catalogResult, ...workflowResult.data.node_types },
-          analysisResult.data,
+          analysis,
+          { relayout: !HERO_IDS.has(workflowId) },
         );
         setSource(workflowResult.source);
+        await refreshWorkflows();
+      } catch (error) {
+        setTypeError(error instanceof Error ? error.message : "Open failed");
       } finally {
         setLoading(false);
       }
     },
-    [applyPayload],
+    [applyPayload, refreshWorkflows],
+  );
+
+  const startFromTemplate = useCallback(
+    async (templateId: string) => {
+      setBusy(true);
+      setTypeError(null);
+      try {
+        const payload = await createFromTemplate(templateId);
+        const [analysis, catalogResult] = await Promise.all([
+          analyzeWorkflow(payload.workflow),
+          Object.keys(catalog).length ? Promise.resolve(catalog) : fetchCatalog(),
+        ]);
+        if (!Object.keys(catalog).length) setCatalog(catalogResult);
+        applyPayload(
+          payload.workflow,
+          { ...catalogResult, ...payload.node_types },
+          analysis,
+          { relayout: true },
+        );
+        setSource("api");
+        setDiffNote(`Started from template “${templateId}”`);
+        await refreshWorkflows();
+      } catch (error) {
+        setTypeError(error instanceof Error ? error.message : "Template failed");
+        throw error;
+      } finally {
+        setBusy(false);
+      }
+    },
+    [applyPayload, catalog, refreshWorkflows],
   );
 
   useEffect(() => {
-    void loadHero(heroId);
-  }, [heroId, loadHero]);
+    void openWorkflow(heroId);
+  }, []); // initial hero only
+
+  useEffect(() => {
+    void refreshWorkflows();
+  }, [refreshWorkflows]);
 
   const reanalyze = useCallback(async (nextWorkflow: Workflow) => {
     const analysis = await analyzeWorkflow(nextWorkflow);
@@ -126,13 +188,15 @@ export function useStudioSession({ setNodes, setEdges }: UseStudioSessionOptions
         applyPayload(saved.workflow, { ...catalog, ...saved.node_types }, analysis);
         setSource("api");
         setDiffNote(`Saved v${saved.workflow.version}`);
+        await refreshWorkflows();
       } catch (error) {
         setTypeError(error instanceof Error ? error.message : "Save failed");
+        throw error;
       } finally {
         setBusy(false);
       }
     },
-    [applyPayload, catalog, reanalyze],
+    [applyPayload, catalog, reanalyze, refreshWorkflows],
   );
 
   const applyFix = useCallback(
@@ -154,13 +218,14 @@ export function useStudioSession({ setNodes, setEdges }: UseStudioSessionOptions
             shouldRelayout ? " · re-laid out" : ""
           }`,
         );
+        await refreshWorkflows();
       } catch (error) {
         setTypeError(error instanceof Error ? error.message : "Remediate failed");
       } finally {
         setBusy(false);
       }
     },
-    [applyPayload, catalog],
+    [applyPayload, catalog, refreshWorkflows],
   );
 
   const runAnalyze = useCallback(
@@ -200,6 +265,7 @@ export function useStudioSession({ setNodes, setEdges }: UseStudioSessionOptions
           setDiffNote(
             `Moni composed “${composed.workflow.name}” (${composed.provider})${caught}`,
           );
+          await refreshWorkflows();
           return {
             kind: "compose" as const,
             explanation:
@@ -214,7 +280,11 @@ export function useStudioSession({ setNodes, setEdges }: UseStudioSessionOptions
         }
 
         const intent = await classifyIntent(message);
-        if (!intent.template_id || intent.template_id === "unknown" || intent.confidence < 0.4) {
+        if (
+          !intent.template_id ||
+          intent.template_id === "unknown" ||
+          intent.confidence < 0.4
+        ) {
           return {
             kind: "clarify" as const,
             explanation:
@@ -228,9 +298,7 @@ export function useStudioSession({ setNodes, setEdges }: UseStudioSessionOptions
         const payload = await createFromTemplate(intent.template_id);
         const [analysis, catalogResult] = await Promise.all([
           analyzeWorkflow(payload.workflow),
-          catalog && Object.keys(catalog).length > 0
-            ? Promise.resolve(catalog)
-            : fetchCatalog(),
+          Object.keys(catalog).length ? Promise.resolve(catalog) : fetchCatalog(),
         ]);
         if (!Object.keys(catalog).length) setCatalog(catalogResult);
         applyPayload(
@@ -243,6 +311,7 @@ export function useStudioSession({ setNodes, setEdges }: UseStudioSessionOptions
         setDiffNote(
           `Moni set up template “${intent.template_id}” (${intent.provider})`,
         );
+        await refreshWorkflows();
         return {
           kind: "template" as const,
           explanation:
@@ -259,12 +328,17 @@ export function useStudioSession({ setNodes, setEdges }: UseStudioSessionOptions
         setBusy(false);
       }
     },
-    [applyPayload, catalog],
+    [applyPayload, catalog, refreshWorkflows],
   );
 
   return {
     heroId,
     setHeroId,
+    activeWorkflowId,
+    workflows,
+    refreshWorkflows,
+    openWorkflow,
+    startFromTemplate,
     source,
     loading,
     busy,

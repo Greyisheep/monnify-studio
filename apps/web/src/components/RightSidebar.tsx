@@ -15,6 +15,8 @@ export interface RightSidebarProps {
   busy: boolean;
   onRun: () => void;
   onDeploy: () => void;
+  deployDisabled?: boolean;
+  deployTitle?: string;
   children: ReactNode;
 }
 
@@ -26,6 +28,8 @@ export function RightSidebar({
   busy,
   onRun,
   onDeploy,
+  deployDisabled = false,
+  deployTitle,
   children,
 }: RightSidebarProps) {
   return (
@@ -50,7 +54,8 @@ export function RightSidebar({
           <button
             type="button"
             className="studio-btn studio-btn--primary"
-            disabled={busy || !canAct}
+            disabled={deployDisabled || busy || !canAct}
+            title={deployTitle}
             onClick={onDeploy}
           >
             Deploy
