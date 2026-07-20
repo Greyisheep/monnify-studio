@@ -1,10 +1,11 @@
 """Real notifications for generated products (#99).
 
 The seller's product actually reaches people: when a buyer gets an invoice, and
-again when Monnify confirms their payment, we send a WhatsApp message and record
-it so it also shows up in the dashboard's Notifications feed.
+again when Monnify confirms their payment, we message them (WhatsApp and/or
+email, whichever contact they left) and record it so it also shows up in the
+dashboard's Notifications feed.
 
-Sends are best-effort: if WhatsApp is not configured or a send fails, the
+Sends are best-effort: if a channel is not configured or a send fails, the
 product still works, the failure is logged, and the record notes it. A
 notification is never in the money-decision path.
 """
@@ -17,6 +18,7 @@ from threading import Lock
 
 from pydantic import BaseModel, Field
 
+from .integrations.email import SMTPEmailClient
 from .integrations.whatsapp import EvolutionClient, normalize_ng
 from .observability import get_logger
 
@@ -100,3 +102,52 @@ class WhatsAppNotifier:
 
 
 whatsapp_notifier = WhatsAppNotifier()
+
+
+class EmailNotifier:
+    def __init__(self, client: SMTPEmailClient | None = None) -> None:
+        self.client = client or SMTPEmailClient()
+
+    @property
+    def enabled(self) -> bool:
+        return self.client.configured
+
+    def _send_and_record(self, artifact_id: str, to: str, subject: str, html: str, feed_text: str) -> bool:
+        delivered = False
+        if to and self.client.configured:
+            try:
+                self.client.send(to, subject, html)
+                delivered = True
+            except Exception as exc:  # a failed send must not break the product
+                log.warning("email.send_failed", error=str(exc))
+        notification_log.add(
+            Notification(artifact_id=artifact_id, channel="email", text=feed_text, delivered=delivered)
+        )
+        return delivered
+
+    def invoice_ready(
+        self, *, artifact_id: str, to: str, business: str, amount: Decimal, url: str
+    ) -> bool:
+        subject = f"Your invoice from {business}"
+        html = (
+            f"<p>Hello!</p><p>Here is your invoice from <b>{business}</b> for "
+            f"<b>NGN {amount:,.2f}</b>.</p>"
+            f'<p><a href="{url}">View or pay it here</a>.</p>'
+            "<p>You will get an email once your payment is confirmed.</p>"
+        )
+        feed = f"Invoice sent to buyer by email (NGN {amount:,.2f})"
+        return self._send_and_record(artifact_id, to, subject, html, feed)
+
+    def payment_thank_you(
+        self, *, artifact_id: str, to: str, business: str, amount: Decimal
+    ) -> bool:
+        subject = f"Payment received - thank you from {business}"
+        html = (
+            f"<p>Thank you! <b>{business}</b> has received your payment of "
+            f"<b>NGN {amount:,.2f}</b>.</p><p>Your order is confirmed. We appreciate you.</p>"
+        )
+        feed = f"Thank-you sent to buyer by email (payment of NGN {amount:,.2f} confirmed)"
+        return self._send_and_record(artifact_id, to, subject, html, feed)
+
+
+email_notifier = EmailNotifier()
