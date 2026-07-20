@@ -22,10 +22,13 @@ log = get_logger("ai")
 # Default model per the Claude API guidance; overridable via env for testing.
 _ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-5")
 
-# Hard per-call timeout (#106): without it the SDK default is ~600s, and since
-# these run on synchronous endpoints a provider hang would block the worker for
-# minutes AND defeat the fallbacks, which only fire on an exception, not a stall.
-_TIMEOUT_S = float(os.getenv("AI_TIMEOUT_S", "25"))
+# Hard per-call timeout (#106). Without it the SDK default is ~600s, and on our
+# synchronous endpoints a provider hang would block the worker for minutes AND
+# defeat the fallbacks, which only fire on an exception, not a stall. But it must
+# sit ABOVE the legitimate slow tail (a large 10-14 node flow at 8192 tokens can
+# take 20-40s) so we never clip a working compose and mislabel it an outage.
+# 60s is that middle: generous for real calls, far below the ~600s hang budget.
+_TIMEOUT_S = float(os.getenv("AI_TIMEOUT_S", "60"))
 
 
 class AIProvider(Protocol):
