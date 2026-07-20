@@ -8,9 +8,7 @@
 import Image from "next/image";
 import type { PointerEvent as ReactPointerEvent } from "react";
 
-import type { NodeMeta } from "@/types";
-import type { IntentResult } from "@/lib/api";
-import type { MoniAskResult } from "@/hooks/useStudioSession";
+import type { IntentResult, MoniAskResult, NodeMeta } from "@/types";
 import { ChatPanel } from "./ChatPanel";
 
 export interface NodePaletteProps {

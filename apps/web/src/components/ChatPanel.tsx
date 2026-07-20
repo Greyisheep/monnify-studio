@@ -1,9 +1,12 @@
+/**
+ * Moni Chat tab: compose / intent setup prompts.
+ * Provenance: #15, #55, D16, D18.
+ */
 "use client";
 
 import { useState, type FormEvent } from "react";
 
-import type { MoniAskResult } from "@/hooks/useStudioSession";
-import type { IntentResult } from "@/lib/api";
+import type { IntentResult, MoniAskResult } from "@/types";
 
 export interface ChatMessage {
   id: string;
@@ -76,7 +79,7 @@ export function ChatPanel({ busy, onAsk, onSetupIntent }: ChatPanelProps) {
       }
       const suffix =
         result.kind === "compose"
-          ? " Loaded on the canvas — edit freely."
+          ? " Loaded on the canvas, edit freely."
           : "";
       setMessages((current) => [
         ...current,

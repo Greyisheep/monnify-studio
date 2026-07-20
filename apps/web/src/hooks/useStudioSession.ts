@@ -1,6 +1,6 @@
 /**
  * Session orchestration: load/open workflows, templates, Moni, Apply Fix.
- * Provenance: #4, #27, #6, #37, #55.
+ * Provenance: #4, #27, #6, #37, #15, #55, D16, D17.
  */
 "use client";
 
@@ -20,21 +20,28 @@ import {
   remediateWorkflow,
   resetWorkflow,
   saveWorkflow,
-  type ArtifactConfigInput,
   type DataSource,
-  type GenerateArtifactResult,
-  type IntentResult,
-  type WorkflowSummary,
 } from "@/lib/api";
 import type { HeroId } from "@/lib/constants";
 import { formatGraphDiff } from "@/lib/findings";
 import { workflowToFlow } from "@/lib/flowIo";
+import { intentToArtifactConfig } from "@/lib/intentConfig";
 import {
   applyLayoutToWorkflow,
   graphDiffChangesStructure,
   layoutFlowElements,
 } from "@/lib/layout";
-import type { AnalysisReport, NodeMeta, StudioNodeData, Workflow } from "@/types";
+import type {
+  AnalysisReport,
+  ArtifactConfigInput,
+  GenerateArtifactResult,
+  IntentResult,
+  MoniAskResult,
+  NodeMeta,
+  StudioNodeData,
+  Workflow,
+  WorkflowSummary,
+} from "@/types";
 
 export interface UseStudioSessionOptions {
   setNodes: Dispatch<SetStateAction<Node<StudioNodeData>[]>>;
@@ -42,43 +49,6 @@ export interface UseStudioSessionOptions {
 }
 
 const HERO_IDS = new Set<string>(["marketplace-unsafe", "marketplace-safe"]);
-
-export type MoniAskResult =
-  | {
-      kind: "compose";
-      explanation: string;
-      workflowName: string | null;
-    }
-  | {
-      kind: "intent";
-      explanation: string;
-      workflowName: null;
-      templateId: string;
-      config: IntentResult["config"];
-      confidence: number;
-    }
-  | {
-      kind: "clarify";
-      explanation: string;
-      workflowName: null;
-    };
-
-function intentToArtifactConfig(
-  config: IntentResult["config"],
-): ArtifactConfigInput {
-  const price = config.price_ngn;
-  return {
-    business_name:
-      typeof config.business_name === "string" && config.business_name
-        ? config.business_name
-        : undefined,
-    product_name:
-      typeof config.product_name === "string" && config.product_name
-        ? config.product_name
-        : undefined,
-    price_ngn: typeof price === "number" ? price : Number(price) || undefined,
-  };
-}
 
 export function useStudioSession({ setNodes, setEdges }: UseStudioSessionOptions) {
   const [heroId, setHeroId] = useState<HeroId>("marketplace-unsafe");
@@ -221,7 +191,7 @@ export function useStudioSession({ setNodes, setEdges }: UseStudioSessionOptions
         name: "Blank canvas",
         version: 1,
         provider: "monnify",
-        description: "Empty workflow — add nodes from the API catalog.",
+        description: "Empty workflow, add nodes from the API catalog.",
         variables: {},
         nodes: [],
         edges: [],
@@ -235,7 +205,7 @@ export function useStudioSession({ setNodes, setEdges }: UseStudioSessionOptions
         analysis,
       );
       setSource("api");
-      setDiffNote("Blank canvas ready — add nodes from the catalog");
+      setDiffNote("Blank canvas ready, add nodes from the catalog");
       await refreshWorkflows();
     } catch (error) {
       setTypeError(error instanceof Error ? error.message : "Blank canvas failed");
@@ -442,7 +412,7 @@ export function useStudioSession({ setNodes, setEdges }: UseStudioSessionOptions
         try {
           artifact = await generateArtifact(payload.workflow.id, seed);
         } catch {
-          // Graph may still have findings / generate refused — canvas is still usable.
+          // Graph may still have findings / generate refused; canvas is still usable.
           artifact = null;
         }
 

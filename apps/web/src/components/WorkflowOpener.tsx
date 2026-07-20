@@ -1,6 +1,10 @@
+/**
+ * Open stored workflows or start from a template.
+ * Provenance: #55, #52.
+ */
 "use client";
 
-import type { WorkflowSummary } from "@/lib/api";
+import type { WorkflowSummary } from "@/types";
 
 export interface WorkflowOpenerProps {
   workflows: WorkflowSummary[];

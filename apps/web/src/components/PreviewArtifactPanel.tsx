@@ -1,13 +1,13 @@
+/**
+ * Seller preview form + iframe for generated artifacts.
+ * Provenance: #55, #61, D17.
+ */
 "use client";
 
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 
-import {
-  absoluteApiUrl,
-  generateArtifact,
-  type ArtifactConfigInput,
-  type GenerateArtifactResult,
-} from "@/lib/api";
+import { absoluteApiUrl, generateArtifact } from "@/lib/api";
+import type { ArtifactConfigInput, GenerateArtifactResult } from "@/types";
 
 export interface PreviewArtifactPanelProps {
   workflowId: string | null;

@@ -1,7 +1,8 @@
 /**
- * Analysis report + remediation result shapes.
- * Interim hand port until D6 JSON Schema codegen. Mirrors analysis/remediation APIs.
- * Provenance: #27, #6, D6.
+ * Analysis report + remediation + Moni compose/intent shapes.
+ * Interim hand port until D6 JSON Schema codegen.
+ * Mirrors analysis/remediation APIs and monnify_studio.ai response models.
+ * Provenance: #27, #6, #15, #55, D6, D16, D18.
  */
 import type { NodeMeta } from "./catalog";
 import type { Workflow } from "./workflow";
@@ -52,6 +53,7 @@ export interface RemediateResult {
   diff: GraphDiff;
 }
 
+/** POST /assistant/compose (monnify_studio.ai). Provenance: #15, #55, D16, D18. */
 export interface ComposeResult {
   workflow: Workflow;
   node_types: Record<string, NodeMeta>;
@@ -62,6 +64,7 @@ export interface ComposeResult {
   explanation: string;
 }
 
+/** POST /assistant/intent (monnify_studio.ai). Provenance: #15, D16, D18. */
 export interface IntentResult {
   template_id: string;
   confidence: number;

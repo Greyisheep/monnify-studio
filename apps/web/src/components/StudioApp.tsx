@@ -13,12 +13,15 @@ import {
   type Node,
 } from "@xyflow/react";
 
-import type { StudioNodeData } from "@/types";
+import type {
+  ArtifactConfigInput,
+  GenerateArtifactResult,
+  StudioNodeData,
+} from "@/types";
 import { useExecutionTrace } from "@/hooks/useExecutionTrace";
 import { useSidebarWidths } from "@/hooks/useSidebarWidths";
 import { useStudioGraph } from "@/hooks/useStudioGraph";
 import { useStudioSession } from "@/hooks/useStudioSession";
-import type { ArtifactConfigInput, GenerateArtifactResult } from "@/lib/api";
 import {
   findingHighlightIds,
   withEdgeHighlights,

@@ -1,18 +1,25 @@
 /**
  * Studio HTTP client: live FastAPI preferred, offline fixtures as fallback.
- * Hides transport details from hooks/components. Provenance: #4, #27, #28, #44, D6.
+ * Hides transport details from hooks/components.
+ * Provenance: #4, #27, #28, #44, #15, #55, #51, #52, #68, D6, D17, D19.
  */
 import type {
   AnalysisReport,
+  ArtifactConfigInput,
   ComposeResult,
+  CredentialStatus,
   ExecutionEvent,
   ExecutionRun,
+  GenerateArtifactResult,
   IntentResult,
+  MonnifyCredentialInput,
   NodeMeta,
   RemediateResult,
   StartExecutionResult,
+  TemplateInfo,
   Workflow,
   WorkflowPayload,
+  WorkflowSummary,
 } from "@/types";
 
 import unsafePayload from "@/data/marketplace-unsafe.json";
@@ -230,48 +237,6 @@ export async function createFromTemplate(
   return postJson<WorkflowPayload>(`/workflows/from-template/${templateId}`, {});
 }
 
-export interface WorkflowSummary {
-  id: string;
-  name: string;
-  description: string;
-  version: number;
-  versions: number;
-}
-
-export interface TemplateInfo {
-  id: string;
-  title: string;
-  persona: string;
-  description: string;
-}
-
-export interface CredentialStatus {
-  workflow_id: string;
-  configured: boolean;
-  source: "workflow" | "platform" | "none" | string;
-}
-
-export interface MonnifyCredentialInput {
-  api_key: string;
-  secret_key: string;
-  contract_code: string;
-}
-
-export interface ArtifactConfigInput {
-  business_name?: string;
-  product_name?: string;
-  price_ngn?: number;
-  accent_color?: string;
-  tagline?: string;
-  logo_url?: string;
-}
-
-export interface GenerateArtifactResult {
-  artifact_id: string;
-  preview_url: string;
-  dashboard_url: string;
-}
-
 export async function listWorkflows(): Promise<WorkflowSummary[]> {
   const live = await tryGetJson<WorkflowSummary[]>("/workflows");
   return live ?? [];
@@ -310,4 +275,3 @@ export function absoluteApiUrl(path: string): string {
 }
 
 export { API_BASE };
-export type { IntentResult, ComposeResult } from "@/types";

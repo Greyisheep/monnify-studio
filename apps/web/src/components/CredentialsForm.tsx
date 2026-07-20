@@ -1,12 +1,13 @@
+/**
+ * BYO Monnify credentials for the active workflow.
+ * Provenance: #68, #55, D19.
+ */
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
 
-import {
-  fetchCredentialStatus,
-  putCredentials,
-  type CredentialStatus,
-} from "@/lib/api";
+import { fetchCredentialStatus, putCredentials } from "@/lib/api";
+import type { CredentialStatus } from "@/types";
 
 export interface CredentialsFormProps {
   workflowId: string | null;
@@ -73,7 +74,7 @@ export function CredentialsForm({ workflowId, busy }: CredentialsFormProps) {
       <p className="muted">
         {status?.configured
           ? `Configured (${status.source}). Values are write-only.`
-          : "Not set — platform demo keys may be used."}
+          : "Not set, platform demo keys may be used."}
       </p>
       <form className="studio-creds__form" onSubmit={onSubmit}>
         <label>

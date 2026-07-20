@@ -1,8 +1,13 @@
+/**
+ * First-run / New template picker.
+ * Provenance: #55, #51.
+ */
 "use client";
 
 import { useEffect, useState } from "react";
 
-import { listTemplates, type TemplateInfo } from "@/lib/api";
+import { listTemplates } from "@/lib/api";
+import type { TemplateInfo } from "@/types";
 
 export interface TemplatePickerProps {
   open: boolean;
@@ -54,7 +59,7 @@ export function TemplatePicker({
         setTemplates(CANNED);
         setError(
           err instanceof Error
-            ? `${err.message} — showing offline templates.`
+            ? `${err.message}, showing offline templates.`
             : "Showing offline templates.",
         );
       });
