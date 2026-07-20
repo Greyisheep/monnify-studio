@@ -12,7 +12,7 @@ import json
 from decimal import Decimal
 from uuid import uuid4
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field
@@ -678,6 +678,25 @@ def storefront(artifact_id: str) -> HTMLResponse:
     printed QR. Buyers pick items here and we generate their invoice (#91)."""
     artifact = _artifact_or_404(artifact_id)
     return HTMLResponse(render_storefront(artifact))
+
+
+@app.get("/preview/{artifact_id}/shop/qr.svg")
+def shop_qr(artifact_id: str, request: Request) -> Response:
+    """A real QR for the shop link, so a seller can print it on a flyer, a shop
+    wall, a product tag, or a car windscreen (#91). Built from the host the
+    dashboard was opened on, so it points wherever the app is actually served."""
+    import io
+
+    import segno
+
+    _artifact_or_404(artifact_id)
+    base = str(request.base_url).rstrip("/")
+    url = f"{base}/preview/{artifact_id}/shop"
+    buf = io.BytesIO()
+    segno.make(url, error="m").save(
+        buf, kind="svg", scale=5, border=2, dark="#0f6b57"
+    )
+    return Response(content=buf.getvalue(), media_type="image/svg+xml")
 
 
 class ShopSelection(BaseModel):

@@ -94,3 +94,16 @@ table.orders td { padding: 10px; border-bottom: 1px solid var(--line); }
 .inv-form { display: grid; grid-template-columns: 1fr 1.4fr 0.9fr auto; gap: 8px; margin-bottom: 14px; }
 .inv-form input { padding: 9px 10px; border: 1px solid color-mix(in srgb, var(--ink) 15%, transparent); border-radius: 8px; font: inherit; background: transparent; color: inherit; }
 @media (max-width: 640px) { .inv-form { grid-template-columns: 1fr; } }
+
+/* Seller's shop-link share panel (#91) */
+.shop-share .share-grid { display:flex; gap:24px; align-items:flex-start; flex-wrap:wrap; }
+.shop-share .share-main { flex:1 1 260px; min-width:0; }
+.shop-share .qr-wrap { flex:0 0 auto; }
+.linkbox { display:flex; gap:8px; align-items:center; background:color-mix(in srgb, var(--ink) 4%, transparent);
+  border:1px solid color-mix(in srgb, var(--ink) 12%, transparent); border-radius:10px; padding:8px 10px 8px 12px; }
+.linkbox code { flex:1 1 auto; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.84rem; }
+.btn-primary.wa { display:inline-block; margin-top:10px; text-decoration:none; text-align:center; }
+.qr-wrap { text-align:center; display:flex; flex-direction:column; gap:6px; align-items:center; }
+.qr-wrap small { color:var(--muted); font-size:.78rem; }
+.qr-img { border:1px solid color-mix(in srgb, var(--ink) 12%, transparent); border-radius:10px; background:#fff; padding:6px; }
