@@ -121,12 +121,14 @@
         </tr>
       </thead>
       <tbody>
+        {% for row in line_rows %}
         <tr>
-          <td>{{ invoice.description or invoice.product }}</td>
-          <td class="num">1</td>
-          <td class="num">NGN {{ amount_display }}</td>
-          <td class="num">NGN {{ amount_display }}</td>
+          <td>{{ row.name }}</td>
+          <td class="num">{{ row.qty }}</td>
+          <td class="num">NGN {{ row.rate }}</td>
+          <td class="num">NGN {{ row.amount }}</td>
         </tr>
+        {% endfor %}
       </tbody>
     </table>
 

@@ -32,6 +32,7 @@ from monnify_studio.artifacts import (
     artifact_store,
     generate_artifact,
     render_invoice_page,
+    render_storefront,
 )
 from monnify_studio.credentials import (
     CredentialStatus,
@@ -40,7 +41,7 @@ from monnify_studio.credentials import (
 )
 from monnify_studio.integrations.monnify import MonnifyError, MonnifySandboxClient
 from monnify_studio.money import money
-from monnify_studio.orders import Order, orders_service
+from monnify_studio.orders import LineItem, Order, orders_service
 from monnify_studio.executor import (
     ExecutionEvent,
     ExecutionRun,
@@ -666,6 +667,68 @@ def invoice_page(artifact_id: str, reference: str) -> HTMLResponse:
     if inv is None or inv.artifact_id != artifact_id:
         raise HTTPException(status_code=404, detail=f"unknown invoice: {reference}")
     return HTMLResponse(render_invoice_page(artifact, inv))
+
+
+# --- Self-serve shop link (#91): one link, buyers assemble their own invoice ---
+
+
+@app.get("/preview/{artifact_id}/shop", response_class=HTMLResponse)
+def storefront(artifact_id: str) -> HTMLResponse:
+    """The seller's shareable shop: the link that goes in a WhatsApp bio or a
+    printed QR. Buyers pick items here and we generate their invoice (#91)."""
+    artifact = _artifact_or_404(artifact_id)
+    return HTMLResponse(render_storefront(artifact))
+
+
+class ShopSelection(BaseModel):
+    id: str
+    qty: int = Field(ge=1, le=999)
+
+
+class ShopInvoiceRequest(BaseModel):
+    customer: str = ""
+    selections: list[ShopSelection] = Field(min_length=1)
+
+
+@app.post("/preview/{artifact_id}/shop/invoice")
+def shop_invoice(artifact_id: str, body: ShopInvoiceRequest) -> dict:
+    """Turn a buyer's selection into a real multi-line invoice and hand back its
+    shareable link (#91). Prices come from the seller's catalog, never the
+    client, so a buyer cannot invoice themselves a discount."""
+    artifact = _artifact_or_404(artifact_id)
+    prices = {it.id: it for it in artifact.config.shop_items()}
+    line_items: list[LineItem] = []
+    for sel in body.selections:
+        item = prices.get(sel.id)
+        if item is None:
+            raise HTTPException(status_code=400, detail=f"unknown item: {sel.id}")
+        line_items.append(
+            LineItem(name=item.name, qty=sel.qty, unit_amount=item.price_ngn)
+        )
+    reference = f"INV-{uuid4().hex[:6].upper()}"
+    summary = ", ".join(f"{li.qty}x {li.name}" for li in line_items)
+    inv = orders_service.create(
+        reference=reference,
+        artifact_id=artifact_id,
+        product=summary,
+        amount=Decimal(0),  # ignored; total is derived from the line items (#91)
+        workflow_id=artifact.workflow_id,
+        kind="invoice",
+        customer=body.customer.strip() or "Customer",
+        description=summary,
+        line_items=line_items,
+    )
+    log.info(
+        "shop.invoice.created",
+        artifact_id=artifact_id,
+        invoice=reference,
+        items=len(line_items),
+        amount=str(inv.amount),
+    )
+    return {
+        "invoice_reference": reference,
+        "invoice_url": f"/preview/{artifact_id}/invoice/{reference}",
+    }
 
 
 @app.post("/preview/{artifact_id}/invoice/{reference}/pay")

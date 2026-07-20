@@ -12,16 +12,20 @@ can restyle without touching structure or behavior.
 
 from .generator import (
     ArtifactConfig,
+    CatalogItem,
     FlowFeatures,
     GeneratedArtifact,
     artifact_store,
     flow_features,
     generate_artifact,
     render_invoice_page,
+    render_storefront,
 )
 
 __all__ = [
     "render_invoice_page",
+    "render_storefront",
+    "CatalogItem",
     "FlowFeatures",
     "flow_features",
     "ArtifactConfig",

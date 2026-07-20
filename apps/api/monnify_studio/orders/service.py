@@ -43,12 +43,27 @@ class OrderStatus(str, Enum):
     REJECTED = "rejected"
 
 
+class LineItem(BaseModel):
+    """One row of a multi-item invoice: what the buyer picked, priced (#91)."""
+
+    name: str
+    qty: int = Field(ge=1)
+    unit_amount: Decimal  # exact to the kobo (D21)
+
+    @property
+    def line_total(self) -> Decimal:
+        return money(self.unit_amount) * self.qty
+
+
 class Order(BaseModel):
     reference: str
     artifact_id: str
     product: str
     amount: Decimal  # exact to the kobo; never a float (D21)
     status: OrderStatus = OrderStatus.PENDING
+    # Populated when the buyer assembled the invoice from a shop (#91). Empty for
+    # a single-amount order; the invoice page falls back to one description row.
+    line_items: list[LineItem] = Field(default_factory=list)
     note: str = ""
     payment_reference: str = ""
     transaction_reference: str = ""
@@ -95,18 +110,24 @@ class OrdersService:
         kind: str = "order",
         customer: str = "",
         description: str = "",
+        line_items: list[LineItem] | None = None,
     ) -> Order:
+        items = line_items or []
+        # When the buyer assembled the invoice, the total is the exact sum of the
+        # lines, never a separately-passed number that could disagree (#91, D21).
+        total = sum((li.line_total for li in items), money(0)) if items else money(amount)
         order = Order(
             reference=reference,
             artifact_id=artifact_id,
             product=product,
-            amount=money(amount),  # exact to the kobo before it is ever stored
+            amount=total,
             payment_reference=payment_reference,
             transaction_reference=transaction_reference,
             workflow_id=workflow_id,
             kind=kind,
             customer=customer,
             description=description,
+            line_items=items,
         )
         self._orders[reference] = order
         log.info("orders.created", reference=reference, artifact=artifact_id, amount=amount)

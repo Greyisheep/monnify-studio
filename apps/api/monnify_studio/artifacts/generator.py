@@ -11,6 +11,7 @@ then the dashboard renders the empty state.
 
 from __future__ import annotations
 
+from decimal import Decimal
 from uuid import uuid4
 
 from jinja2 import Environment, PackageLoader, select_autoescape
@@ -63,6 +64,15 @@ _env = Environment(
 )
 
 
+class CatalogItem(BaseModel):
+    """One thing the seller sells: the whole 'setup' a non-technical seller does
+    is type a name and a price, one row at a time (#91, D17)."""
+
+    id: str = Field(default_factory=lambda: uuid4().hex[:8])
+    name: str
+    price_ngn: Decimal = Field(ge=0)  # exact to the kobo (D21)
+
+
 class ArtifactConfig(BaseModel):
     """The only editing surface the seller gets (D17 guardrail: config vars, not a builder)."""
 
@@ -75,6 +85,17 @@ class ArtifactConfig(BaseModel):
     # from a file upload (#55). Empty keeps the letter mark. Capped so a data
     # URL stays a reasonable logo, not an accidental video.
     logo_url: str = Field(default="", max_length=400_000)
+    # The seller's price list for the self-serve shop link (#91). Empty means the
+    # shop offers the single product_name/price_ngn above, so every shop has
+    # something to buy.
+    catalog: list[CatalogItem] = Field(default_factory=list)
+
+    def shop_items(self) -> list[CatalogItem]:
+        """What the storefront offers: the catalog, or the single product as a
+        one-item fallback so a bare config still has a buyable shop (#91)."""
+        if self.catalog:
+            return self.catalog
+        return [CatalogItem(id="default", name=self.product_name, price_ngn=Decimal(self.price_ngn))]
 
     @field_validator("logo_url")
     @classmethod
@@ -121,6 +142,20 @@ def _require_verified_spine(workflow: Workflow) -> None:
         )
 
 
+def render_storefront(artifact: "GeneratedArtifact") -> str:
+    """The buyer-facing shop: the seller's items with add/qty, one shareable
+    link a seller drops in a WhatsApp bio or a printed QR (#91)."""
+    items = [
+        {"id": it.id, "name": it.name, "price": f"{it.price_ngn:,.2f}", "price_raw": str(it.price_ngn)}
+        for it in artifact.config.shop_items()
+    ]
+    return _env.get_template("storefront.html.j2").render(
+        config=artifact.config,
+        artifact_id=artifact.artifact_id,
+        items=items,
+    )
+
+
 def render_invoice_page(artifact: "GeneratedArtifact", invoice) -> str:
     """Buyer-facing page for one invoice, rendered to a document (#85, #87).
 
@@ -132,11 +167,33 @@ def render_invoice_page(artifact: "GeneratedArtifact", invoice) -> str:
 
     issued = invoice.created_at
     due = issued + timedelta(days=7)
+    # Formatted rows: multi-line when the buyer assembled it in a shop (#91),
+    # else a single line so a plain invoice still reads as a document.
+    if invoice.line_items:
+        rows = [
+            {
+                "name": li.name,
+                "qty": li.qty,
+                "rate": f"{li.unit_amount:,.2f}",
+                "amount": f"{li.line_total:,.2f}",
+            }
+            for li in invoice.line_items
+        ]
+    else:
+        rows = [
+            {
+                "name": invoice.description or invoice.product,
+                "qty": 1,
+                "rate": f"{invoice.amount:,.2f}",
+                "amount": f"{invoice.amount:,.2f}",
+            }
+        ]
     return _env.get_template("invoice_page.html.j2").render(
         config=artifact.config,
         artifact_id=artifact.artifact_id,
         invoice=invoice,
         amount_display=f"{invoice.amount:,.2f}",
+        line_rows=rows,
         issued_display=issued.strftime("%d %B, %Y"),
         due_display=due.strftime("%d %B, %Y"),
     )

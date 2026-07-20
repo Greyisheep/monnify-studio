@@ -6,6 +6,6 @@ saying "I have sent the money" triggers a verification, not a status change.
 That rule is what makes the fake-credit-alert demo beat honest.
 """
 
-from .service import Order, OrderStatus, OrdersService, orders_service
+from .service import LineItem, Order, OrderStatus, OrdersService, orders_service
 
-__all__ = ["Order", "OrderStatus", "OrdersService", "orders_service"]
+__all__ = ["LineItem", "Order", "OrderStatus", "OrdersService", "orders_service"]
