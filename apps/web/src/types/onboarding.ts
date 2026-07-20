@@ -11,7 +11,8 @@ export type OnboardingStep =
 export interface ShopProduct {
   id?: string;
   name: string;
-  price_ngn?: number | null;
+  /** Exact money from the API (Decimal serialized as string) or form number. */
+  price_ngn?: string | number | null;
   image_url?: string | null;
 }
 

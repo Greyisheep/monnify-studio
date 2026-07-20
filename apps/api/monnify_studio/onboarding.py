@@ -6,10 +6,12 @@ cookie so we know which profile to load; path and products live here.
 
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
+from .money import money
 from .observability import get_logger, new_id
 
 log = get_logger("onboarding")
@@ -21,8 +23,16 @@ OnboardingStep = Literal["user_type", "products", "dashboard", "template", "done
 class ShopProduct(BaseModel):
     id: str = Field(default_factory=lambda: new_id("item"))
     name: str = ""
-    price_ngn: float | None = None
+    # Exact money (D21) — never a float in the model; wire may send int/str/float.
+    price_ngn: Decimal | None = Field(default=None, ge=0)
     image_url: str | None = None
+
+    @field_validator("price_ngn", mode="before")
+    @classmethod
+    def _exact_price(cls, value: object) -> Decimal | None:
+        if value is None or value == "":
+            return None
+        return money(value)
 
 
 class StudioProfile(BaseModel):

@@ -294,6 +294,7 @@ def _session_id(request: Request, response: Response) -> str:
         value=sid,
         httponly=True,
         samesite="lax",
+        secure=settings.studio_env != "development",
         max_age=60 * 60 * 24 * 30,
     )
     return sid

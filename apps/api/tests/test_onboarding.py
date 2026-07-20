@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from fastapi.testclient import TestClient
 
 from monnify_studio.api.main import app
@@ -44,13 +46,28 @@ def test_profile_persists_path_and_products_on_same_session():
     assert put.status_code == 200
     assert put.json()["path"] == "business"
     assert put.json()["products"][0]["name"] == "Ankara Dress"
-    assert put.json()["products"][0]["price_ngn"] == 15000
+    assert Decimal(str(put.json()["products"][0]["price_ngn"])) == Decimal("15000.00")
 
     second = client.get("/studio/profile")
     assert second.status_code == 200
     assert second.json()["path"] == "business"
     assert second.json()["step"] == "products"
     assert len(second.json()["products"]) == 1
+
+
+def test_product_price_keeps_kobo_exact():
+    """D21: 19.99 must not pick up binary float noise before storage."""
+    client.get("/studio/profile")
+    put = client.put(
+        "/studio/profile",
+        json={
+            "path": "business",
+            "step": "products",
+            "products": [{"name": "Snack", "price_ngn": 19.99}],
+        },
+    )
+    assert put.status_code == 200
+    assert put.json()["products"][0]["price_ngn"] == "19.99"
 
 
 def test_developer_path_can_skip_to_done():

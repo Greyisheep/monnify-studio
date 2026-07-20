@@ -209,7 +209,10 @@ function CanvasInner() {
     if (!first) return;
     goSeller({
       product_name: first.name,
-      price_ngn: first.price_ngn ?? undefined,
+      price_ngn:
+        first.price_ngn == null || first.price_ngn === ""
+          ? undefined
+          : Number(first.price_ngn),
       logo_url: first.image_url ?? undefined,
       business_name: "My Business",
     });
