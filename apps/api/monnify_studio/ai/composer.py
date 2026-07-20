@@ -22,6 +22,7 @@ from ..providers import default_catalog
 from ..providers.base import Catalog
 from ..remediation import remediate_all
 from ..remediation.engine import RemediationStep
+from .fidelity import intent_gaps
 from .providers import AIProvider, select_provider
 from .schema import MoniFlow
 
@@ -247,7 +248,14 @@ def compose_flow(message: str, *, provider: str | None = None) -> ComposeOutcome
 
     feedback = ""
     last_errors: list[str] = ["Moni could not produce a verifiably safe flow"]
-    for round_no in range(1, _MAX_ROUNDS + 1):
+    # Intent fidelity (#113): a clean-but-incomplete flow earns ONE corrective
+    # round; the clean original is kept as a fallback so fidelity can only ever
+    # improve the result, never lose it. Safety stays the sole hard gate.
+    fallback: ComposeOutcome | None = None
+    max_rounds = _MAX_ROUNDS
+    round_no = 0
+    while round_no < max_rounds:
+        round_no += 1
         user = base_user + (
             f"\n\nYour previous attempt still had problems:\n{feedback}" if feedback else ""
         )
@@ -276,15 +284,7 @@ def compose_flow(message: str, *, provider: str | None = None) -> ComposeOutcome
             raise ComposeError([f"internal analysis error ({type(exc).__name__})"]) from exc
 
         if not report_after.findings:  # THE gate: clean, or we do not ship it
-            log.info(
-                "composer.done",
-                provider=chosen.name,
-                rounds=round_no,
-                nodes=len(workflow.nodes),
-                findings_before=len(report_before.findings),
-                steps=len(result.steps),
-            )
-            return ComposeOutcome(
+            outcome = ComposeOutcome(
                 workflow=result.workflow,
                 report_before=report_before,
                 report_after=report_after,
@@ -292,6 +292,30 @@ def compose_flow(message: str, *, provider: str | None = None) -> ComposeOutcome
                 provider=chosen.name,
                 explanation=flow.explanation,
             )
+            gaps = intent_gaps(message, result.workflow)
+            if gaps and fallback is None:
+                # Safe but not what was asked: keep it, ask Moni to cover the
+                # gaps, and allow exactly one extra round for it (#113).
+                fallback = outcome
+                max_rounds = round_no + 1
+                feedback = (
+                    "The flow passed all safety checks BUT misses part of what "
+                    "the user asked for:\n"
+                    + "\n".join(f"- {g}" for g in gaps)
+                    + "\nRevise the graph to cover this too."
+                )
+                log.info("composer.intent_gap", rounds=round_no, gaps=len(gaps))
+                continue
+            log.info(
+                "composer.done",
+                provider=chosen.name,
+                rounds=round_no,
+                nodes=len(workflow.nodes),
+                findings_before=len(report_before.findings),
+                steps=len(result.steps),
+                fidelity_round=fallback is not None,
+            )
+            return outcome
 
         # Still unclean after Apply-Fix: feed the exact residual findings back and
         # let Moni revise. Structured diagnostics-as-feedback is what converges.
@@ -308,5 +332,10 @@ def compose_flow(message: str, *, provider: str | None = None) -> ComposeOutcome
             remaining=len(report_after.findings),
         )
 
+    if fallback is not None:
+        # The fidelity retry did not produce something better; the original
+        # clean flow is still safe and still useful - return it (#113).
+        log.info("composer.fidelity_fallback", provider=chosen.name)
+        return fallback
     # Round budget exhausted without a clean flow: refuse, never ship it (#106).
     raise ComposeError(last_errors)

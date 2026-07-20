@@ -52,7 +52,7 @@ def flow_features(workflow: Workflow) -> FlowFeatures:
             features.has_invoices = True
         if T.MUTATES_LEDGER in tags:
             features.has_ledger = True
-        if node.type == "app.notify":
+        if node.type.startswith("app.notify"):  # app.notify + app.notify_whatsapp (#113)
             features.has_notify = True
         if T.BENEFICIARY_TRANSFER in tags or T.MONEY_MOVEMENT in tags:
             features.has_payout = True
