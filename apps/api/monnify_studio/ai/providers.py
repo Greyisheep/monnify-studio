@@ -106,6 +106,10 @@ class AnthropicProvider:
         resp = client.messages.parse(
             model=_ANTHROPIC_MODEL,
             max_tokens=max_tokens,
+            # Constrained extraction, not deep reasoning: disabling thinking frees
+            # the whole token budget for the JSON (so large flows do not truncate)
+            # and cuts latency from ~30s to a few seconds (#15 compose robustness).
+            thinking={"type": "disabled"},
             system=system,
             messages=[{"role": "user", "content": user}],
             output_format=schema,

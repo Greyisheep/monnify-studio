@@ -162,28 +162,48 @@ def _to_workflow(flow: MoniFlow, catalog: Catalog) -> Workflow:
     )
 
 
+# Generous ceiling so a large flow's JSON never truncates (#15). With thinking
+# disabled on the provider side, the whole budget goes to the graph.
+_MAX_TOKENS = 8192
+
+
+def _propose(chosen: AIProvider, user: str) -> tuple[MoniFlow | None, str | None]:
+    """One provider round: returns (flow, None) on success, (None, error) on a
+    parse failure (truncated / invalid JSON). A parse failure is recoverable, so
+    it becomes a corrective retry rather than a 500 (#15 compose robustness)."""
+    try:
+        flow = chosen.structured(
+            system=_SYSTEM, user=user, message="", schema=MoniFlow, max_tokens=_MAX_TOKENS
+        )
+        return flow, None  # type: ignore[return-value]
+    except NotImplementedError as exc:
+        raise ComposeUnavailable("composing flows needs an AI provider key") from exc
+    except Exception as exc:  # noqa: BLE001 - malformed model output is recoverable
+        log.info("composer.parse_failed", provider=chosen.name, error=type(exc).__name__)
+        return None, (
+            f"your output was not valid JSON for the schema ({type(exc).__name__}); "
+            "return one complete, valid JSON object"
+        )
+
+
 def compose_flow(message: str, *, provider: str | None = None) -> ComposeOutcome:
     """The full ceiling pipeline: propose, validate (retry once), analyze, fix."""
     catalog = default_catalog()
     chosen: AIProvider = select_provider(provider)
     user = f"{_catalog_prompt(catalog)}\n\nUser need: {message.strip()}"
 
-    try:
-        flow = chosen.structured(
-            system=_SYSTEM, user=user, message=message, schema=MoniFlow, max_tokens=4096
-        )
-    except NotImplementedError as exc:
-        raise ComposeUnavailable("composing flows needs an AI provider key") from exc
+    # First attempt.
+    flow, parse_error = _propose(chosen, user)
+    errors = [parse_error] if parse_error else _validate(flow, catalog)
 
-    errors = _validate(flow, catalog)
     if errors:
-        # One corrective round: tell Moni exactly what was wrong.
-        retry_user = user + "\n\nYour previous attempt failed validation:\n" + "\n".join(
+        # One corrective round: tell Moni exactly what was wrong (parse or graph).
+        retry_user = user + "\n\nYour previous attempt failed:\n" + "\n".join(
             f"- {e}" for e in errors
         )
-        flow = chosen.structured(
-            system=_SYSTEM, user=retry_user, message=message, schema=MoniFlow, max_tokens=4096
-        )
+        flow, parse_error = _propose(chosen, retry_user)
+        if parse_error:
+            raise ComposeError([parse_error])
         errors = _validate(flow, catalog)
         if errors:
             raise ComposeError(errors)
