@@ -1,6 +1,5 @@
 /**
- * Right inspect sidebar: Run / Deploy + Preview | Code (Figma 15:742).
- * Provenance: #28, #44, Figma Monnify-challenge.
+ * Right inspect sidebar: moon / Run / Deploy + Preview | Code (Figma Main 21:1670).
  */
 "use client";
 
@@ -43,11 +42,26 @@ export function RightSidebar({
         aria-orientation="vertical"
         aria-label="Resize right sidebar"
       />
-      <div className="studio-sidebar__actions studio-sidebar__actions--end">
+      <div className="studio-sidebar__actions">
+        <button
+          type="button"
+          className="studio-sidebar__moon"
+          title="Theme (coming soon)"
+          aria-label="Theme"
+          disabled
+        >
+          <Image
+            src="/figma/icon-moon.svg"
+            alt=""
+            width={16}
+            height={16}
+            unoptimized
+          />
+        </button>
         <div className="studio-sidebar__action-row">
           <button
             type="button"
-            className="studio-btn studio-btn--ghost"
+            className="studio-btn studio-btn--ghost studio-btn--run"
             disabled={busy || running || !canAct}
             onClick={onRun}
           >
@@ -58,11 +72,11 @@ export function RightSidebar({
               height={12}
               unoptimized
             />
-            {running ? "Running…" : "Practice run (no real money)"}
+            {running ? "Running…" : "Run"}
           </button>
           <button
             type="button"
-            className="studio-btn studio-btn--primary"
+            className="studio-btn studio-btn--deploy"
             disabled={deployDisabled || busy || !canAct}
             title={deployTitle}
             onClick={onDeploy}
@@ -72,7 +86,11 @@ export function RightSidebar({
         </div>
       </div>
 
-      <div className="studio-tabs" role="tablist" aria-label="Right panel">
+      <div
+        className="studio-tabs studio-tabs--inspect"
+        role="tablist"
+        aria-label="Right panel"
+      >
         <button
           type="button"
           role="tab"

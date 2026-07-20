@@ -31,6 +31,7 @@ export type {
   WorkflowSummary,
 } from "./studioApi";
 export type {
+  BusinessGoal,
   OnboardingStep,
   ShopProduct,
   StudioPath,

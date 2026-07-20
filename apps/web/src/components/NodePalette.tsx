@@ -1,7 +1,6 @@
 /**
- * Left API catalog sidebar matched to Figma Main (15:742).
- * Panel icon collapses the catalog for more canvas room.
- * Provenance: #44, Figma Monnify-challenge.
+ * Left API catalog sidebar matched to Figma Main (21:1670).
+ * Panel icon collapses into Maincollapsed floating chrome (21:1732).
  */
 "use client";
 
@@ -21,7 +20,10 @@ export interface NodePaletteProps {
   onLeftTabChange: (tab: "api" | "chat") => void;
   onToggleCollapsed: () => void;
   onAdd: (typeKey: string) => void;
-  onAsk: (message: string) => Promise<MoniAskResult>;
+  onAsk: (
+    message: string,
+    onStatus?: (text: string) => void,
+  ) => Promise<MoniAskResult>;
   onSetupIntent: (
     templateId: string,
     config: IntentResult["config"],
@@ -29,18 +31,54 @@ export interface NodePaletteProps {
   onResizeStart?: (event: ReactPointerEvent) => void;
 }
 
-const CATEGORY_LABEL: Record<string, string> = {
-  monnify: "Accept Payments",
-  event: "Events",
-  safety: "Customer Verification",
-  control: "Control",
-  application: "Transfers / Payouts",
-};
+const CATEGORY_ORDER = [
+  "Accept Payments",
+  "Transfer/Payouts",
+  "Wallets",
+  "Customer Verification",
+  "Bills & Payments",
+  "Events",
+  "Control",
+  "Application",
+];
 
-function groupByCategory(catalog: Record<string, NodeMeta>) {
+function displayCategory(meta: NodeMeta): string {
+  const hay = `${meta.type} ${meta.title}`.toLowerCase();
+  if (
+    hay.includes("bvn") ||
+    hay.includes("nin") ||
+    hay.includes("name enquiry") ||
+    hay.includes("validate bank")
+  ) {
+    return "Customer Verification";
+  }
+  if (
+    hay.includes("transfer") ||
+    hay.includes("disbursement") ||
+    hay.includes("paycode") ||
+    hay.includes("refund") ||
+    hay.includes("payout")
+  ) {
+    return "Transfer/Payouts";
+  }
+  if (hay.includes("wallet")) return "Wallets";
+  if (hay.includes("bill")) return "Bills & Payments";
+  if (meta.category === "monnify") return "Accept Payments";
+  if (meta.category === "safety") return "Customer Verification";
+  if (meta.category === "event") return "Events";
+  if (meta.category === "control") return "Control";
+  if (meta.category === "application") return "Application";
+  return meta.category || "Application";
+}
+
+function isFeatured(meta: NodeMeta): boolean {
+  return meta.title.toLowerCase().includes("invoice");
+}
+
+function groupCatalog(catalog: Record<string, NodeMeta>) {
   const groups = new Map<string, NodeMeta[]>();
   for (const meta of Object.values(catalog)) {
-    const category = meta.category || "application";
+    const category = displayCategory(meta);
     const list = groups.get(category) ?? [];
     list.push(meta);
     groups.set(category, list);
@@ -48,7 +86,14 @@ function groupByCategory(catalog: Record<string, NodeMeta>) {
   for (const list of groups.values()) {
     list.sort((left, right) => left.title.localeCompare(right.title));
   }
-  return [...groups.entries()].sort(([left], [right]) => left.localeCompare(right));
+  return [...groups.entries()].sort(([left], [right]) => {
+    const leftRank = CATEGORY_ORDER.indexOf(left);
+    const rightRank = CATEGORY_ORDER.indexOf(right);
+    const leftScore = leftRank === -1 ? 999 : leftRank;
+    const rightScore = rightRank === -1 ? 999 : rightRank;
+    if (leftScore !== rightScore) return leftScore - rightScore;
+    return left.localeCompare(right);
+  });
 }
 
 export function NodePalette({
@@ -65,39 +110,10 @@ export function NodePalette({
   onSetupIntent,
   onResizeStart,
 }: NodePaletteProps) {
-  const groups = groupByCategory(catalog);
+  const groups = groupCatalog(catalog);
 
   if (collapsed) {
-    return (
-      <aside
-        className="studio-sidebar studio-sidebar--left is-collapsed"
-        aria-label="API catalog collapsed"
-      >
-        <button
-          type="button"
-          className="studio-sidebar__expand"
-          onClick={onToggleCollapsed}
-          title="Expand API catalog"
-          aria-label="Expand API catalog"
-        >
-          <Image
-            src="/figma/monnify-logo.svg"
-            alt="Monnify"
-            width={21}
-            height={13}
-            unoptimized
-          />
-          <Image
-            src="/figma/icon-panel-left.svg"
-            alt=""
-            width={16}
-            height={16}
-            unoptimized
-            className="studio-sidebar__icon"
-          />
-        </button>
-      </aside>
-    );
+    return null;
   }
 
   return (
@@ -108,17 +124,11 @@ export function NodePalette({
         role="separator"
         aria-orientation="vertical"
         aria-label="Resize left sidebar"
-      />      <div className="studio-sidebar__brand">
+      />
+      <div className="studio-sidebar__brand">
         <div className="studio-sidebar__brand-main">
-          <Image
-            src="/figma/monnify-logo.svg"
-            alt="Monnify"
-            width={21}
-            height={13}
-            unoptimized
-          />
           <div>
-            <strong>{workflowName || "Workflow"}</strong>
+            <strong>{workflowName || "Workflow 1"}</strong>
             <span>{teamLabel}</span>
           </div>
         </div>
@@ -126,8 +136,8 @@ export function NodePalette({
           type="button"
           className="studio-sidebar__collapse"
           onClick={onToggleCollapsed}
-          title="Collapse API catalog"
-          aria-label="Collapse API catalog"
+          title="Collapse panels"
+          aria-label="Collapse panels"
         >
           <Image
             src="/figma/icon-panel-left.svg"
@@ -161,7 +171,9 @@ export function NodePalette({
         </button>
       </div>
 
-      <div className="studio-sidebar__scroll">
+      <div
+        className={`studio-sidebar__scroll${leftTab === "chat" ? " is-chat" : ""}`}
+      >
         {leftTab === "chat" ? (
           <ChatPanel busy={busy} onAsk={onAsk} onSetupIntent={onSetupIntent} />
         ) : (
@@ -171,28 +183,49 @@ export function NodePalette({
             )}
             {groups.map(([category, items]) => (
               <section key={category} className="studio-sidebar__group">
-                <h3>{CATEGORY_LABEL[category] ?? category}</h3>
+                <h3>{category}</h3>
                 <ul>
-                  {items.map((item) => (
-                    <li key={item.type}>
-                      <button type="button" onClick={() => onAdd(item.type)}>
-                        <Image
-                          src="/figma/icon-webhook.svg"
-                          alt=""
-                          width={16}
-                          height={16}
-                          unoptimized
-                          className="studio-sidebar__icon"
-                        />
-                        <span className="studio-sidebar__item-label">
-                          {item.title}
-                        </span>
-                        <span className="studio-sidebar__chevron" aria-hidden>
-                          ›
-                        </span>
-                      </button>
-                    </li>
-                  ))}
+                  {items.map((item) => {
+                    const featured = isFeatured(item);
+                    return (
+                      <li key={item.type}>
+                        <button
+                          type="button"
+                          className={
+                            featured
+                              ? "studio-sidebar__item studio-sidebar__item--featured"
+                              : "studio-sidebar__item"
+                          }
+                          onClick={() => onAdd(item.type)}
+                        >
+                          {!featured ? (
+                            <Image
+                              src="/figma/icon-node.svg"
+                              alt=""
+                              width={16}
+                              height={16}
+                              unoptimized
+                              className="studio-sidebar__icon"
+                            />
+                          ) : null}
+                          <span className="studio-sidebar__item-label">
+                            {item.title}
+                          </span>
+                          {featured ? (
+                            <span className="studio-sidebar__item-badge" aria-hidden>
+                              <Image
+                                src="/figma/icon-invoice.svg"
+                                alt=""
+                                width={16}
+                                height={16}
+                                unoptimized
+                              />
+                            </span>
+                          ) : null}
+                        </button>
+                      </li>
+                    );
+                  })}
                 </ul>
               </section>
             ))}

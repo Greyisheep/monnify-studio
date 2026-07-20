@@ -1,7 +1,12 @@
-"""Studio onboarding profile: who you are + what you sell (#103, #105).
+"""Studio onboarding profile: who you are + what you want to set up (#103, #105).
 
 Backend is the source of truth. The browser holds only an HttpOnly session
-cookie so we know which profile to load; path and products live here.
+cookie so we know which profile to load; path, goal, and products live here.
+
+Business flow:
+  user_type → template picker ("What do you want to set up?")
+  → products only for sell-online → dashboard → done.
+  Blank canvas → Moni (step done). Invoice / payroll → dashboard.
 """
 
 from __future__ import annotations
@@ -17,7 +22,16 @@ from .observability import get_logger, new_id
 log = get_logger("onboarding")
 
 StudioPath = Literal["business", "developer"]
-OnboardingStep = Literal["user_type", "products", "dashboard", "template", "done"]
+# intent kept so older mistaken sessions still load; UI maps it to template.
+OnboardingStep = Literal[
+    "user_type",
+    "intent",
+    "template",
+    "products",
+    "dashboard",
+    "done",
+]
+BusinessGoal = Literal["sell", "invoice", "payroll", "savings", "other"]
 
 
 class ShopProduct(BaseModel):
@@ -39,12 +53,14 @@ class StudioProfile(BaseModel):
     session_id: str
     path: Optional[StudioPath] = None
     step: OnboardingStep = "user_type"
+    goal: Optional[BusinessGoal] = None
     products: list[ShopProduct] = Field(default_factory=list)
 
 
 class StudioProfileUpdate(BaseModel):
     path: Optional[StudioPath] = None
     step: Optional[OnboardingStep] = None
+    goal: Optional[BusinessGoal] = None
     products: list[ShopProduct] | None = None
 
 
@@ -72,6 +88,8 @@ class ProfileStore:
             data["path"] = dumped["path"]
         if "step" in dumped:
             data["step"] = dumped["step"]
+        if "goal" in dumped:
+            data["goal"] = dumped["goal"]
         if "products" in dumped and dumped["products"] is not None:
             data["products"] = dumped["products"]
         updated = StudioProfile.model_validate(data)
@@ -81,6 +99,7 @@ class ProfileStore:
             session=session_id,
             path=updated.path,
             step=updated.step,
+            goal=updated.goal,
             products=len(updated.products),
         )
         return updated.model_copy(deep=True)
