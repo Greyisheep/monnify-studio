@@ -2387,14 +2387,17 @@ body.is-resizing-sidebar iframe {
 }
 
 .biz-sidebar__collapse {
-  border: 1px solid #e5e5e5;
-  background: #fff;
+  border: 0;
+  background: transparent;
   border-radius: 6px;
   width: 28px;
   height: 28px;
   cursor: pointer;
   color: #525252;
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .biz-sidebar__nav {
@@ -2405,9 +2408,10 @@ body.is-resizing-sidebar iframe {
 }
 
 .biz-sidebar__new,
-.biz-sidebar__link,
-.biz-export,
-.biz-filters > .biz-filter > button {
+.biz-sidebar__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
   border: 0;
   background: transparent;
   font: inherit;
@@ -2415,24 +2419,21 @@ body.is-resizing-sidebar iframe {
   cursor: pointer;
   border-radius: 8px;
   padding: 8px 10px;
+  color: #0a0a0a;
+  width: 100%;
 }
 
 .biz-sidebar__new {
-  font-weight: 600;
-  margin-bottom: 8px;
-  border: 1px solid #e5e5e5;
-  background: #fff;
+  font-weight: 500;
+  margin-bottom: 4px;
 }
 
 .biz-sidebar__link {
-  display: flex;
-  align-items: center;
-  gap: 8px;
   color: #525252;
 }
 
 .biz-sidebar__link.is-active {
-  background: #f5f0e8;
+  background: #f5f2ed;
   color: #0a0a0a;
   font-weight: 500;
 }
@@ -2482,19 +2483,22 @@ body.is-resizing-sidebar iframe {
 .biz-sidebar__logout {
   border: 0;
   background: transparent;
-  color: #b42318;
+  color: #dc2626;
   cursor: pointer;
   padding: 4px;
-  display: grid;
-  place-items: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
 }
 
 .biz-main {
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  padding: 20px 24px 12px;
+  gap: 28px;
+  padding: 32px 40px 24px;
   min-width: 0;
+  background: #fff;
 }
 
 .biz-main__head {
@@ -2506,8 +2510,10 @@ body.is-resizing-sidebar iframe {
 
 .biz-main__head h1 {
   margin: 0;
-  font-size: 28px;
+  font-size: 30px;
+  line-height: 36px;
   font-weight: 600;
+  letter-spacing: -0.02em;
 }
 
 .biz-main__actions {
@@ -2546,93 +2552,135 @@ body.is-resizing-sidebar iframe {
 }
 
 .biz-export {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 6px;
   border: 1px solid #e5e5e5 !important;
   background: #fff !important;
   padding: 8px 14px !important;
+  border-radius: 8px !important;
+  min-height: 36px;
 }
 
 .biz-overview h2 {
-  margin: 0 0 12px;
-  font-size: 16px;
-  font-weight: 600;
+  margin: 0 0 16px;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+  color: #737373;
 }
 
 .biz-overview__grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
+  gap: 0;
+  padding: 4px 0 20px;
+  border-bottom: 1px solid #e5e5e5;
 }
 
 .biz-overview__grid article {
-  border: 1px solid #e5e5e5;
-  border-radius: 12px;
-  padding: 16px;
-  background: #fff;
+  border: 0;
+  border-radius: 0;
+  padding: 4px 24px;
+  background: transparent;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
+  position: relative;
+}
+
+.biz-overview__grid article:first-child {
+  padding-left: 0;
+}
+
+.biz-overview__grid article:not(:first-child)::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 4px;
+  bottom: 4px;
+  width: 1px;
+  background: #e5e5e5;
 }
 
 .biz-overview__grid span {
   color: #737373;
   font-size: 13px;
+  line-height: 18px;
+  font-weight: 400;
 }
 
 .biz-overview__grid strong {
-  font-size: 22px;
+  font-size: 28px;
+  line-height: 34px;
   font-weight: 600;
+  letter-spacing: -0.02em;
+  color: #0a0a0a;
 }
 
 .biz-table-card {
   flex: 1;
   display: flex;
   flex-direction: column;
+  gap: 12px;
   min-height: 420px;
-  border: 1px solid #e5e5e5;
-  border-radius: 12px;
+  border: 0;
+  border-radius: 0;
   overflow: visible;
+  padding: 0;
 }
 
-.biz-table-card__toolbar {
+/* Figma: Inflow/Outflow left + filters right on one row */
+.biz-table-card__controls {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
   align-items: center;
-  padding: 12px;
-  border-bottom: 1px solid #e5e5e5;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .biz-seg {
   display: inline-flex;
-  padding: 2px;
-  border-radius: 8px;
-  background: #f5f5f5;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
 .biz-seg button {
-  border: 0;
-  background: transparent;
-  padding: 6px 12px;
-  border-radius: 6px;
+  border: 1px solid #e5e5e5;
+  background: #fff;
+  color: #737373;
+  padding: 8px 16px;
+  border-radius: 999px;
   font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 16px;
+  min-height: 36px;
   cursor: pointer;
 }
 
 .biz-seg button.is-active {
   background: #0a0a0a;
+  border-color: #0a0a0a;
   color: #fff;
 }
 
+/* Figma: full-width search directly under Inflow/Outflow + filters */
 .biz-search {
-  flex: 1;
-  min-width: 180px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  width: 100%;
   border: 1px solid #e5e5e5;
-  border-radius: 8px;
-  padding: 8px 10px;
+  border-radius: 10px;
+  padding: 10px 14px;
   background: #fff;
+  color: #737373;
+  min-height: 44px;
+  box-sizing: border-box;
 }
 
 .biz-search input {
@@ -2640,7 +2688,14 @@ body.is-resizing-sidebar iframe {
   outline: none;
   width: 100%;
   font: inherit;
+  font-size: 14px;
+  line-height: 20px;
   background: transparent;
+  color: #0a0a0a;
+}
+
+.biz-search input::placeholder {
+  color: #a3a3a3;
 }
 
 .biz-filters {
@@ -2659,6 +2714,11 @@ body.is-resizing-sidebar iframe {
   border: 1px solid #e5e5e5 !important;
   background: #fff !important;
   white-space: nowrap;
+  border-radius: 8px !important;
+  padding: 8px 12px !important;
+  min-height: 36px;
+  font-size: 13px;
+  font-weight: 500;
 }
 
 .biz-filter > button.is-open {
@@ -2857,7 +2917,8 @@ body.is-resizing-sidebar iframe {
   flex: 1;
   min-height: 280px;
   overflow: auto;
-  border-radius: 0 0 12px 12px;
+  border: 1px solid #e5e5e5;
+  border-radius: 12px;
 }
 
 .biz-table {
@@ -2869,13 +2930,23 @@ body.is-resizing-sidebar iframe {
 .biz-table th {
   text-align: left;
   font-weight: 500;
-  background: #f5f0e8;
-  padding: 10px 12px;
+  background: #f5f2ed;
+  padding: 12px 16px;
   color: #525252;
+  position: sticky;
+  top: 0;
+}
+
+.biz-table th:first-child {
+  border-top-left-radius: 11px;
+}
+
+.biz-table th:last-child {
+  border-top-right-radius: 11px;
 }
 
 .biz-table td {
-  padding: 12px;
+  padding: 14px 16px;
   border-bottom: 1px solid #f0f0f0;
 }
 

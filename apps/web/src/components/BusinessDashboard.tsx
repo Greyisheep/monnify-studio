@@ -5,6 +5,18 @@
 "use client";
 
 import Image from "next/image";
+import {
+  Bell,
+  ChevronDown,
+  LayoutGrid,
+  ListFilter,
+  LogOut,
+  PanelLeft,
+  Plus,
+  Search,
+  Upload,
+  Workflow,
+} from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { ShopProduct } from "@/types";
@@ -103,68 +115,6 @@ function inDateRange(iso: string, range: DateRange) {
   return true;
 }
 
-function IconGrid({ className }: { className?: string }) {
-  return (
-    <svg className={className} width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
-      <rect x="1.5" y="1.5" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.4" />
-      <rect x="9.5" y="1.5" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.4" />
-      <rect x="1.5" y="9.5" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.4" />
-      <rect x="9.5" y="9.5" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.4" />
-    </svg>
-  );
-}
-
-function IconWorkflow({ className }: { className?: string }) {
-  return (
-    <svg className={className} width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
-      <circle cx="3.5" cy="3.5" r="1.75" stroke="currentColor" strokeWidth="1.4" />
-      <circle cx="12.5" cy="8" r="1.75" stroke="currentColor" strokeWidth="1.4" />
-      <circle cx="3.5" cy="12.5" r="1.75" stroke="currentColor" strokeWidth="1.4" />
-      <path d="M5.2 4.2 10.8 7.2M5.2 11.8 10.8 8.8" stroke="currentColor" strokeWidth="1.4" />
-    </svg>
-  );
-}
-
-function IconBell({ className }: { className?: string }) {
-  return (
-    <svg className={className} width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden>
-      <path
-        d="M9 2.2a4.4 4.4 0 0 0-4.4 4.4v2.1l-1.4 2.1h11.6L13.4 8.7V6.6A4.4 4.4 0 0 0 9 2.2Z"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinejoin="round"
-      />
-      <path d="M7.2 13.4a1.8 1.8 0 0 0 3.6 0" stroke="currentColor" strokeWidth="1.4" />
-    </svg>
-  );
-}
-
-function IconFilter({ className }: { className?: string }) {
-  return (
-    <svg className={className} width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden>
-      <path d="M2 3.5h10M3.5 7h7M5 10.5h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function IconCalendar({ className }: { className?: string }) {
-  return (
-    <svg className={className} width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden>
-      <rect x="1.75" y="2.5" width="10.5" height="9.75" rx="1.5" stroke="currentColor" strokeWidth="1.3" />
-      <path d="M1.75 5.5h10.5M4.5 1.5v2M9.5 1.5v2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function IconLogout({ className }: { className?: string }) {
-  return (
-    <svg className={className} width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
-      <path d="M6 3H3.5A1.5 1.5 0 0 0 2 4.5v7A1.5 1.5 0 0 0 3.5 13H6" stroke="currentColor" strokeWidth="1.4" />
-      <path d="M10 5.5 13 8l-3 2.5M13 8H6.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
 function FilterMenu({
   open,
   title,
@@ -196,7 +146,11 @@ function FilterMenu({
   return (
     <div className="biz-menu" role="menu" aria-label={title} ref={ref}>
       <div className="biz-menu__head">
-        {icon === "calendar" ? <IconCalendar /> : <IconFilter />}
+        {icon === "calendar" ? (
+          <ChevronDown aria-hidden size={14} strokeWidth={1.5} />
+        ) : (
+          <ListFilter aria-hidden size={14} strokeWidth={1.5} />
+        )}
         <strong>{title}</strong>
       </div>
       <ul className="biz-menu__list">
@@ -259,7 +213,7 @@ function NotificationPanel({
       </header>
       {items.length === 0 ? (
         <div className="biz-notify__empty">
-          <IconBell className="biz-notify__empty-icon" />
+          <Bell className="biz-notify__empty-icon" aria-hidden size={20} strokeWidth={1.5} />
           <p>No notifications yet</p>
         </div>
       ) : (
@@ -407,19 +361,20 @@ export function BusinessDashboard({
             aria-label={collapsed ? "Expand menu" : "Collapse menu"}
             onClick={() => setCollapsed((v) => !v)}
           >
-            {collapsed ? "»" : "«"}
+            <PanelLeft aria-hidden size={16} strokeWidth={1.5} />
           </button>
         </div>
         <nav className="biz-sidebar__nav" aria-label="Business menu">
           <button type="button" className="biz-sidebar__new" onClick={onNew}>
-            +{collapsed ? "" : " New"}
+            <Plus aria-hidden size={16} strokeWidth={1.5} />
+            {!collapsed && <span>New</span>}
           </button>
           <button
             type="button"
             className={`biz-sidebar__link${activeNav === "dashboard" ? " is-active" : ""}`}
             onClick={() => onNav("dashboard")}
           >
-            <IconGrid />
+            <LayoutGrid aria-hidden size={16} strokeWidth={1.5} />
             {!collapsed && <span>Dashboard</span>}
           </button>
           <button
@@ -427,7 +382,7 @@ export function BusinessDashboard({
             className={`biz-sidebar__link${activeNav === "workflow" ? " is-active" : ""}`}
             onClick={() => onNav("workflow")}
           >
-            <IconWorkflow />
+            <Workflow aria-hidden size={16} strokeWidth={1.5} />
             {!collapsed && <span>Workflow</span>}
           </button>
         </nav>
@@ -453,7 +408,7 @@ export function BusinessDashboard({
               aria-label="Log out"
               onClick={onLogout}
             >
-              <IconLogout />
+              <LogOut aria-hidden size={16} strokeWidth={1.5} />
             </button>
           )}
         </div>
@@ -474,7 +429,7 @@ export function BusinessDashboard({
                   setOpenMenu(null);
                 }}
               >
-                <IconBell />
+                <Bell aria-hidden size={16} strokeWidth={1.5} />
               </button>
               <NotificationPanel
                 open={notifyOpen}
@@ -489,6 +444,7 @@ export function BusinessDashboard({
               />
             </div>
             <button type="button" className="biz-export" onClick={exportCsv}>
+              <Upload aria-hidden size={14} strokeWidth={1.5} />
               Export
             </button>
           </div>
@@ -517,7 +473,7 @@ export function BusinessDashboard({
         </section>
 
         <section className="biz-table-card" aria-label="Payments">
-          <div className="biz-table-card__toolbar">
+          <div className="biz-table-card__controls">
             <div className="biz-seg" role="tablist" aria-label="Direction">
               <button
                 type="button"
@@ -538,14 +494,6 @@ export function BusinessDashboard({
                 Outflow
               </button>
             </div>
-            <label className="biz-search">
-              <span aria-hidden>⌕</span>
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search by name or reference..."
-              />
-            </label>
             <div className="biz-filters">
               <div className="biz-filter">
                 <button
@@ -558,7 +506,7 @@ export function BusinessDashboard({
                     setNotifyOpen(false);
                   }}
                 >
-                  <IconFilter /> Status
+                  <ListFilter aria-hidden size={14} strokeWidth={1.5} /> Status
                 </button>
                 <FilterMenu
                   open={openMenu === "status"}
@@ -584,7 +532,7 @@ export function BusinessDashboard({
                     setNotifyOpen(false);
                   }}
                 >
-                  <IconFilter /> Type
+                  <ListFilter aria-hidden size={14} strokeWidth={1.5} /> Type
                 </button>
                 <FilterMenu
                   open={openMenu === "type"}
@@ -610,7 +558,8 @@ export function BusinessDashboard({
                     setNotifyOpen(false);
                   }}
                 >
-                  <IconCalendar /> {dateLabel}
+                  {dateLabel}
+                  <ChevronDown aria-hidden size={14} strokeWidth={1.5} />
                 </button>
                 <FilterMenu
                   open={openMenu === "date"}
@@ -627,6 +576,15 @@ export function BusinessDashboard({
               </div>
             </div>
           </div>
+
+          <label className="biz-search">
+            <Search aria-hidden size={16} strokeWidth={1.5} />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search by name or reference..."
+            />
+          </label>
 
           <div className="biz-table-wrap">
             <table className="biz-table">
