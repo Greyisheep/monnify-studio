@@ -10,6 +10,7 @@ dependencies = [
     "structlog>=24.1",
     "opentelemetry-api>=1.24",
     "opentelemetry-sdk>=1.24",
+    "segno>=1.6.6",
 ]
 
 [project.optional-dependencies]

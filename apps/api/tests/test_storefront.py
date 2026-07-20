@@ -116,3 +116,18 @@ def test_single_line_invoice_still_renders_as_a_document():
 
     page = render_invoice_page(artifact, inv)
     assert "Consulting" in page and "50,000.00" in page
+
+
+def test_shop_qr_is_a_real_svg():
+    artifact_id = _shop_artifact(CATALOG)
+    res = client.get(f"/preview/{artifact_id}/shop/qr.svg")
+    assert res.status_code == 200
+    assert "image/svg" in res.headers["content-type"]
+    assert res.text.lstrip().startswith("<?xml") or "<svg" in res.text
+
+
+def test_dashboard_shows_the_shop_link_and_qr():
+    artifact_id = _shop_artifact(CATALOG)
+    html = client.get(f"/preview/{artifact_id}/dashboard").text
+    assert "Your shop link" in html and "Share on WhatsApp" in html
+    assert "shop/qr.svg" in html

@@ -29,6 +29,46 @@
       {% endif %}
     </header>
 
+    <section class="card shop-share">
+      <div class="table-head">
+        <h2>Your shop link</h2>
+        <a class="btn-ghost" id="view-shop" href="/preview/{{ artifact_id }}/shop" target="_blank" rel="noopener">Open shop</a>
+      </div>
+      <p class="empty" style="margin:0 0 14px">Share this one link. People pick what they want and get an invoice. Put it in your WhatsApp status, your Instagram bio, or print the QR for your shop.</p>
+      <div class="share-grid">
+        <div class="share-main">
+          <div class="linkbox">
+            <code id="shop-url">/preview/{{ artifact_id }}/shop</code>
+            <button class="btn-ghost" id="copy-link" type="button">Copy</button>
+          </div>
+          <a class="btn-primary wa" id="wa-share" target="_blank" rel="noopener">Share on WhatsApp</a>
+        </div>
+        <div class="qr-wrap">
+          <img class="qr-img" src="/preview/{{ artifact_id }}/shop/qr.svg" alt="QR code that opens your shop" width="118" height="118" />
+          <small>Scan to open your shop</small>
+        </div>
+      </div>
+    </section>
+
+    <script>
+      (function () {
+        var abs = window.location.origin + "/preview/{{ artifact_id }}/shop";
+        var code = document.getElementById("shop-url");
+        if (code) code.textContent = abs;
+        var view = document.getElementById("view-shop");
+        if (view) view.href = abs;
+        var wa = document.getElementById("wa-share");
+        if (wa) wa.href = "https://wa.me/?text=" +
+          encodeURIComponent("Order from {{ config.business_name }} here: " + abs);
+        var copy = document.getElementById("copy-link");
+        if (copy) copy.addEventListener("click", function () {
+          if (navigator.clipboard) navigator.clipboard.writeText(abs);
+          copy.textContent = "Copied";
+          setTimeout(function () { copy.textContent = "Copy"; }, 1500);
+        });
+      })();
+    </script>
+
     {% if features.collects %}
     <section class="card">
       <div class="table-head">
