@@ -9,10 +9,11 @@ AI proposes, the analyzer disposes; correctness never rests on the model (D3).
 
 from __future__ import annotations
 
+import os
 import re
 from collections import deque
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from ..analysis import Report, analyze
 from ..ir.models import Edge, Node, Position, Workflow
@@ -21,6 +22,7 @@ from ..providers import default_catalog
 from ..providers.base import Catalog
 from ..remediation import remediate_all
 from ..remediation.engine import RemediationStep
+from .fidelity import intent_gaps
 from .providers import AIProvider, select_provider
 from .schema import MoniFlow
 
@@ -39,6 +41,12 @@ _SYSTEM = (
     "amounts and beneficiary accounts, guard effects with idempotency, and "
     "reconcile. A static analyzer will audit your graph.\n"
     "- Keep it focused: 6 to 14 nodes covering the core money flow.\n"
+    "- Connect the nodes: every node must be wired into the graph, no islands.\n"
+    "- If the request is NOT a money/payment workflow you can build from these "
+    "nodes, do not invent an unrelated flow. Set feasible=false and put one plain "
+    "sentence in `refusal` telling the user what you can do instead.\n"
+    "- If a previous attempt is described as still failing the analyzer, change "
+    "the graph to resolve exactly those findings.\n"
     "- In `explanation`, tell the user in plain language what the flow does."
 )
 
@@ -48,9 +56,23 @@ class ComposeUnavailable(Exception):
 
 
 class ComposeError(Exception):
+    """Moni tried but could not produce a verifiably safe flow (retries exhausted)."""
+
     def __init__(self, errors: list[str]) -> None:
         super().__init__("; ".join(errors))
         self.errors = errors
+
+
+class ComposeRefused(Exception):
+    """Moni honestly declined: the request is not a Monnify money flow (#106).
+
+    Distinct from ComposeError so the API can phrase it as a friendly decline
+    rather than a failure.
+    """
+
+    def __init__(self, reason: str) -> None:
+        super().__init__(reason)
+        self.reason = reason
 
 
 class ComposeOutcome(BaseModel):
@@ -106,6 +128,15 @@ def _validate(flow: MoniFlow, catalog: Catalog) -> list[str]:
             errors.append(f"edge source is not a node: {e.source}")
         if e.target not in seen:
             errors.append(f"edge target is not a node: {e.target}")
+    # Connectivity: a pile of unconnected nodes has nothing reachable, so the
+    # analyzer would pass it vacuously and we'd ship an inert "clean" flow (#106).
+    if flow.nodes and not flow.edges:
+        errors.append("the flow has no connections between its nodes")
+    elif flow.edges:
+        incident = {e.source for e in flow.edges} | {e.target for e in flow.edges}
+        islands = sorted(n.id for n in flow.nodes if n.id not in incident)
+        if islands:
+            errors.append(f"these nodes are not connected to anything: {', '.join(islands)}")
     return errors
 
 
@@ -166,11 +197,21 @@ def _to_workflow(flow: MoniFlow, catalog: Catalog) -> Workflow:
 # disabled on the provider side, the whole budget goes to the graph.
 _MAX_TOKENS = 8192
 
+# Generate -> verify -> refine rounds before Moni refuses (#106). Round 1 is the
+# first attempt; the rest are corrective, each fed the exact residual findings.
+# A hard cap is the safety valve against a model that never converges (the ADK
+# lesson: deterministic exit + bounded iterations, never a model-invoked stop).
+_MAX_ROUNDS = int(os.getenv("MONI_COMPOSE_ROUNDS", "3"))
+
 
 def _propose(chosen: AIProvider, user: str) -> tuple[MoniFlow | None, str | None]:
-    """One provider round: returns (flow, None) on success, (None, error) on a
-    parse failure (truncated / invalid JSON). A parse failure is recoverable, so
-    it becomes a corrective retry rather than a 500 (#15 compose robustness)."""
+    """One provider round. Returns (flow, None) on success, or (None, feedback)
+    on RECOVERABLE malformed/truncated output (becomes a corrective retry).
+
+    Raises ComposeUnavailable for a missing provider OR a transport/API error:
+    an outage is not the model's JSON fault, so it must not be relabelled as bad
+    JSON, must not burn a retry, and should surface as 503 not 422 (#106).
+    """
     try:
         flow = chosen.structured(
             system=_SYSTEM, user=user, message="", schema=MoniFlow, max_tokens=_MAX_TOKENS
@@ -178,53 +219,123 @@ def _propose(chosen: AIProvider, user: str) -> tuple[MoniFlow | None, str | None
         return flow, None  # type: ignore[return-value]
     except NotImplementedError as exc:
         raise ComposeUnavailable("composing flows needs an AI provider key") from exc
-    except Exception as exc:  # noqa: BLE001 - malformed model output is recoverable
+    except (ValidationError, ValueError) as exc:
+        # Truncated / schema-invalid model output: recoverable, retry with a hint.
         log.info("composer.parse_failed", provider=chosen.name, error=type(exc).__name__)
         return None, (
             f"your output was not valid JSON for the schema ({type(exc).__name__}); "
             "return one complete, valid JSON object"
         )
+    except Exception as exc:  # noqa: BLE001 - transport/API/network, not a JSON fault
+        log.info("composer.provider_error", provider=chosen.name, error=type(exc).__name__)
+        raise ComposeUnavailable(
+            f"the AI provider is unavailable right now ({type(exc).__name__})"
+        ) from exc
 
 
 def compose_flow(message: str, *, provider: str | None = None) -> ComposeOutcome:
-    """The full ceiling pipeline: propose, validate (retry once), analyze, fix."""
+    """Generate -> verify -> refine -> refuse: the deterministic Moni loop (#106).
+
+    Moni proposes; OUR code runs the analyzer and decides. A flow is returned only
+    when the analyzer is clean after Apply-Fix. If the model declines the request
+    as infeasible we refuse honestly (ComposeRefused); if it never converges within
+    the round budget we refuse rather than ship an unclean flow (ComposeError). The
+    exit is decided by the deterministic verifier, never by the model (D3).
+    """
     catalog = default_catalog()
     chosen: AIProvider = select_provider(provider)
-    user = f"{_catalog_prompt(catalog)}\n\nUser need: {message.strip()}"
+    base_user = f"{_catalog_prompt(catalog)}\n\nUser need: {message.strip()}"
 
-    # First attempt.
-    flow, parse_error = _propose(chosen, user)
-    errors = [parse_error] if parse_error else _validate(flow, catalog)
-
-    if errors:
-        # One corrective round: tell Moni exactly what was wrong (parse or graph).
-        retry_user = user + "\n\nYour previous attempt failed:\n" + "\n".join(
-            f"- {e}" for e in errors
+    feedback = ""
+    last_errors: list[str] = ["Moni could not produce a verifiably safe flow"]
+    # Intent fidelity (#113): a clean-but-incomplete flow earns ONE corrective
+    # round; the clean original is kept as a fallback so fidelity can only ever
+    # improve the result, never lose it. Safety stays the sole hard gate.
+    fallback: ComposeOutcome | None = None
+    max_rounds = _MAX_ROUNDS
+    round_no = 0
+    while round_no < max_rounds:
+        round_no += 1
+        user = base_user + (
+            f"\n\nYour previous attempt still had problems:\n{feedback}" if feedback else ""
         )
-        flow, parse_error = _propose(chosen, retry_user)
+        flow, parse_error = _propose(chosen, user)
         if parse_error:
-            raise ComposeError([parse_error])
+            feedback, last_errors = parse_error, [parse_error]
+            continue
+        if not flow.feasible:  # honest decline, not a fabricated flow
+            raise ComposeRefused(
+                flow.refusal.strip()
+                or "That is not something I can build as a Monnify payment flow yet."
+            )
+
         errors = _validate(flow, catalog)
         if errors:
-            raise ComposeError(errors)
+            feedback = "\n".join(f"- {e}" for e in errors)
+            last_errors = errors
+            continue
 
-    workflow = _to_workflow(flow, catalog)
-    report_before = analyze(workflow, catalog)
-    result = remediate_all(workflow, catalog)
-    report_after = analyze(result.workflow, catalog)
-    log.info(
-        "composer.done",
-        provider=chosen.name,
-        nodes=len(workflow.nodes),
-        findings_before=len(report_before.findings),
-        findings_after=len(report_after.findings),
-        steps=len(result.steps),
-    )
-    return ComposeOutcome(
-        workflow=result.workflow,
-        report_before=report_before,
-        report_after=report_after,
-        steps=result.steps,
-        provider=chosen.name,
-        explanation=flow.explanation,
-    )
+        workflow = _to_workflow(flow, catalog)
+        try:
+            report_before = analyze(workflow, catalog)
+            result = remediate_all(workflow, catalog)
+            report_after = analyze(result.workflow, catalog)
+        except Exception as exc:  # noqa: BLE001 - never surface as a raw 500 (#106)
+            raise ComposeError([f"internal analysis error ({type(exc).__name__})"]) from exc
+
+        if not report_after.findings:  # THE gate: clean, or we do not ship it
+            outcome = ComposeOutcome(
+                workflow=result.workflow,
+                report_before=report_before,
+                report_after=report_after,
+                steps=result.steps,
+                provider=chosen.name,
+                explanation=flow.explanation,
+            )
+            gaps = intent_gaps(message, result.workflow)
+            if gaps and fallback is None:
+                # Safe but not what was asked: keep it, ask Moni to cover the
+                # gaps, and allow exactly one extra round for it (#113).
+                fallback = outcome
+                max_rounds = round_no + 1
+                feedback = (
+                    "The flow passed all safety checks BUT misses part of what "
+                    "the user asked for:\n"
+                    + "\n".join(f"- {g}" for g in gaps)
+                    + "\nRevise the graph to cover this too."
+                )
+                log.info("composer.intent_gap", rounds=round_no, gaps=len(gaps))
+                continue
+            log.info(
+                "composer.done",
+                provider=chosen.name,
+                rounds=round_no,
+                nodes=len(workflow.nodes),
+                findings_before=len(report_before.findings),
+                steps=len(result.steps),
+                fidelity_round=fallback is not None,
+            )
+            return outcome
+
+        # Still unclean after Apply-Fix: feed the exact residual findings back and
+        # let Moni revise. Structured diagnostics-as-feedback is what converges.
+        feedback = (
+            "After auto-fix the analyzer STILL flags these; change the graph to "
+            "resolve them:\n"
+            + "\n".join(f"- [{f.rule_id}] {f.message}" for f in report_after.findings)
+        )
+        last_errors = [f"{f.rule_id}: {f.message}" for f in report_after.findings]
+        log.info(
+            "composer.round_unclean",
+            provider=chosen.name,
+            round=round_no,
+            remaining=len(report_after.findings),
+        )
+
+    if fallback is not None:
+        # The fidelity retry did not produce something better; the original
+        # clean flow is still safe and still useful - return it (#113).
+        log.info("composer.fidelity_fallback", provider=chosen.name)
+        return fallback
+    # Round budget exhausted without a clean flow: refuse, never ship it (#106).
+    raise ComposeError(last_errors)

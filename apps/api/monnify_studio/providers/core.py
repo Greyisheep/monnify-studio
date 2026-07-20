@@ -83,6 +83,20 @@ CORE_NODE_TYPES: list[NodeTypeDef] = [
         inputs=[PortSpec(name="key", type=D.ANY)],
     ),
     NodeTypeDef(
+        type="safety.balance_guard",
+        category=C.SAFETY,
+        title="Check Balance First",
+        description="Confirm the available balance covers the amount before money moves out.",
+        when_to_use="Before any transfer or payout from a wallet/ledger: query the "
+        "available balance and only proceed if it covers the amount plus fees. "
+        "Without it, disbursements fail at runtime with 'insufficient balance' "
+        "(a live failure mode reported by Monnify merchants).",
+        doc_url="https://developers.monnify.com/api",
+        default_tags=[T.BALANCE_CHECK],
+        inputs=[PortSpec(name="amount", type=D.MONEY)],
+        outputs=[PortSpec(name="covered", type=D.BOOLEAN)],
+    ),
+    NodeTypeDef(
         type="safety.reconciliation",
         category=C.SAFETY,
         title="Reconciliation",

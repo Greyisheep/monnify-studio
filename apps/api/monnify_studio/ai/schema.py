@@ -57,3 +57,8 @@ class MoniFlow(BaseModel):
     explanation: str = ""
     nodes: list[MoniFlowNode] = Field(default_factory=list)
     edges: list[MoniFlowEdge] = Field(default_factory=list)
+    # Honest refusal (#106): when the need is not a Monnify money flow expressible
+    # from the catalog, Moni sets feasible=false with a plain reason instead of
+    # fabricating an unrelated flow. The composer turns this into a clean refusal.
+    feasible: bool = True
+    refusal: str = ""

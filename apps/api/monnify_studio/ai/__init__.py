@@ -1,6 +1,12 @@
 """Moni, the Monnify Studio assistant (#15, D16, D18)."""
 
-from .composer import ComposeError, ComposeOutcome, ComposeUnavailable, compose_flow
+from .composer import (
+    ComposeError,
+    ComposeOutcome,
+    ComposeRefused,
+    ComposeUnavailable,
+    compose_flow,
+)
 from .explain import Explanation, Source, explain
 from .moni import classify_intent
 from .providers import AIProvider, select_provider
@@ -10,6 +16,7 @@ __all__ = [
     "AIProvider",
     "ComposeError",
     "ComposeOutcome",
+    "ComposeRefused",
     "ComposeUnavailable",
     "Explanation",
     "MoniAnswer",
