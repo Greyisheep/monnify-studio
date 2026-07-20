@@ -45,7 +45,8 @@ trap 'rm -f "$ENV_FILE"' EXIT
 # below which match case-insensitively either way.
 for key in CLAUDE_API_KEY ANTHROPIC_API_KEY OPENAI_API_KEY GOOGLE_API_KEY \
            MONNIFY_API_KEY MONNIFY_SECRET_KEY MONNIFY_CONTRACT_CODE \
-           EVOLUTION_API_URL EVOLUTION_API_KEY EVOLUTION_INSTANCE; do
+           EVOLUTION_API_URL EVOLUTION_API_KEY EVOLUTION_INSTANCE \
+           SMTP_HOST SMTP_PORT SMTP_USER SMTP_PASSWORD SMTP_FROM; do
   value="${!key:-}"
   if [ -z "$value" ] && [ -f "$ROOT/.env" ]; then
     value="$(grep -E "^${key}=" "$ROOT/.env" | head -1 | cut -d= -f2- || true)"
