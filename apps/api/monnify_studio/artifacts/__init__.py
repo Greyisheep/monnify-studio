@@ -18,11 +18,13 @@ from .generator import (
     artifact_store,
     flow_features,
     generate_artifact,
+    render_contribute_page,
     render_invoice_page,
     render_storefront,
 )
 
 __all__ = [
+    "render_contribute_page",
     "render_invoice_page",
     "render_storefront",
     "CatalogItem",

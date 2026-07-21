@@ -23,7 +23,7 @@ SENDER_DISPLAY_NAME = "Monnify Studio"
 
 
 class EmailSettings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=(".env", "../.env", "../../.env"), extra="ignore")
 
     zeptomail_api_key: str = ""
     zeptomail_sender: str = ""

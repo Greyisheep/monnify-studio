@@ -1,8 +1,7 @@
 /**
- * Template picker matching Figma 103:3264 (default) / 104:3372 (selected).
- * Selected thumb: teal border + grey fill + "Use Template" pill.
- * No Cancel/Close/Back chrome — Figma cards only.
- * Provenance: #55, #51, #103, Figma Monnify-challenge.
+ * One template picker for the whole app (business setup, dashboard New, rail +).
+ * Figma copy i7ZczWj6i8W2oYmSSKcRdK — Template selection #144:4304 / #155:4959:
+ * "What do you want to do?" + four cards + Select + Back.
  */
 "use client";
 
@@ -15,17 +14,12 @@ export interface TemplatePickerProps {
   dismissible?: boolean;
   /** Render inside onboarding chrome instead of a full-screen modal. */
   embedded?: boolean;
-  /**
-   * "business-onboarding": the business door's first landing (#134, #135).
-   * No Blank Canvas (that is the developer's / opt-in-graduation surface);
-   * adds the ajo card and a "Something else -> Moni" escape hatch instead.
-   * Any other value (or omitted) keeps the original four-card set.
-   */
+  /** @deprecated Kept for call-site compat; ignored — one card set everywhere. */
   variant?: "default" | "business-onboarding";
   onClose: () => void;
   onPick: (templateId: string) => void;
   onBlank?: () => void;
-  /** "Something else" card: hands off to Moni instead of a template (#135). */
+  /** "Something else": hands off to Moni instead of a template. */
   onOther?: () => void;
   onBack?: () => void;
 }
@@ -34,86 +28,37 @@ type PickerOption = {
   id: string;
   title: string;
   description: string;
-  /** Figma export path, or null for a plain placeholder tile (art pending). */
   image: string | null;
-  emoji?: string;
-  kind: "blank" | "template" | "other";
+  kind: "template" | "other";
 };
 
 const OPTIONS: PickerOption[] = [
   {
-    id: "__blank__",
-    title: "Blank Canvas",
-    description: "Start your workflow from a blank canvas",
-    /* Figma 103:3306 — warm fill + centered plus */
-    image: "/figma/templates/template-blank.png",
-    kind: "blank",
-  },
-  {
     id: "sell-online",
-    title: "Get Verified Payments",
+    title: "Sell goods & services",
     description: "Setup a payment link and a dashboard for your orders",
-    /* Figma 103:3312 */
-    image: "/figma/templates/template-payments.png",
-    kind: "template",
-  },
-  {
-    id: "invoice",
-    title: "Invoice a customer",
-    description: "Create invoices to share to customers",
-    /* Figma 103:3317 */
-    image: "/figma/templates/template-invoice.png",
-    kind: "template",
-  },
-  {
-    id: "payroll",
-    title: "Pay salaries",
-    description: "Verify staff accounts before payouts",
-    /* Figma 103:3322 */
-    image: "/figma/templates/template-payroll.png",
-    kind: "template",
-  },
-];
-
-// Business door's first landing (#134): sell -> invoice -> ajo -> pay staff,
-// then an honest escape hatch. No Blank Canvas here on purpose (#135) - a
-// low-knowledge business owner should never land on an empty graph.
-const BUSINESS_ONBOARDING_OPTIONS: PickerOption[] = [
-  {
-    id: "sell-online",
-    title: "Get Verified Payments",
-    description: "Setup a payment link and a dashboard for your orders",
-    image: "/figma/templates/template-payments.png",
-    kind: "template",
-  },
-  {
-    id: "invoice",
-    title: "Invoice a customer",
-    description: "Create invoices to share to customers",
-    image: "/figma/templates/template-invoice.png",
+    image: "/figma/templates/template-sell-goods.png",
     kind: "template",
   },
   {
     id: "ajo",
-    title: "Collect contributions (Ajo)",
-    description: "Members pay in, and one person takes the pool each round",
-    image: null,
-    emoji: "🤝",
+    title: "Start a savings group (Ajo)",
+    description: "Collect member contributions and track the rotating pool",
+    image: "/figma/templates/template-ajo.png",
     kind: "template",
   },
   {
-    id: "payroll",
-    title: "Pay salaries",
-    description: "Verify staff accounts before payouts",
-    image: "/figma/templates/template-payroll.png",
+    id: "invoice",
+    title: "Send an invoice",
+    description: "Create invoices to share to customers",
+    image: "/figma/templates/template-send-invoice.png",
     kind: "template",
   },
   {
     id: "__other__",
     title: "Something else",
-    description: "Tell Moni what you do and she will build it",
+    description: "Describe what you want and let Moni build it",
     image: null,
-    emoji: "✨",
     kind: "other",
   },
 ];
@@ -122,10 +67,11 @@ export function TemplatePicker({
   open,
   busy,
   embedded = false,
-  variant = "default",
   onPick,
   onBlank,
   onOther,
+  onBack,
+  onClose,
 }: TemplatePickerProps) {
   const [selected, setSelected] = useState<string | null>(null);
 
@@ -135,31 +81,26 @@ export function TemplatePicker({
 
   if (!open) return null;
 
-  const choices =
-    variant === "business-onboarding"
-      ? BUSINESS_ONBOARDING_OPTIONS
-      : onBlank
-        ? OPTIONS
-        : OPTIONS.filter((option) => option.kind !== "blank");
-
   function confirm(option: PickerOption) {
     if (busy) return;
-    if (option.kind === "blank") {
-      onBlank?.();
-      return;
-    }
     if (option.kind === "other") {
-      onOther?.();
+      (onOther ?? onBlank)?.();
       return;
     }
     onPick(option.id);
   }
 
+  function handleBack() {
+    if (busy) return;
+    if (onBack) onBack();
+    else onClose();
+  }
+
   const body = (
     <div className="studio-template-picker">
-      <header className="studio-template-picker__header">
-        <h2>What do you want to set up?</h2>
-        <p>Pick one. Each one is checked to be safe before it goes live.</p>
+      <header className="studio-template-picker__header is-centered">
+        <h2>What do you want to do?</h2>
+        <p>Pick a vetted product template. Safety nodes come built in.</p>
       </header>
 
       <div
@@ -167,8 +108,9 @@ export function TemplatePicker({
         role="radiogroup"
         aria-label="Templates"
       >
-        {choices.map((option) => {
+        {OPTIONS.map((option) => {
           const isSelected = selected === option.id;
+          const isPlusThumb = option.kind === "other";
           return (
             <div
               key={option.id}
@@ -189,7 +131,7 @@ export function TemplatePicker({
             >
               <div
                 className={`studio-template-picker__thumb${isSelected ? " is-selected" : ""}${
-                  option.kind === "blank" ? " is-blank" : ""
+                  isPlusThumb ? " is-blank" : ""
                 }`}
               >
                 {option.image ? (
@@ -202,7 +144,7 @@ export function TemplatePicker({
                   />
                 ) : (
                   <span className="studio-template-picker__placeholder" aria-hidden>
-                    {option.emoji ?? "＋"}
+                    +
                   </span>
                 )}
                 {isSelected ? (
@@ -215,7 +157,7 @@ export function TemplatePicker({
                       confirm(option);
                     }}
                   >
-                    {busy ? "Opening…" : "Use Template"}
+                    {busy ? "Opening…" : "Select"}
                   </button>
                 ) : null}
               </div>
@@ -227,6 +169,17 @@ export function TemplatePicker({
           );
         })}
       </div>
+
+      <div className="studio-template-picker__actions">
+        <button
+          type="button"
+          className="studio-template-picker__back"
+          disabled={busy}
+          onClick={handleBack}
+        >
+          Back
+        </button>
+      </div>
     </div>
   );
 
@@ -235,7 +188,7 @@ export function TemplatePicker({
       <div
         className="studio-onboard__card studio-onboard__card--templates"
         role="region"
-        aria-label="Pick a template"
+        aria-label="What do you want to do?"
       >
         {body}
       </div>
@@ -246,7 +199,7 @@ export function TemplatePicker({
     <div
       className="studio-modal"
       role="dialog"
-      aria-label="What do you want to set up?"
+      aria-label="What do you want to do?"
     >
       <div className="studio-modal__card studio-modal__card--templates">
         {body}

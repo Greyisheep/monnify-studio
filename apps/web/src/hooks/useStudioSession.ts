@@ -18,10 +18,12 @@ import {
   generateArtifact,
   listWorkflows,
   remediateWorkflow,
+  refineWorkflow,
   resetWorkflow,
   saveWorkflow,
   type DataSource,
 } from "@/lib/api";
+import { ApiError } from "@/lib/http";
 import type { HeroId } from "@/lib/constants";
 import { formatGraphDiff } from "@/lib/findings";
 import { workflowToFlow } from "@/lib/flowIo";
@@ -344,11 +346,9 @@ export function useStudioSession({ setNodes, setEdges }: UseStudioSessionOptions
             workflowName: composed.workflow.name,
           };
         } catch (composeError) {
-          const msg =
-            composeError instanceof Error
-              ? composeError.message
-              : String(composeError);
-          if (!msg.startsWith("503")) throw composeError;
+          const unavailable =
+            composeError instanceof ApiError && composeError.status === 503;
+          if (!unavailable) throw composeError;
         }
 
         onStatus?.("Matching a vetted template…");
@@ -388,6 +388,71 @@ export function useStudioSession({ setNodes, setEdges }: UseStudioSessionOptions
       }
     },
     [applyPayload, catalog, refreshWorkflows],
+  );
+
+  const refineWithMoni = useCallback(
+    async (
+      message: string,
+      onStatus?: (text: string) => void,
+    ): Promise<MoniAskResult> => {
+      if (!activeWorkflowId) {
+        return {
+          kind: "refusal",
+          explanation: "Open a Flow first, then I can change it safely.",
+          workflowName: null,
+        };
+      }
+
+      setBusy(true);
+      setTypeError(null);
+      try {
+        onStatus?.("Checking a revision against your Flow…");
+        const refined = await refineWorkflow(activeWorkflowId, message);
+        applyPayload(
+          refined.workflow,
+          { ...catalog, ...refined.node_types },
+          refined.analysis,
+          { relayout: true },
+        );
+        setSource("api");
+        setDiffNote(
+          `Moni updated “${refined.workflow.name}” (${refined.provider})${
+            refined.findings_caught.length
+              ? ` · caught ${refined.findings_caught.join(", ")}`
+              : ""
+          }`,
+        );
+        await refreshWorkflows();
+        return {
+          kind: "refine",
+          explanation:
+            refined.explanation ||
+            `Updated “${refined.workflow.name}” on the canvas.`,
+          workflowName: refined.workflow.name,
+          findingsCaught: refined.findings_caught,
+          steps: refined.steps,
+        };
+      } catch (error: unknown) {
+        const text =
+          error instanceof Error ? error.message : "Moni could not change this Flow.";
+        if (text.startsWith("422 /assistant/refine:")) {
+          const detail = text.slice("422 /assistant/refine:".length).trim();
+          let reason = detail;
+          try {
+            const parsed = JSON.parse(detail) as { detail?: string };
+            if (typeof parsed.detail === "string") reason = parsed.detail;
+          } catch {
+            // FastAPI may return plain text detail.
+          }
+          return { kind: "refusal", explanation: reason, workflowName: null };
+        }
+        setTypeError(text);
+        throw error;
+      } finally {
+        setBusy(false);
+      }
+    },
+    [activeWorkflowId, applyPayload, catalog, refreshWorkflows],
   );
 
   const setupFromIntent = useCallback(
@@ -475,6 +540,7 @@ export function useStudioSession({ setNodes, setEdges }: UseStudioSessionOptions
     applyFix,
     runAnalyze,
     askMoni,
+    refineWithMoni,
     setupFromIntent,
   };
 }

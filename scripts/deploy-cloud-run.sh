@@ -47,7 +47,7 @@ trap 'rm -f "$ENV_FILE"' EXIT
 for key in CLAUDE_API_KEY ANTHROPIC_API_KEY OPENAI_API_KEY GOOGLE_API_KEY \
            MONNIFY_API_KEY MONNIFY_SECRET_KEY MONNIFY_CONTRACT_CODE \
            EVOLUTION_API_URL EVOLUTION_API_KEY EVOLUTION_INSTANCE \
-           SMTP_HOST SMTP_PORT SMTP_USER SMTP_PASSWORD SMTP_FROM; do
+           ZEPTOMAIL_API_KEY ZEPTOMAIL_SENDER ZEPTOMAIL_REPLY_TO; do
   value="${!key:-}"
   if [ -z "$value" ] && [ -f "$ROOT/.env" ]; then
     value="$(grep -E "^${key}=" "$ROOT/.env" | head -1 | cut -d= -f2- || true)"

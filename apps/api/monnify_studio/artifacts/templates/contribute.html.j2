@@ -1,0 +1,92 @@
+<!doctype html>
+{# The member-facing contribution page for ledger flows (ajo/esusu, #160).
+   Same trust boundary as everything else: paying opens a real sandbox
+   checkout, and the pool only credits after Monnify confirms (#53). #}
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ config.business_name }} — Contribution</title>
+  <style>
+    :root {
+      --ink:#14201b; --muted:#5f6a63; --line:#e6eae6; --accent:{{ config.accent_color }};
+      --paper:#f4f7f4; --card:#ffffff; --accent-soft:color-mix(in srgb, {{ config.accent_color }} 10%, #fff);
+    }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--paper); color:var(--ink);
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+      -webkit-font-smoothing:antialiased; }
+    .page { max-width:430px; margin:0 auto; min-height:100vh; background:var(--card);
+      display:flex; flex-direction:column; box-shadow:0 0 60px rgba(20,32,27,.06); padding:0 0 24px; }
+    .head { display:flex; gap:14px; align-items:center; padding:24px 20px 8px; }
+    .mark { width:52px; height:52px; border-radius:15px; background:var(--accent); color:#fff;
+      display:grid; place-items:center; font-weight:800; font-size:1.4rem; flex:0 0 auto; }
+    .brand-logo { max-height:52px; max-width:160px; }
+    .head h1 { margin:0; font-size:1.25rem; letter-spacing:-.01em; }
+    .head p { margin:2px 0 0; color:var(--muted); font-size:.86rem; }
+    .body { padding:10px 20px; display:flex; flex-direction:column; gap:14px; }
+    .amount-card { background:var(--accent-soft); border-radius:14px; padding:18px; text-align:center; }
+    .amount-card small { color:var(--muted); font-size:.8rem; text-transform:uppercase; letter-spacing:.06em; }
+    .amount-card .amt { font-size:2rem; font-weight:800; font-variant-numeric:tabular-nums; margin-top:4px; }
+    .field { width:100%; padding:14px 15px; border:1px solid var(--line); border-radius:12px;
+      font:inherit; background:var(--paper); color:inherit; }
+    .cta { width:100%; appearance:none; border:0; border-radius:14px; background:var(--accent); color:#fff;
+      font:inherit; font-weight:750; font-size:1.05rem; padding:16px; cursor:pointer; }
+    .cta:disabled { opacity:.4; cursor:not-allowed; }
+    .trust { text-align:center; color:var(--muted); font-size:.76rem; margin:2px 4px 0; }
+    .trust b { color:var(--accent); }
+    #status { text-align:center; color:var(--muted); font-size:.85rem; min-height:1.2em; margin:0; }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="head">
+      {% if config.logo_url %}
+      <img class="brand-logo" src="{{ config.logo_url }}" alt="{{ config.business_name }} logo" />
+      {% else %}
+      <div class="mark">{{ config.business_name[:1] }}</div>
+      {% endif %}
+      <div>
+        <h1>{{ config.business_name }}</h1>
+        <p>{{ config.tagline }}</p>
+      </div>
+    </header>
+
+    <div class="body">
+      <div class="amount-card">
+        <small>{{ config.product_name }}</small>
+        <div class="amt">NGN {{ amount_display }}</div>
+      </div>
+      <input class="field" id="member" placeholder="Your name (so the group knows it's you)" />
+      <button class="cta" id="pay" disabled>Pay my contribution</button>
+      <p id="status"></p>
+      <p class="trust">Your payment is <b>verified with Monnify</b> before it counts in the pool.
+        No screenshots, no guessing.</p>
+    </div>
+  </main>
+
+  <script>
+    const member = document.getElementById("member");
+    const pay = document.getElementById("pay");
+    const status = document.getElementById("status");
+    member.addEventListener("input", () => { pay.disabled = member.value.trim().length < 2; });
+    pay.addEventListener("click", async () => {
+      pay.disabled = true;
+      status.textContent = "Preparing your contribution...";
+      try {
+        const res = await fetch("/preview/{{ artifact_id }}/contribute", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ member: member.value.trim() }),
+        });
+        if (!res.ok) throw new Error(await res.text());
+        const data = await res.json();
+        window.location.href = data.pay_url;
+      } catch {
+        pay.disabled = false;
+        status.textContent = "Could not start. Please try again.";
+      }
+    });
+  </script>
+</body>
+</html>

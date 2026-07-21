@@ -163,6 +163,15 @@ def render_storefront(artifact: "GeneratedArtifact") -> str:
     )
 
 
+def render_contribute_page(artifact: "GeneratedArtifact") -> str:
+    """Member-facing contribution page for ledger flows (ajo/esusu, #160)."""
+    return _env.get_template("contribute.html.j2").render(
+        config=artifact.config,
+        artifact_id=artifact.artifact_id,
+        amount_display=f"{artifact.config.price_ngn:,.2f}",
+    )
+
+
 def render_invoice_page(artifact: "GeneratedArtifact", invoice) -> str:
     """Buyer-facing page for one invoice, rendered to a document (#85, #87).
 
