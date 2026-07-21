@@ -103,7 +103,7 @@ All optional. Nothing is required to run the app or the tests.
 |-----|---------|--------|
 | `CLAUDE_API_KEY` (or `OPENAI_API_KEY` / `GOOGLE_API_KEY`) | Moni composing new flows from free text (without it she routes by keyword) | [console.anthropic.com](https://console.anthropic.com) · [platform.openai.com](https://platform.openai.com) · [aistudio.google.com](https://aistudio.google.com/app/apikey) |
 | `MONNIFY_API_KEY`, `MONNIFY_SECRET_KEY`, `MONNIFY_CONTRACT_CODE` | Real sandbox checkout + verification | [app.monnify.com](https://app.monnify.com) → sandbox → API keys |
-| `SMTP_*` | Real email receipts | any SMTP provider |
+| `ZEPTOMAIL_*` | Real email receipts | [zeptomail.zoho.com](https://zeptomail.zoho.com) - API key + verified sender |
 
 Copy [`.env.example`](.env.example) to `.env` and fill in only what you want. **Sandbox only** - production execution is refused by default. Secrets never enter logs, workflows, shared links, or AI context.
 
