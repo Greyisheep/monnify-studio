@@ -418,19 +418,82 @@ body.is-resizing-sidebar iframe {
   display: flex;
   align-items: center;
   gap: 8px;
-  min-height: 32px;
-  padding: 4px 12px;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  background: transparent;
+  min-height: 36px;
+  padding: 8px 12px;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  background: #fff;
   color: #404040;
   font: inherit;
   font-size: 14px;
   font-weight: 500;
   line-height: 20px;
   text-align: left;
-  cursor: pointer;
+  cursor: grab;
 }
+
+.studio-sidebar__item:active {
+  cursor: grabbing;
+}
+
+.studio-sidebar__grip {
+  display: inline-flex;
+  flex-shrink: 0;
+  width: 12px;
+  opacity: 0.85;
+}
+
+.studio-sidebar__icon-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 4px;
+  background: #f5f2ed;
+  border: 1px solid #d9d9d9;
+  flex-shrink: 0;
+}
+
+.studio-dnd-tip {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 4px 8px 10px;
+}
+
+.studio-dnd-tip__hand {
+  display: inline-flex;
+  margin-left: 4px;
+}
+
+.studio-dnd-tip__bubble {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: #000;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+}
+
+.studio-dnd-tip__close {
+  border: 0;
+  background: transparent;
+  color: #fff;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+}
+
+.studio-canvas.is-dnd-target .react-flow__pane {
+  cursor: copy;
+}
+
 
 .studio-sidebar__item:hover,
 .studio-sidebar__item:focus-visible {
@@ -4020,7 +4083,7 @@ body.is-resizing-sidebar iframe {
   overflow: auto;
 }
 
-/* Onboarding tour (#103) */
+/* Onboarding tour (#103) — Figma card 189:6968 */
 .studio-tour {
   position: fixed;
   inset: 0;
@@ -4028,32 +4091,170 @@ body.is-resizing-sidebar iframe {
   pointer-events: none;
 }
 
-.studio-tour__dim {
+.studio-tour__veil {
   position: absolute;
-  inset: 0;
-  background: rgba(15, 20, 22, 0.45);
+  z-index: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: rgba(0, 0, 0, 0.16);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
   pointer-events: auto;
+  cursor: default;
+}
+
+.studio-tour__veil--full {
+  inset: 0;
 }
 
 .studio-tour__hole {
   position: absolute;
-  border-radius: 0.65rem;
-  box-shadow: 0 0 0 9999px rgba(15, 20, 22, 0.45);
-  outline: 2px solid color-mix(in srgb, #3f6212 70%, #fff);
-  pointer-events: none;
   z-index: 1;
+  border-radius: 0.65rem;
+  outline: 2px solid #3f6212;
+  box-shadow: 0 0 0 3px rgba(63, 98, 18, 0.2);
+  pointer-events: none;
 }
 
+/* Dashboard stack: white panel + external CTA (Figma gap 12px, width 222) */
+.studio-tour__stack {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 222px;
+  pointer-events: auto;
+}
+
+.studio-tour__panel {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+}
+
+.studio-tour__step-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 4px 8px;
+  border-bottom: 0.8px solid #e5e5e5;
+}
+
+.studio-tour__progress {
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 16px;
+  color: #737373;
+}
+
+.studio-tour__skip-link {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 16px;
+  color: #171717;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.studio-tour__media {
+  padding: 8px;
+  border-bottom: 0.8px solid #e5e5e5;
+}
+
+.studio-tour__media-img {
+  display: block;
+  width: 100%;
+  height: 151px;
+  object-fit: cover;
+  border-radius: 16px;
+  border: 0.8px solid #e5e5e5;
+}
+
+.studio-tour__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 8px 12px;
+}
+
+.studio-tour__stack .studio-tour__title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: #171717;
+}
+
+.studio-tour__stack .studio-tour__body {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.4;
+  color: #525252;
+}
+
+.studio-tour__cta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+}
+
+.studio-tour__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  cursor: pointer;
+}
+
+.studio-tour__btn--outline {
+  background: #fff;
+  border: 0.8px solid #d4d4d4;
+  color: #0a0a0a;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.studio-tour__btn--primary {
+  background: #171717;
+  border: 0;
+  color: #fafafa;
+}
+
+/* Developer Hover Card */
 .studio-tour__card {
   position: absolute;
   z-index: 2;
-  width: min(307px, calc(100vw - 32px));
   padding: 0.65rem 0.75rem 0.75rem;
   border-radius: 1rem;
   border: 1px solid var(--line);
   background: #fff;
   box-shadow: 0 8px 24px rgba(16, 24, 40, 0.12);
   pointer-events: auto;
+}
+
+.studio-tour__card.is-hover {
+  width: min(307px, calc(100vw - 32px));
+  border: 1.5px solid #4d7c0f;
 }
 
 .studio-tour__card-head {
@@ -4072,17 +4273,12 @@ body.is-resizing-sidebar iframe {
   font-weight: 600;
 }
 
-.studio-tour__progress {
-  font-size: 0.7rem;
-  color: var(--ink-soft);
-}
-
-.studio-tour__title {
+.studio-tour__card .studio-tour__title {
   margin: 0 0 0.25rem;
   font-size: 0.95rem;
 }
 
-.studio-tour__body {
+.studio-tour__card .studio-tour__body {
   margin: 0 0 0.75rem;
   font-size: 0.8rem;
   line-height: 1.4;
@@ -4101,12 +4297,8 @@ body.is-resizing-sidebar iframe {
   gap: 0.35rem;
 }
 
-.biz-ajo__sim {
+.biz-tools {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-}
-.biz-ajo__sim-note {
-  font-size: 11px;
-  color: #a3a3a3;
+  gap: inherit;
 }

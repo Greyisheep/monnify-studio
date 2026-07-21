@@ -6,8 +6,19 @@
 "use client";
 
 import Image from "next/image";
-import type { PointerEvent as ReactPointerEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type DragEvent as ReactDragEvent,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 
+import {
+  isDragDropTipDismissed,
+  persistDragDropTipDismissed,
+  writeDragNodeType,
+} from "@/lib/studioDnd";
 import type { IntentResult, MoniAskResult, NodeMeta } from "@/types";
 import { ChatPanel } from "./ChatPanel";
 
@@ -35,6 +46,21 @@ export interface NodePaletteProps {
     config: IntentResult["config"],
   ) => Promise<void>;
   onResizeStart?: (event: ReactPointerEvent) => void;
+}
+
+function GripIcon() {
+  return (
+    <span className="studio-sidebar__grip" aria-hidden>
+      <svg width="12" height="16" viewBox="0 0 12 16" fill="none">
+        <circle cx="4" cy="3" r="1.25" fill="#A3A3A3" />
+        <circle cx="8" cy="3" r="1.25" fill="#A3A3A3" />
+        <circle cx="4" cy="8" r="1.25" fill="#A3A3A3" />
+        <circle cx="8" cy="8" r="1.25" fill="#A3A3A3" />
+        <circle cx="4" cy="13" r="1.25" fill="#A3A3A3" />
+        <circle cx="8" cy="13" r="1.25" fill="#A3A3A3" />
+      </svg>
+    </span>
+  );
 }
 
 const CATEGORY_ORDER = [
@@ -119,9 +145,42 @@ export function NodePalette({
   onResizeStart,
 }: NodePaletteProps) {
   const groups = groupCatalog(catalog);
+  const draggedRef = useRef(false);
+  const [showTip, setShowTip] = useState(false);
+
+  useEffect(() => {
+    if (collapsed || leftTab !== "api") {
+      setShowTip(false);
+      return;
+    }
+    if (isDragDropTipDismissed()) {
+      setShowTip(false);
+      return;
+    }
+    setShowTip(groups.length > 0);
+  }, [leftTab, collapsed, groups.length]);
 
   if (collapsed) {
     return null;
+  }
+
+  function dismissTip() {
+    persistDragDropTipDismissed();
+    setShowTip(false);
+  }
+
+  function onRowDragStart(event: ReactDragEvent, typeKey: string) {
+    draggedRef.current = true;
+    writeDragNodeType(event.dataTransfer, typeKey);
+    dismissTip();
+  }
+
+  function onRowClick(typeKey: string) {
+    if (draggedRef.current) {
+      draggedRef.current = false;
+      return;
+    }
+    onAdd(typeKey);
   }
 
   return (
@@ -196,32 +255,85 @@ export function NodePalette({
             {groups.length === 0 && (
               <p className="studio-sidebar__empty">Catalog loading…</p>
             )}
+            {showTip ? (
+              <div className="studio-dnd-tip" role="status">
+                <span className="studio-dnd-tip__hand" aria-hidden>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                    <path
+                      d="M8 13V6.5a1.5 1.5 0 0 1 3 0V11"
+                      stroke="#0A0A0A"
+                      strokeWidth="1.6"
+                      strokeLinecap="round"
+                    />
+                    <path
+                      d="M11 11V5.5a1.5 1.5 0 0 1 3 0V11"
+                      stroke="#0A0A0A"
+                      strokeWidth="1.6"
+                      strokeLinecap="round"
+                    />
+                    <path
+                      d="M14 11V7.5a1.5 1.5 0 0 1 3 0V14c0 3.5-2 6-5.5 6S6 17 6 14v-3.5a1.5 1.5 0 0 1 3 0V13"
+                      stroke="#0A0A0A"
+                      strokeWidth="1.6"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </span>
+                <div className="studio-dnd-tip__bubble">
+                  <span>Drag &amp; drop</span>
+                  <button
+                    type="button"
+                    className="studio-dnd-tip__close"
+                    aria-label="Dismiss tip"
+                    onClick={dismissTip}
+                  >
+                    ×
+                  </button>
+                </div>
+              </div>
+            ) : null}
             {groups.map(([category, items]) => (
               <section key={category} className="studio-sidebar__group">
                 <h3>{category}</h3>
                 <ul>
-                  {items.map((item) => {
+                  {items.map((item, itemIndex) => {
                     const featured = isFeatured(item);
+                    const tipAnchor =
+                      showTip && category === groups[0]?.[0] && itemIndex === 0;
                     return (
-                      <li key={item.type}>
+                      <li
+                        key={item.type}
+                        className={tipAnchor ? "is-dnd-tip-anchor" : undefined}
+                      >
                         <button
                           type="button"
+                          draggable
                           className={
                             featured
                               ? "studio-sidebar__item studio-sidebar__item--featured"
                               : "studio-sidebar__item"
                           }
-                          onClick={() => onAdd(item.type)}
+                          onDragStart={(event) => onRowDragStart(event, item.type)}
+                          onDragEnd={() => {
+                            window.setTimeout(() => {
+                              draggedRef.current = false;
+                            }, 0);
+                          }}
+                          onClick={() => onRowClick(item.type)}
                         >
+                          <GripIcon />
                           {!featured ? (
-                            <Image
-                              src="/figma/icon-catalog-node.svg"
-                              alt=""
-                              width={16}
-                              height={16}
-                              unoptimized
-                              className="studio-sidebar__icon"
-                            />
+                            <span className="studio-sidebar__icon-chip" aria-hidden>
+                              <Image
+                                src="/figma/icon-catalog-node.svg"
+                                alt=""
+                                width={16}
+                                height={16}
+                                unoptimized
+                                className="studio-sidebar__icon"
+                              />
+                            </span>
                           ) : null}
                           <span className="studio-sidebar__item-label">
                             {item.title}

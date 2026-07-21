@@ -125,13 +125,17 @@ export function useStudioGraph({
   );
 
   const addNode = useCallback(
-    (typeKey: string) => {
+    (typeKey: string, dropFlow?: { x: number; y: number }) => {
+      if (!typeKey.trim()) return;
       const meta = catalog[typeKey] ?? nodeTypesMeta[typeKey];
       const prefix = typeKey.split(".").pop() ?? "node";
       const label = meta?.title ?? typeKey;
       const nodeId = newNodeId(new Set(nodes.map((node) => node.id)), prefix);
       const center = screenToFlowPosition(canvasScreenCenter());
-      const origin = { x: center.x - 90, y: center.y - 30 };
+      const origin = dropFlow ?? {
+        x: center.x - 90,
+        y: center.y - 30,
+      };
       const position = placeFreeOfNodes(
         nodes.map((node) => node.position),
         { w: 180, h: 72 },
@@ -158,7 +162,11 @@ export function useStudioGraph({
       setSelectedNodeId(nodeId);
       setDirty(true);
       setTypeError(null);
-      setDiffNote(`Added "${label}" - drag handles to connect it`);
+      setDiffNote(
+        dropFlow
+          ? `Dropped "${label}" on the whiteboard`
+          : `Added "${label}" - drag handles to connect it`,
+      );
       requestAnimationFrame(() => {
         setCenter(position.x + 90, position.y + 30, { zoom: 1.05, duration: 220 });
       });
