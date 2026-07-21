@@ -3608,6 +3608,96 @@ body.is-resizing-sidebar iframe {
   color: #737373;
 }
 
+/* Ajo rotating pool (#173) */
+.biz-ajo {
+  padding: 4px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.biz-ajo__status {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+  color: #404040;
+}
+.biz-ajo__turn {
+  color: #737373;
+}
+.biz-ajo__members {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.biz-ajo__members li {
+  display: grid;
+  grid-template-columns: 20px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 0.8px solid #e5e5e5;
+  border-radius: 12px;
+  font-size: 13px;
+}
+.biz-ajo__members li.is-paid {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+.biz-ajo__mark {
+  text-align: center;
+  color: #16a34a;
+  font-weight: 700;
+}
+.biz-ajo__members li.is-unpaid .biz-ajo__mark {
+  color: #a3a3a3;
+}
+.biz-ajo__flag {
+  font-size: 12px;
+  color: #737373;
+}
+.biz-ajo__payouts h3 {
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.biz-ajo__payouts ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: #404040;
+}
+.biz-ajo__kind {
+  color: #a3a3a3;
+}
+.biz-ajo__add {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.biz-ajo__add label {
+  font-size: 12px;
+  color: #737373;
+}
+.biz-ajo__add textarea {
+  border: 0.8px solid #e5e5e5;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 13px;
+  resize: vertical;
+}
+.biz-ajo__add .biz-product-panel__cta {
+  align-self: flex-start;
+}
+
 .biz-activity {
   margin: 0 0 16px;
   background: #fff;

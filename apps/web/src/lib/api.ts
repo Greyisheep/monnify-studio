@@ -293,6 +293,40 @@ export async function generateArtifact(
   });
 }
 
+/** The rotating pool at a glance (#173): who paid, whose turn, pot, payouts. */
+export interface AjoStateDto {
+  members: Array<{
+    name: string;
+    paid: boolean;
+    has_whatsapp: boolean;
+    is_beneficiary: boolean;
+  }>;
+  round: number;
+  beneficiary: string;
+  pot: string;
+  target?: string;
+  payouts: Array<{
+    round: number;
+    beneficiary: string;
+    amount: string;
+    ts: string;
+    kind: string;
+  }>;
+}
+
+export async function fetchAjoState(
+  artifactId: string,
+): Promise<AjoStateDto | null> {
+  return getOptional<AjoStateDto>(`/preview/${artifactId}/ajo`);
+}
+
+export async function putAjoMembers(
+  artifactId: string,
+  members: Array<{ name: string; whatsapp?: string }>,
+): Promise<AjoStateDto> {
+  return putJson<AjoStateDto>(`/preview/${artifactId}/ajo/members`, { members });
+}
+
 export async function fetchStudioProfile(): Promise<StudioProfile | null> {
   return getOptional<StudioProfile>("/studio/profile");
 }

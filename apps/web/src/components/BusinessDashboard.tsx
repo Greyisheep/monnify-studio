@@ -11,6 +11,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { ShopProduct } from "@/types";
 
+import { AjoPanel } from "./AjoPanel";
+
 type ProductTab = "sell" | "invoice" | "ajo";
 
 const PRODUCT_TABS: { id: ProductTab; label: string }[] = [
@@ -96,6 +98,8 @@ export interface BusinessDashboardProps {
   shopUrl?: string | null;
   /** Goal-aware label: "Your shop link" or "Your contribution link" (#160). */
   shareLabel?: string;
+  /** The business's artifact id, so the Ajo tab can drive the cycle (#173). */
+  artifactId?: string | null;
   onNav: (nav: BusinessNav) => void;
   onNew?: () => void;
   onLogout?: () => void;
@@ -319,6 +323,7 @@ export function BusinessDashboard({
   totals,
   shopUrl,
   shareLabel = "Your shop link",
+  artifactId,
   onNav,
   onNew,
   onLogout,
@@ -724,6 +729,7 @@ export function BusinessDashboard({
                   Start an Ajo from New to add members and track contributions here.
                 </p>
               )}
+              {artifactId ? <AjoPanel artifactId={artifactId} /> : null}
             </>
           )}
         </section>

@@ -44,6 +44,7 @@ from monnify_studio.artifacts import (
     render_invoice_page,
     render_storefront,
 )
+from monnify_studio.ajo import AjoMember, ajo_store
 from monnify_studio.codegen import generate_python
 from monnify_studio.credentials import (
     CredentialStatus,
@@ -943,6 +944,64 @@ def contribute(artifact_id: str, body: ContributeRequest) -> dict:
     }
 
 
+class AjoMemberIn(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+    whatsapp: str = ""
+
+
+class AjoMembersPut(BaseModel):
+    members: list[AjoMemberIn] = Field(max_length=100)
+
+
+@app.get("/preview/{artifact_id}/ajo")
+def ajo_state(artifact_id: str) -> dict:
+    """The rotating pool at a glance (#173): who paid this round, whose turn
+    it is, the pot so far, and every payout recorded. WhatsApp numbers stay
+    server-side; the UI only learns whether a member can be nudged."""
+    artifact = _artifact_or_404(artifact_id)
+    group = ajo_store.group(artifact_id)
+    if group is None:
+        return {"members": [], "round": 1, "beneficiary": "", "pot": "0.00", "payouts": []}
+    paid_keys = set(group.paid_this_round)
+    return {
+        "members": [
+            {
+                "name": m.name,
+                "paid": m.name.strip().casefold() in paid_keys,
+                "has_whatsapp": bool(m.whatsapp),
+                "is_beneficiary": m.name == group.beneficiary,
+            }
+            for m in group.members
+        ],
+        "round": group.round,
+        "beneficiary": group.beneficiary,
+        "pot": str(group.pot),
+        "target": str(money(artifact.config.price_ngn) * len(group.members)),
+        "payouts": [
+            {
+                "round": p.round,
+                "beneficiary": p.beneficiary,
+                "amount": str(p.amount),
+                "ts": p.ts.isoformat(),
+                "kind": p.kind,
+            }
+            for p in group.payouts
+        ],
+    }
+
+
+@app.put("/preview/{artifact_id}/ajo/members")
+def ajo_set_members(artifact_id: str, body: AjoMembersPut) -> dict:
+    """The owner registers the rotation (#173): names in turn order, optional
+    WhatsApp numbers so the group's social pressure can be automated."""
+    _artifact_or_404(artifact_id)
+    ajo_store.set_members(
+        artifact_id,
+        [AjoMember(name=m.name, whatsapp=m.whatsapp) for m in body.members],
+    )
+    return ajo_state(artifact_id)
+
+
 class ShopSelection(BaseModel):
     id: str
     qty: int = Field(ge=1, le=999)
@@ -1038,7 +1097,58 @@ def _thank_you_on_verified(order: Order) -> None:
         )
 
 
-orders_service.on_verified = _thank_you_on_verified
+def _ajo_on_verified(order: Order) -> None:
+    """A verified contribution advances the rotating pool (#173).
+
+    Only fires for artifacts with an ajo group. Truth already came from
+    Monnify (#53); this just moves the ritual: mark the member paid, nudge
+    whoever has not paid, and when the pot completes, record the payout and
+    rotate the turn.
+    """
+    result = ajo_store.record_contribution(
+        order.artifact_id, order.customer, order.amount
+    )
+    if result is None:
+        return
+    if result.payout is not None:
+        group = ajo_store.group(order.artifact_id)
+        beneficiary_number = ""
+        if group is not None:
+            for m in group.members:
+                if m.name == result.payout.beneficiary:
+                    beneficiary_number = m.whatsapp
+                    break
+        whatsapp_notifier.ajo_payout(
+            artifact_id=order.artifact_id,
+            number=beneficiary_number,
+            beneficiary=result.payout.beneficiary,
+            amount=result.payout.amount,
+            next_beneficiary=result.next_beneficiary,
+        )
+        return
+    for member in result.unpaid:
+        whatsapp_notifier.ajo_nudge(
+            artifact_id=order.artifact_id,
+            number=member.whatsapp,
+            member=member.name,
+            paid_count=result.paid_count,
+            member_count=result.member_count,
+            beneficiary=result.next_beneficiary,
+            who_paid=result.member,
+        )
+
+
+def _on_verified(order: Order) -> None:
+    """Compose the verified hooks; each guarded so one failing never mutes
+    the other (and neither can fail the verify itself)."""
+    for hook in (_thank_you_on_verified, _ajo_on_verified):
+        try:
+            hook(order)
+        except Exception as exc:
+            log.warning("on_verified.hook_failed", hook=hook.__name__, error=str(exc))
+
+
+orders_service.on_verified = _on_verified
 
 
 @app.get("/preview/{artifact_id}/notifications", response_model=list[Notification])
@@ -1177,6 +1287,12 @@ def artifact_totals(artifact_id: str, period: str = "week") -> DashboardTotals:
     else:
         period = "all"
     totals = orders_service.totals_for(artifact_id, since=since)
+    # Ajo payouts are the first real money_out source (#173): an honest ledger
+    # of recorded pot payouts, exact to the kobo - never a fabricated number.
+    payouts_out = ajo_store.money_out_for(artifact_id)
+    if payouts_out:
+        totals["money_out"] = money(totals["money_out"]) + payouts_out
+        totals["profit"] = money(totals["money_in"]) - totals["money_out"]
     return DashboardTotals(period=period, **totals)
 
 
