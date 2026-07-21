@@ -46,10 +46,20 @@ export function ConfigPanel({
   onChange,
   onClose,
 }: ConfigPanelProps) {
-  const [mode, setMode] = useState<"business" | "json">("business");
+  const [mode, setMode] = useState<"business" | "request" | "json">("business");
   const [jsonDraft, setJsonDraft] = useState("");
   const [jsonError, setJsonError] = useState<string | null>(null);
   const [jsonSaved, setJsonSaved] = useState(false);
+  const hasRequestTemplate = Object.keys(meta?.request_template ?? {}).length > 0;
+
+  function requestBodyDraft() {
+    const saved = node?.config?.request_body;
+    const body =
+      saved && typeof saved === "object" && !Array.isArray(saved)
+        ? saved
+        : (meta?.request_template ?? {});
+    return JSON.stringify(body, null, 2);
+  }
 
   useEffect(() => {
     setMode("business");
@@ -115,6 +125,22 @@ export function ConfigPanel({
         >
           Advanced JSON
         </button>
+        {hasRequestTemplate ? (
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mode === "request"}
+            className={mode === "request" ? "is-active" : ""}
+            onClick={() => {
+              setJsonDraft(requestBodyDraft());
+              setJsonError(null);
+              setJsonSaved(false);
+              setMode("request");
+            }}
+          >
+            Request body
+          </button>
+        ) : null}
       </div>
 
       {mode === "business" ? (
@@ -199,6 +225,54 @@ export function ConfigPanel({
               ))}
             </div>
           )}
+        </div>
+      ) : mode === "request" ? (
+        <div className="studio-config__body">
+          <p className="muted">
+            {meta?.method} {meta?.path}
+          </p>
+          <textarea
+            className="json-editor"
+            value={jsonDraft}
+            onChange={(event: ChangeEvent<HTMLTextAreaElement>) => {
+              setJsonDraft(event.target.value);
+              setJsonSaved(false);
+            }}
+            spellCheck={false}
+          />
+          {jsonError && <p className="type-error">{jsonError}</p>}
+          {jsonSaved && !jsonError && (
+            <p className="muted">Request body applied to this node.</p>
+          )}
+          <button
+            type="button"
+            className="primary-btn studio-config__apply"
+            onClick={() => {
+              try {
+                const parsed = JSON.parse(jsonDraft) as unknown;
+                if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+                  throw new Error("Request body must be a JSON object");
+                }
+                onChange({
+                  ...node,
+                  config: {
+                    ...node.config,
+                    request_body: parsed as Record<string, unknown>,
+                  },
+                });
+                setJsonDraft(JSON.stringify(parsed, null, 2));
+                setJsonError(null);
+                setJsonSaved(true);
+              } catch (error) {
+                setJsonSaved(false);
+                setJsonError(
+                  error instanceof Error ? error.message : "Invalid JSON",
+                );
+              }
+            }}
+          >
+            Apply request body
+          </button>
         </div>
       ) : (
         <div className="studio-config__body">
