@@ -52,34 +52,43 @@ export function ConfigPanel({
   const [jsonDraft, setJsonDraft] = useState("");
   const [jsonError, setJsonError] = useState<string | null>(null);
   const [jsonSaved, setJsonSaved] = useState(false);
-  const hasRequestTemplate = Object.keys(meta?.request_template ?? {}).length > 0;
-
-  function requestBodyDraft() {
-    const saved = node?.config?.request_body;
-    const body =
-      saved && typeof saved === "object" && !Array.isArray(saved)
-        ? saved
-        : (meta?.request_template ?? {});
-    return JSON.stringify(body, null, 2);
+  // The editable fields live under request_template.body (Monnify's real request
+  // shape, #176). Fall back to a flat template for older shapes.
+  function templateBody(): Record<string, unknown> {
+    const tpl = meta?.request_template ?? {};
+    const body = tpl.body;
+    if (body && typeof body === "object" && !Array.isArray(body)) {
+      return body as Record<string, unknown>;
+    }
+    const rest: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(tpl)) {
+      if (key !== "method" && key !== "path" && key !== "body") rest[key] = value;
+    }
+    return rest;
   }
 
+  const hasRequestTemplate = Object.keys(templateBody()).length > 0;
+
+  // Source of truth is FLAT node.config: execution and codegen both read
+  // node.config[key] directly (never a nested request_body), so edits must land
+  // there to actually reach the run and the generated code.
   function requestBody(): Record<string, unknown> {
-    const saved = node?.config?.request_body;
-    if (saved && typeof saved === "object" && !Array.isArray(saved)) {
-      return saved as Record<string, unknown>;
+    const body = templateBody();
+    const cfg = (node?.config ?? {}) as Record<string, unknown>;
+    const out: Record<string, unknown> = {};
+    for (const [key, example] of Object.entries(body)) {
+      out[key] = key in cfg ? cfg[key] : example;
     }
-    return { ...(meta?.request_template ?? {}) };
+    return out;
+  }
+
+  function requestBodyDraft() {
+    return JSON.stringify(requestBody(), null, 2);
   }
 
   function updateRequestField(key: string, value: unknown) {
     if (!node) return;
-    onChange({
-      ...node,
-      config: {
-        ...node.config,
-        request_body: { ...requestBody(), [key]: value },
-      },
-    });
+    onChange({ ...node, config: { ...node.config, [key]: value } });
   }
 
   function updateDeclaredOutput(
@@ -376,7 +385,7 @@ export function ConfigPanel({
                   ...node,
                   config: {
                     ...node.config,
-                    request_body: parsed as Record<string, unknown>,
+                    ...(parsed as Record<string, unknown>),
                   },
                 });
                 setJsonDraft(JSON.stringify(parsed, null, 2));
