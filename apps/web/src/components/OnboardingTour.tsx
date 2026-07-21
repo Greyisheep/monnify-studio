@@ -7,6 +7,10 @@
 import Image from "next/image";
 import { useEffect, useState } from "react";
 
+import {
+  primaryActionLabel,
+  progressLabel,
+} from "@/lib/tourController";
 import type { TourStep } from "@/lib/tourSteps";
 
 export interface OnboardingTourProps {
@@ -102,10 +106,8 @@ export function OnboardingTour({
     : null;
 
   const { top: cardTop, left: cardLeft } = placeCard(hole, cardWidth, cardHeight);
-  const progressLabel = dashboard
-    ? `Step ${stepIndex + 1} of ${stepCount}`
-    : `${stepIndex + 1}/${stepCount}`;
-  const primaryLabel = last ? (dashboard ? "Done" : "Got it") : "Next";
+  const progress = progressLabel(step.chrome, stepIndex, stepCount);
+  const primaryLabel = primaryActionLabel(step.chrome, last);
 
   return (
     <div className="studio-tour" role="dialog" aria-modal="true" aria-label="Onboarding tour">
@@ -120,7 +122,7 @@ export function OnboardingTour({
         {dashboard ? (
           <>
             <div className="studio-tour__dash-head">
-              <span className="studio-tour__progress">{progressLabel}</span>
+              <span className="studio-tour__progress">{progress}</span>
               <button
                 type="button"
                 className="studio-tour__skip-link"
@@ -171,7 +173,7 @@ export function OnboardingTour({
                 />
                 Monnify
               </span>
-              <span className="studio-tour__progress">{progressLabel}</span>
+              <span className="studio-tour__progress">{progress}</span>
             </div>
             <h2 className="studio-tour__title">{step.title}</h2>
             <p className="studio-tour__body">{step.body}</p>

@@ -6,6 +6,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
+  nextStepIndex,
+  prevStepIndex,
+  shouldActivateTour,
+} from "@/lib/tourController";
+import {
   tourDismissKey,
   tourStepsFor,
   type TourPath,
@@ -43,11 +48,8 @@ export function useOnboardingTour(options: {
   );
 
   useEffect(() => {
-    if (!ready || !path || steps.length === 0) {
-      setActive(false);
-      return;
-    }
-    if (isTourDismissed(path)) {
+    const dismissed = path ? isTourDismissed(path) : true;
+    if (!shouldActivateTour({ path, ready, dismissed })) {
       setActive(false);
       return;
     }
@@ -63,15 +65,16 @@ export function useOnboardingTour(options: {
   }, [path]);
 
   const next = useCallback(() => {
-    if (stepIndex >= steps.length - 1) {
+    const { finished, index } = nextStepIndex(stepIndex, steps.length);
+    if (finished) {
       dismiss();
       return;
     }
-    setStepIndex((i) => i + 1);
+    setStepIndex(index);
   }, [dismiss, stepIndex, steps.length]);
 
   const back = useCallback(() => {
-    setStepIndex((i) => Math.max(0, i - 1));
+    setStepIndex((i) => prevStepIndex(i));
   }, []);
 
   return {

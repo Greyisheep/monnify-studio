@@ -24,11 +24,14 @@ describe("tourSteps (#103)", () => {
     ]);
     for (const step of BUSINESS_TOUR_STEPS) {
       expect(step.chrome).toBe("dashboard");
-      expect(step.body.toLowerCase()).not.toMatch(/\bir\b|sse|node_type/);
+      expect(step.target).toMatch(/^biz-/);
+      expect(`${step.title} ${step.body}`.toLowerCase()).not.toMatch(
+        /\bir\b|sse|node_type/,
+      );
     }
   });
 
-  it("developer tour has ≤3 steps pointing at catalog/chat/run __AC4", () => {
+  it("developer tour has ≤3 steps pointing at catalog/chat/run __AC4 AC9", () => {
     expect(tourStepsFor("developer")).toHaveLength(3);
     expect(DEVELOPER_TOUR_STEPS.map((s) => s.target)).toEqual([
       "dev-catalog",
@@ -37,7 +40,9 @@ describe("tourSteps (#103)", () => {
     ]);
     for (const step of DEVELOPER_TOUR_STEPS) {
       expect(step.chrome).toBe("hover");
-      expect(step.body.toLowerCase()).not.toMatch(/\bir\b|sse|node_type/);
+      expect(`${step.title} ${step.body}`.toLowerCase()).not.toMatch(
+        /\bir\b|sse|node_type/,
+      );
     }
   });
 
