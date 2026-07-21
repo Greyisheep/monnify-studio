@@ -42,6 +42,7 @@ export type {
   StudioProfileUpdate,
 } from "./onboarding";
 export type {
+  ExecutionAdapter,
   ExecutionEvent,
   ExecutionEventType,
   ExecutionRun,

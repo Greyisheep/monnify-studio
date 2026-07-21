@@ -8,6 +8,7 @@ import type {
   ArtifactConfigInput,
   ComposeResult,
   CredentialStatus,
+  ExecutionAdapter,
   ExecutionEvent,
   ExecutionRun,
   ExplainResult,
@@ -170,10 +171,10 @@ export async function remediateWorkflow(
   });
 }
 
-/** Start a mock IR run (#8). Live API required; no fixture fallback. */
+/** Start a mock or explicit Monnify-sandbox IR run. Live API required; no fixture fallback. */
 export async function startExecution(
   workflow: Workflow,
-  adapter: "mock" = "mock",
+  adapter: ExecutionAdapter = "mock",
 ): Promise<StartExecutionResult> {
   return postJson<StartExecutionResult>("/executions", { workflow, adapter });
 }
