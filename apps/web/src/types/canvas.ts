@@ -7,6 +7,7 @@ import type { NodeCategory, PortMeta } from "./catalog";
 export interface StudioNodeRunIo {
   inputsSummary: string;
   outputsSummary: string;
+  status?: "running" | "waiting" | "completed" | "failed";
   failed?: boolean;
 }
 

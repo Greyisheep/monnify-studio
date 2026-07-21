@@ -66,8 +66,15 @@ function MenuIcon() {
  * asset library, so this maps at the category level instead - still real,
  * still scannable, not a fabricated one-size-fits-all glyph.
  */
-function CategoryGlyph({ category }: { category: string }) {
+function CategoryGlyph({ category, nodeType }: { category: string; nodeType: string }) {
   const common = { width: 16, height: 16, viewBox: "0 0 16 16", fill: "none" } as const;
+  if (nodeType === "custom.code") {
+    return (
+      <svg {...common} aria-hidden>
+        <path d="m5.8 4-3 4 3 4M10.2 4l3 4-3 4M9.2 2.8 6.8 13.2" stroke="currentColor" strokeWidth="1.35" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    );
+  }
   switch (category) {
     case "safety":
       return (
@@ -178,12 +185,13 @@ export function StudioNode({ id, data, selected }: NodeProps<StudioFlowNode>) {
     data.inputs && data.inputs.length > 0
       ? data.inputs.map((port) => [port.name, config[port.name]])
       : Object.entries(config);
+  const runState = runIo?.status ?? (runIo?.failed ? "failed" : runIo ? "completed" : null);
 
   return (
     <div
       className={`studio-node ${categoryClass}${selected ? " is-selected is-expanded" : ""}${
         isJoined ? " is-joined" : ""
-      }${runIo?.failed ? " is-run-failed" : runIo ? " is-run-done" : ""}`}
+      }${runState ? ` is-run-${runState}` : ""}`}
     >
       <Handle type="target" position={Position.Left} className="studio-handle" />
 
@@ -197,7 +205,7 @@ export function StudioNode({ id, data, selected }: NodeProps<StudioFlowNode>) {
               Monnify
             </span>
             <span className="studio-node__icon-chip" aria-hidden>
-              <CategoryGlyph category={data.category} />
+              <CategoryGlyph category={data.category} nodeType={data.nodeType} />
             </span>
           </div>
           <div className="studio-node__menu" ref={menuRef}>
@@ -243,9 +251,12 @@ export function StudioNode({ id, data, selected }: NodeProps<StudioFlowNode>) {
 
       {runIo ? (
         <p
-          className={`studio-node__io${runIo.failed ? " is-failed" : ""}`}
+          className={`studio-node__io is-${runState ?? "completed"}`}
           title={`${runIo.inputsSummary} → ${runIo.outputsSummary}`}
         >
+          {runState === "running" || runState === "waiting" ? (
+            <span className="studio-node__io-status">{runState}</span>
+          ) : null}
           <span className="studio-node__io-in">{runIo.inputsSummary}</span>
           <span className="studio-node__io-arrow" aria-hidden>
             →
