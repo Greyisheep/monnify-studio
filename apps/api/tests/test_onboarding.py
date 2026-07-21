@@ -132,3 +132,41 @@ def test_back_to_user_type_clears_path():
     assert back.json()["path"] is None
     assert back.json()["step"] == "user_type"
     assert back.json()["goal"] is None
+
+
+def test_session_cookie_is_lax_and_insecure_in_development():
+    """Local dev goes through the same-origin proxy: Lax + non-secure works
+    over http and matches the same-origin fetch pattern (#135 follow-up)."""
+    import monnify_studio.api.main as main_mod
+
+    original = main_mod.settings.studio_env
+    main_mod.settings.studio_env = "development"
+    try:
+        c = TestClient(app)
+        c.cookies.clear()
+        res = c.get("/studio/profile")
+        cookie_header = res.headers.get("set-cookie", "")
+        assert "samesite=lax" in cookie_header.lower()
+        assert "secure" not in cookie_header.lower()
+    finally:
+        main_mod.settings.studio_env = original
+
+
+def test_session_cookie_is_none_and_secure_outside_development():
+    """Production is genuinely cross-origin (web and api are separate Cloud
+    Run services): SameSite=Lax is never attached to a cross-site fetch, which
+    silently reset onboarding path/goal/step past the first call. Must be
+    SameSite=None (only valid alongside Secure) (#135 follow-up)."""
+    import monnify_studio.api.main as main_mod
+
+    original = main_mod.settings.studio_env
+    main_mod.settings.studio_env = "production"
+    try:
+        c = TestClient(app)
+        c.cookies.clear()
+        res = c.get("/studio/profile")
+        cookie_header = res.headers.get("set-cookie", "")
+        assert "samesite=none" in cookie_header.lower()
+        assert "secure" in cookie_header.lower()
+    finally:
+        main_mod.settings.studio_env = original
