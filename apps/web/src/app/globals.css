@@ -1303,6 +1303,10 @@ body.is-resizing-sidebar iframe {
   font-weight: 500;
 }
 
+.studio-onboard__crumb.is-past {
+  color: #013d41;
+}
+
 .studio-onboard__sep {
   width: 24px;
   height: 1px;

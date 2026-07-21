@@ -5,15 +5,25 @@ import type { ReactNode } from "react";
 
 import type { OnboardingStep } from "@/types";
 
-type CrumbId = "user_type" | "setup";
+type CrumbId = "user_type" | "goal" | "setup" | "dashboard";
 
+/** #127: User Type → What you want → Set up → Dashboard */
 const STEPS: { id: CrumbId; label: string; icon: string }[] = [
   { id: "user_type", label: "User Type", icon: "/figma/icon-business.svg" },
-  { id: "setup", label: "Set up", icon: "/figma/icon-webhook.svg" },
+  { id: "goal", label: "What you want", icon: "/figma/icon-workflow.svg" },
+  { id: "setup", label: "Set up", icon: "/figma/icon-catalog-node.svg" },
+  {
+    id: "dashboard",
+    label: "Dashboard",
+    icon: "/figma/dashboard/icon-dashboard.svg",
+  },
 ];
 
 function crumbFor(step: OnboardingStep): CrumbId {
-  return step === "user_type" ? "user_type" : "setup";
+  if (step === "user_type") return "user_type";
+  if (step === "template" || step === "intent") return "goal";
+  if (step === "products") return "setup";
+  return "dashboard";
 }
 
 /** Figma templates float over the studio whiteboard (103:3264), not a solid page. */
