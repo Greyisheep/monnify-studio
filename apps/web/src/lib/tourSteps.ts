@@ -1,33 +1,68 @@
 /**
- * Post-door walkthrough steps (#103 EPIC-2).
+ * Post-door walkthrough steps (#103) — Figma Onboarding Tour (business 7-step).
  */
 export type TourPath = "business" | "developer";
 
+export type TourChrome = "dashboard" | "hover";
+
 export interface TourStep {
   id: string;
+  /** `data-tour` attribute value; empty string = center card, no spotlight */
   target: string;
   title: string;
   body: string;
+  chrome: TourChrome;
 }
 
 export const BUSINESS_TOUR_STEPS: TourStep[] = [
   {
-    id: "products",
-    target: "biz-products",
-    title: "Your products",
-    body: "Add what you sell so customers can pick and pay.",
+    id: "welcome",
+    target: "biz-main",
+    title: "Welcome to Monnify Studio",
+    body: "Quick tour of your dashboard, it only takes a minute.",
+    chrome: "dashboard",
   },
   {
-    id: "shop",
-    target: "biz-shop-link",
-    title: "Your share link",
-    body: "Copy this link and send it anywhere — WhatsApp, Instagram, SMS.",
+    id: "overview",
+    target: "biz-overview",
+    title: "Your money at a glance",
+    body: "Total inflow, total outflow, net profit, and anything that needs your attention, all in one row.",
+    chrome: "dashboard",
+  },
+  {
+    id: "tools",
+    target: "biz-tools",
+    title: "The right tool for business",
+    body: "This changes based on what you set up, share your shop link, send an invoice, or pay your staff.",
+    chrome: "dashboard",
   },
   {
     id: "activity",
     target: "biz-activity",
-    title: "Money book",
-    body: "Payments and activity show up here as people pay you.",
+    title: "What’s been happening",
+    body: "A summary of your recent payments and payouts at a quick glance.",
+    chrome: "dashboard",
+  },
+  {
+    id: "payments",
+    target: "biz-transactions",
+    title: "Find any payment",
+    body: "Search by name or reference, filter by type or status, and see every payment in detail.",
+    chrome: "dashboard",
+  },
+  {
+    id: "nav",
+    target: "biz-nav",
+    title: "Get around easily",
+    body: "New starts something fresh, Dashboard is home, and Workflow is for the technical side",
+    chrome: "dashboard",
+  },
+  {
+    id: "done",
+    target: "biz-main",
+    title: "You’re all set",
+    body: "That is everything you need to know about monnify studio.",
+    chrome: "dashboard",
   },
 ];
 
@@ -37,18 +72,21 @@ export const DEVELOPER_TOUR_STEPS: TourStep[] = [
     target: "dev-catalog",
     title: "API catalog",
     body: "Drag Monnify building blocks onto the whiteboard to build a Flow.",
+    chrome: "hover",
   },
   {
     id: "chat",
     target: "dev-chat",
     title: "Moni chat",
     body: "Describe what you want in plain words — Moni can compose or fix a Flow.",
+    chrome: "hover",
   },
   {
     id: "run",
     target: "dev-run",
     title: "Practice run",
     body: "Run with practice money first. No real cash moves until you connect Monnify.",
+    chrome: "hover",
   },
 ];
 

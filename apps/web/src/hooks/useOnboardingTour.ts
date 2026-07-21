@@ -12,7 +12,7 @@ import {
   type TourStep,
 } from "@/lib/tourSteps";
 
-function readDismissed(path: TourPath): boolean {
+export function isTourDismissed(path: TourPath): boolean {
   if (typeof window === "undefined") return true;
   try {
     return window.localStorage.getItem(tourDismissKey(path)) === "1";
@@ -21,7 +21,7 @@ function readDismissed(path: TourPath): boolean {
   }
 }
 
-function writeDismissed(path: TourPath) {
+export function persistTourDismissed(path: TourPath) {
   try {
     window.localStorage.setItem(tourDismissKey(path), "1");
   } catch {
@@ -47,7 +47,7 @@ export function useOnboardingTour(options: {
       setActive(false);
       return;
     }
-    if (readDismissed(path)) {
+    if (isTourDismissed(path)) {
       setActive(false);
       return;
     }
@@ -58,7 +58,7 @@ export function useOnboardingTour(options: {
   const step: TourStep | null = active ? (steps[stepIndex] ?? null) : null;
 
   const dismiss = useCallback(() => {
-    if (path) writeDismissed(path);
+    if (path) persistTourDismissed(path);
     setActive(false);
   }, [path]);
 

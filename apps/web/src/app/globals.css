@@ -3941,14 +3941,15 @@ body.is-resizing-sidebar iframe {
 .studio-tour__dim {
   position: absolute;
   inset: 0;
-  background: rgba(15, 20, 22, 0.45);
+  background: rgba(0, 0, 0, 0.16);
+  backdrop-filter: blur(1.5px);
   pointer-events: auto;
 }
 
 .studio-tour__hole {
   position: absolute;
   border-radius: 0.65rem;
-  box-shadow: 0 0 0 9999px rgba(15, 20, 22, 0.45);
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.16);
   outline: 2px solid color-mix(in srgb, #3f6212 70%, #fff);
   pointer-events: none;
   z-index: 1;
@@ -3957,13 +3958,76 @@ body.is-resizing-sidebar iframe {
 .studio-tour__card {
   position: absolute;
   z-index: 2;
-  width: min(307px, calc(100vw - 32px));
   padding: 0.65rem 0.75rem 0.75rem;
   border-radius: 1rem;
   border: 1px solid var(--line);
   background: #fff;
   box-shadow: 0 8px 24px rgba(16, 24, 40, 0.12);
   pointer-events: auto;
+}
+
+.studio-tour__card.is-dashboard {
+  width: 222px;
+  padding: 0;
+  border-radius: 10px;
+  border: none;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+}
+
+.studio-tour__card.is-hover {
+  width: min(307px, calc(100vw - 32px));
+  border: 1.5px solid #4d7c0f;
+}
+
+.studio-tour__dash-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 4px 8px;
+  border-bottom: 0.8px solid #e5e5e5;
+}
+
+.studio-tour__skip-link {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  color: #171717;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.studio-tour__card.is-dashboard .studio-tour__title {
+  margin: 0;
+  padding: 8px 8px 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: #171717;
+}
+
+.studio-tour__card.is-dashboard .studio-tour__body {
+  margin: 0;
+  padding: 4px 8px 12px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #525252;
+}
+
+.studio-tour__card.is-dashboard .studio-tour__actions {
+  padding: 0 8px 12px;
+  justify-content: space-between;
+}
+
+.studio-tour__mini {
+  padding: 6px 12px !important;
+  font-size: 12px !important;
+  border-radius: 8px !important;
+  min-height: 0 !important;
 }
 
 .studio-tour__card-head {
@@ -3983,8 +4047,9 @@ body.is-resizing-sidebar iframe {
 }
 
 .studio-tour__progress {
-  font-size: 0.7rem;
-  color: var(--ink-soft);
+  font-size: 10px;
+  font-weight: 500;
+  color: #737373;
 }
 
 .studio-tour__title {
@@ -4009,4 +4074,10 @@ body.is-resizing-sidebar iframe {
 .studio-tour__nav {
   display: flex;
   gap: 0.35rem;
+}
+
+.biz-tools {
+  display: flex;
+  flex-direction: column;
+  gap: inherit;
 }
