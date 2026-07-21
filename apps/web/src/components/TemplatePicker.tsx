@@ -15,9 +15,18 @@ export interface TemplatePickerProps {
   dismissible?: boolean;
   /** Render inside onboarding chrome instead of a full-screen modal. */
   embedded?: boolean;
+  /**
+   * "business-onboarding": the business door's first landing (#134, #135).
+   * No Blank Canvas (that is the developer's / opt-in-graduation surface);
+   * adds the ajo card and a "Something else -> Moni" escape hatch instead.
+   * Any other value (or omitted) keeps the original four-card set.
+   */
+  variant?: "default" | "business-onboarding";
   onClose: () => void;
   onPick: (templateId: string) => void;
   onBlank?: () => void;
+  /** "Something else" card: hands off to Moni instead of a template (#135). */
+  onOther?: () => void;
   onBack?: () => void;
 }
 
@@ -25,8 +34,10 @@ type PickerOption = {
   id: string;
   title: string;
   description: string;
-  image: string;
-  kind: "blank" | "template";
+  /** Figma export path, or null for a plain placeholder tile (art pending). */
+  image: string | null;
+  emoji?: string;
+  kind: "blank" | "template" | "other";
 };
 
 const OPTIONS: PickerOption[] = [
@@ -64,12 +75,57 @@ const OPTIONS: PickerOption[] = [
   },
 ];
 
+// Business door's first landing (#134): sell -> invoice -> ajo -> pay staff,
+// then an honest escape hatch. No Blank Canvas here on purpose (#135) - a
+// low-knowledge business owner should never land on an empty graph.
+const BUSINESS_ONBOARDING_OPTIONS: PickerOption[] = [
+  {
+    id: "sell-online",
+    title: "Get Verified Payments",
+    description: "Setup a payment link and a dashboard for your orders",
+    image: "/figma/templates/template-payments.png",
+    kind: "template",
+  },
+  {
+    id: "invoice",
+    title: "Invoice a customer",
+    description: "Create invoices to share to customers",
+    image: "/figma/templates/template-invoice.png",
+    kind: "template",
+  },
+  {
+    id: "ajo",
+    title: "Collect contributions (Ajo)",
+    description: "Members pay in, and one person takes the pool each round",
+    image: null,
+    emoji: "🤝",
+    kind: "template",
+  },
+  {
+    id: "payroll",
+    title: "Pay salaries",
+    description: "Verify staff accounts before payouts",
+    image: "/figma/templates/template-payroll.png",
+    kind: "template",
+  },
+  {
+    id: "__other__",
+    title: "Something else",
+    description: "Tell Moni what you do and she will build it",
+    image: null,
+    emoji: "✨",
+    kind: "other",
+  },
+];
+
 export function TemplatePicker({
   open,
   busy,
   embedded = false,
+  variant = "default",
   onPick,
   onBlank,
+  onOther,
 }: TemplatePickerProps) {
   const [selected, setSelected] = useState<string | null>(null);
 
@@ -79,14 +135,21 @@ export function TemplatePicker({
 
   if (!open) return null;
 
-  const choices = onBlank
-    ? OPTIONS
-    : OPTIONS.filter((option) => option.kind !== "blank");
+  const choices =
+    variant === "business-onboarding"
+      ? BUSINESS_ONBOARDING_OPTIONS
+      : onBlank
+        ? OPTIONS
+        : OPTIONS.filter((option) => option.kind !== "blank");
 
   function confirm(option: PickerOption) {
     if (busy) return;
     if (option.kind === "blank") {
       onBlank?.();
+      return;
+    }
+    if (option.kind === "other") {
+      onOther?.();
       return;
     }
     onPick(option.id);
@@ -96,7 +159,7 @@ export function TemplatePicker({
     <div className="studio-template-picker">
       <header className="studio-template-picker__header">
         <h2>What do you want to set up?</h2>
-        <p>Pick a vetted product template. Safety nodes come built in.</p>
+        <p>Pick one. Each one is checked to be safe before it goes live.</p>
       </header>
 
       <div
@@ -129,13 +192,19 @@ export function TemplatePicker({
                   option.kind === "blank" ? " is-blank" : ""
                 }`}
               >
-                <Image
-                  src={option.image}
-                  alt=""
-                  width={378}
-                  height={316}
-                  unoptimized
-                />
+                {option.image ? (
+                  <Image
+                    src={option.image}
+                    alt=""
+                    width={378}
+                    height={316}
+                    unoptimized
+                  />
+                ) : (
+                  <span className="studio-template-picker__placeholder" aria-hidden>
+                    {option.emoji ?? "＋"}
+                  </span>
+                )}
                 {isSelected ? (
                   <button
                     type="button"
