@@ -1,9 +1,10 @@
 /**
- * Moni Chat tab: compose / intent setup with streaming status affordances.
+ * Moni Chat tab — Figma Whiteboard/Chat/New (118:3740 / 118:3733).
  * Provenance: #15, #55, #110, D16, D18.
  */
 "use client";
 
+import Image from "next/image";
 import {
   useEffect,
   useRef,
@@ -46,14 +47,14 @@ const STARTER: ChatMessage[] = [
     id: "welcome",
     role: "assistant",
     text:
-      "Hi — I’m Moni. Describe what you want to set up and I’ll compose a flow, or propose a vetted template you can confirm with Set this up.",
+      "Hi, I’m Moni. Describe what you want to set up. I’ll compose a flow when an AI key is available, or propose a vetted template you can confirm with Set this up.",
   },
 ];
 
 const PROMPTS = [
-  "I want an ajo / thrift contribution app",
+  "I want an Ajo/contribution app",
   "Sell online with verified payments",
-  "Build me a payroll for my team",
+  "Make payroll for my team",
 ];
 
 function ChatMessageBody({
@@ -91,6 +92,8 @@ export function ChatPanel({ busy, onAsk, onSetupIntent }: ChatPanelProps) {
   const [messages, setMessages] = useState<ChatMessage[]>(STARTER);
   const [draft, setDraft] = useState("");
   const tailRef = useRef<HTMLDivElement>(null);
+  const showSuggestions =
+    messages.length <= 1 && !messages.some((m) => m.role === "user");
 
   useEffect(() => {
     tailRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -122,7 +125,7 @@ export function ChatPanel({ busy, onAsk, onSetupIntent }: ChatPanelProps) {
         role: "assistant",
         text: "",
         streaming: true,
-        statusText: "Reading what you need…",
+        statusText: "Working…",
       },
     ]);
     setDraft("");
@@ -175,7 +178,7 @@ export function ChatPanel({ busy, onAsk, onSetupIntent }: ChatPanelProps) {
         {
           id: `assistant-${Date.now()}`,
           role: "assistant",
-          text: `Set up “${message.intent!.templateId}” on the canvas and opened Seller preview.`,
+          text: `Set up “${message.intent!.templateId}” on the canvas. Check Preview for the flow summary.`,
           loadedOnCanvas: true,
         },
       ]);
@@ -205,26 +208,15 @@ export function ChatPanel({ busy, onAsk, onSetupIntent }: ChatPanelProps) {
 
   return (
     <div className="studio-chat" aria-label="Moni chat">
-      <div className="studio-chat__chips" role="group" aria-label="Try these">
-        {PROMPTS.map((prompt) => (
-          <button
-            key={prompt}
-            type="button"
-            className="studio-chat__chip"
-            disabled={busy}
-            onClick={() => void submit(prompt)}
-          >
-            {prompt}
-          </button>
-        ))}
-      </div>
       <div className="studio-chat__messages">
         {messages.map((message) => (
           <div
             key={message.id}
-            className={`studio-chat__row studio-chat__row--${message.role}`}
+            className={`studio-chat__row studio-chat__row--${message.role}${
+              message.id === "welcome" ? " is-welcome" : ""
+            }`}
           >
-            {message.role === "assistant" ? (
+            {message.role === "assistant" && message.id !== "welcome" ? (
               <span className="studio-chat__avatar" aria-hidden>
                 M
               </span>
@@ -232,7 +224,7 @@ export function ChatPanel({ busy, onAsk, onSetupIntent }: ChatPanelProps) {
             <div
               className={`studio-chat__bubble studio-chat__bubble--${message.role}${
                 message.streaming ? " is-streaming" : ""
-              }`}
+              }${message.id === "welcome" ? " is-welcome" : ""}`}
             >
               {message.streaming ? (
                 <div className="studio-chat__thinking">
@@ -268,23 +260,57 @@ export function ChatPanel({ busy, onAsk, onSetupIntent }: ChatPanelProps) {
         ))}
         <div ref={tailRef} className="studio-chat__tail" />
       </div>
+
+      {showSuggestions ? (
+        <div className="studio-chat__suggestions">
+          <p className="studio-chat__suggestions-label">Suggestions</p>
+          <div className="studio-chat__chips" role="group" aria-label="Suggestions">
+            {PROMPTS.map((prompt) => (
+              <button
+                key={prompt}
+                type="button"
+                className="studio-chat__chip"
+                disabled={busy}
+                onClick={() => void submit(prompt)}
+              >
+                {prompt}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
       <form className="studio-chat__composer" onSubmit={onSubmit}>
-        <textarea
-          value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          onKeyDown={onComposerKeyDown}
-          placeholder="Ask Moni what to build…"
-          aria-label="Message for Moni"
-          disabled={busy}
-          rows={2}
-        />
-        <button
-          type="submit"
-          className="studio-btn studio-btn--primary"
-          disabled={!draft.trim() || busy}
-        >
-          {busy ? "…" : "Send"}
-        </button>
+        <div className="studio-chat__input">
+          <textarea
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            onKeyDown={onComposerKeyDown}
+            placeholder="Describe what you want to set up."
+            aria-label="Describe what you want to set up"
+            disabled={busy}
+            rows={3}
+          />
+          <div className="studio-chat__input-bar">
+            <span className="studio-chat__attach" aria-hidden>
+              <Image
+                src="/figma/icon-plus.svg"
+                alt=""
+                width={14}
+                height={14}
+                unoptimized
+              />
+            </span>
+            <button
+              type="submit"
+              className="studio-chat__send"
+              disabled={!draft.trim() || busy}
+              aria-label={busy ? "Sending" : "Send"}
+            >
+              {busy ? "…" : "↑"}
+            </button>
+          </div>
+        </div>
       </form>
     </div>
   );

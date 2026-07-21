@@ -11,8 +11,9 @@ import {
 
 const MIN = 220;
 const MAX = 520;
-const DEFAULT_LEFT = 300;
-const DEFAULT_RIGHT = 340;
+/** Figma Chat/Code (118:3740): left chat sidebar 355, right inspect 280. */
+const DEFAULT_LEFT = 355;
+const DEFAULT_RIGHT = 280;
 
 function clamp(value: number) {
   return Math.min(MAX, Math.max(MIN, value));

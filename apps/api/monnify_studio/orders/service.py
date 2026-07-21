@@ -166,6 +166,37 @@ class OrdersService:
     def invoices_for(self, artifact_id: str) -> list[Order]:
         return [o for o in self.for_artifact(artifact_id) if o.kind == "invoice"]
 
+    def totals_for(
+        self, artifact_id: str, *, since: datetime | None = None
+    ) -> dict[str, object]:
+        """The Dashboard money book for one business (#134, #135).
+
+        Money in is the exact sum of VERIFIED orders/invoices (never a claim: only
+        what Monnify confirmed). Needs-attention is the count still waiting. Money
+        out has no amount source yet (payout ledger is future work), so it is a
+        real zero, not a fabricated number, and profit = in - out accordingly.
+        """
+        orders = self.for_artifact(artifact_id)
+        if since is not None:
+            orders = [o for o in orders if o.created_at >= since]
+        money_in = sum(
+            (money(o.amount) for o in orders if o.status is OrderStatus.VERIFIED),
+            money(0),
+        )
+        money_out = money(0)  # payout-amount ledger is future work; honest zero
+        pending = sum(1 for o in orders if o.status is OrderStatus.PENDING)
+        verified = sum(1 for o in orders if o.status is OrderStatus.VERIFIED)
+        rejected = sum(1 for o in orders if o.status is OrderStatus.REJECTED)
+        return {
+            "money_in": money_in,
+            "money_out": money_out,
+            "profit": money_in - money_out,
+            "orders_total": len(orders),
+            "verified": verified,
+            "needs_attention": pending,
+            "rejected": rejected,
+        }
+
     def attach_payment(
         self, reference: str, *, payment_reference: str, transaction_reference: str = ""
     ) -> Order:

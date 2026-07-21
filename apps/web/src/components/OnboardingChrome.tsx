@@ -16,6 +16,11 @@ function crumbFor(step: OnboardingStep): CrumbId {
   return step === "user_type" ? "user_type" : "setup";
 }
 
+/** Figma templates float over the studio whiteboard (103:3264), not a solid page. */
+function overStudio(step: OnboardingStep): boolean {
+  return step === "template" || step === "intent";
+}
+
 export function OnboardingChrome({
   active,
   children,
@@ -25,9 +30,14 @@ export function OnboardingChrome({
 }) {
   const activeCrumb = crumbFor(active);
   const activeIndex = STEPS.findIndex((step) => step.id === activeCrumb);
+  const frosted = overStudio(active);
 
   return (
-    <div className="studio-onboard" role="dialog" aria-modal="true">
+    <div
+      className={`studio-onboard${frosted ? " is-over-studio" : ""}`}
+      role="dialog"
+      aria-modal="true"
+    >
       <header className="studio-onboard__top">
         <div className="studio-onboard__brand">
           <Image

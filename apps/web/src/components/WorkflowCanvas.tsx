@@ -84,7 +84,7 @@ export function WorkflowCanvas({
         : "var(--edge-control)";
 
   return (
-    <main
+    <div
       className={`studio-canvas${
         connectionFeedback ? ` is-connection-${connectionFeedback}` : ""
       }`}
@@ -126,6 +126,6 @@ export function WorkflowCanvas({
         <StudioZoomControls />
         {showMiniMap ? <MiniMap pannable zoomable /> : null}
       </ReactFlow>
-    </main>
+    </div>
   );
 }
