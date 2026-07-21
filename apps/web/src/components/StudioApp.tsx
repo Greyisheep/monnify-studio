@@ -26,10 +26,17 @@ import {
   withNodeHighlights,
 } from "@/lib/findings";
 import { flowToWorkflow } from "@/lib/flowIo";
-import { fetchStudioProfile, putStudioProfile } from "@/lib/api";
+import {
+  absoluteApiUrl,
+  fetchStudioProfile,
+  fetchWorkflowDashboard,
+  putStudioProfile,
+} from "@/lib/api";
 import {
   BusinessDashboard,
+  type BizNotification,
   type BusinessNav,
+  type DashboardTxn,
 } from "./BusinessDashboard";
 import { InspectDocumentPanel } from "./InspectDocumentPanel";
 import { NodePalette } from "./NodePalette";
@@ -68,6 +75,12 @@ function CanvasInner() {
   const [profileBusy, setProfileBusy] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
   const [businessNav, setBusinessNav] = useState<BusinessNav>("dashboard");
+  const [bizData, setBizData] = useState<{
+    totals: { inflow: number; outflow: number; net: number; actions: number } | null;
+    transactions: DashboardTxn[];
+    notifications: BizNotification[];
+    shopUrl: string | null;
+  } | null>(null);
   const [templatesOpen, setTemplatesOpen] = useState(false);
 
   const session = useStudioSession({ setNodes, setEdges });
@@ -295,6 +308,9 @@ function CanvasInner() {
         setProfile(next);
         return;
       }
+      // Actually set up the flow + generate its artifact so the Dashboard has a
+      // real shop and money book to show (#135), not an empty shell.
+      await session.setupFromIntent(templateId, {});
       const next = await putStudioProfile({
         goal,
         step: "dashboard",
@@ -339,7 +355,18 @@ function CanvasInner() {
       const next = await putStudioProfile({ products, step: "dashboard" });
       setProfile(next);
       setBusinessNav("dashboard");
-      seedFromProducts(products);
+      // Set up the sell-online flow + shop from the products so the Dashboard
+      // lands on a real shop link and money book (#135).
+      const first = products[0];
+      const priceNum =
+        first && first.price_ngn != null && first.price_ngn !== ""
+          ? Number(first.price_ngn)
+          : NaN;
+      await session.setupFromIntent("sell-online", {
+        business_name: "My Business",
+        ...(first?.name ? { product_name: first.name } : {}),
+        ...(Number.isNaN(priceNum) ? {} : { price_ngn: priceNum }),
+      });
     } catch (error) {
       session.setTypeError(
         error instanceof Error ? error.message : "Could not save products",
@@ -389,11 +416,73 @@ function CanvasInner() {
     (profile.step === "dashboard" ||
       (profile.step === "done" && businessNav === "dashboard"));
 
+  // Feed the Dashboard real money: totals, invoices, activity, and the shop link
+  // for this business's workflow (#135). Polls so a payment shows up live.
+  const businessWorkflowId = session.workflow?.id;
+  useEffect(() => {
+    if (!showBusinessDashboard || !businessWorkflowId) return;
+    let cancelled = false;
+    const load = () => {
+      void fetchWorkflowDashboard(businessWorkflowId).then((d) => {
+        if (cancelled || !d) return;
+        const transactions: DashboardTxn[] = (d.invoices ?? []).map((inv) => ({
+          id: inv.reference,
+          date: (inv.created_at ?? "").slice(0, 10),
+          at: inv.created_at ?? new Date(0).toISOString(),
+          customer: inv.customer || "Customer",
+          initials: (inv.customer || "Customer").trim().slice(0, 2).toUpperCase(),
+          type: "Invoice",
+          amount_ngn: Number(inv.amount) || 0,
+          method: "Card payment",
+          status:
+            inv.status === "verified"
+              ? "Successful"
+              : inv.status === "rejected"
+                ? "Failed"
+                : "Pending",
+          direction: "inflow",
+        }));
+        const notifications: BizNotification[] = (d.activity ?? [])
+          .slice(0, 12)
+          .map((a, index) => ({
+            id: `${a.ts}-${index}`,
+            kind: a.kind === "ledger" ? "inflow" : "info",
+            text: a.text,
+            when: a.ts,
+            read: false,
+          }));
+        setBizData({
+          totals: d.totals
+            ? {
+                inflow: Number(d.totals.money_in) || 0,
+                outflow: Number(d.totals.money_out) || 0,
+                net: Number(d.totals.profit) || 0,
+                actions: d.totals.needs_attention ?? 0,
+              }
+            : null,
+          transactions,
+          notifications,
+          shopUrl: d.shop_path ? absoluteApiUrl(d.shop_path) : null,
+        });
+      });
+    };
+    load();
+    const timer = window.setInterval(load, 6000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [showBusinessDashboard, businessWorkflowId]);
+
   if (showBusinessDashboard) {
     return (
       <>
         <BusinessDashboard
           products={profile?.products ?? []}
+          totals={bizData?.totals ?? null}
+          transactions={bizData?.transactions}
+          notifications={bizData?.notifications}
+          shopUrl={bizData?.shopUrl ?? null}
           activeNav={businessNav === "workflow" ? "workflow" : "dashboard"}
           onNav={(nav) => {
             if (nav === "workflow") void goBusinessWorkflow();

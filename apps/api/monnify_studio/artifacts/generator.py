@@ -126,6 +126,13 @@ class ArtifactStore:
     def get(self, artifact_id: str) -> GeneratedArtifact | None:
         return self._artifacts.get(artifact_id)
 
+    def latest_for_workflow(self, workflow_id: str) -> GeneratedArtifact | None:
+        """The most recently generated artifact for a workflow, so the Dashboard
+        can find its shop/orders by workflow id without threading artifact ids
+        through onboarding (#135)."""
+        matches = [a for a in self._artifacts.values() if a.workflow_id == workflow_id]
+        return matches[-1] if matches else None
+
 
 artifact_store = ArtifactStore()
 
