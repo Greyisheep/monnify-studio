@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     monnify_secret_key: str = ""
     monnify_contract_code: str = ""
     monnify_base_url: str = "https://sandbox.monnify.com"
+    # Disbursement source wallet account number (#9). Monnify won't let us list
+    # wallets on this sandbox, so the source account is supplied out of band.
+    monnify_wallet_account: str = ""
 
     allow_production_execution: bool = False
     studio_env: str = "development"
