@@ -7,6 +7,8 @@ Run from apps/api:
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import hmac
 import json
 import os
 import re
@@ -717,8 +719,17 @@ def preview_skin(artifact_id: str) -> Response:
     return Response(_artifact_or_404(artifact_id).skin_css, media_type="text/css")
 
 
+def _public_base_url(request: Request) -> str:
+    """The buyer-facing origin for redirect links (#178). Cloud Run terminates
+    TLS in front of uvicorn, so force https anywhere but local dev."""
+    base = str(request.base_url).rstrip("/")
+    if base.startswith("http://") and "127.0.0.1" not in base and "localhost" not in base:
+        base = "https://" + base[len("http://") :]
+    return base
+
+
 @app.post("/preview/{artifact_id}/pay")
-def preview_pay(artifact_id: str) -> dict:
+def preview_pay(artifact_id: str, request: Request) -> dict:
     """Create a REAL sandbox checkout for the artifact's product (#52).
 
     Order persistence and verification arrive with #53; this returns the live
@@ -736,6 +747,9 @@ def preview_pay(artifact_id: str) -> dict:
                 customer_email="customer@example.com",
                 reference=reference,
                 description=f"{artifact.config.product_name} ({artifact.config.business_name})",
+                # Bring the buyer back to us after checkout (#178); the page's
+                # auto-poll (#172) then confirms with Monnify.
+                redirect_url=f"{_public_base_url(request)}/preview/{artifact_id}",
             )
     except MonnifyError as exc:
         raise HTTPException(status_code=502, detail=f"Monnify sandbox error: {exc}") from None
@@ -1035,7 +1049,7 @@ def artifact_notifications(artifact_id: str) -> list[Notification]:
 
 
 @app.post("/preview/{artifact_id}/invoice/{reference}/pay")
-def invoice_pay(artifact_id: str, reference: str) -> dict:
+def invoice_pay(artifact_id: str, reference: str, request: Request) -> dict:
     """Buyer clicked Pay now on an invoice: open a REAL sandbox checkout for
     exactly the invoice amount, into the merchant's account (#85, #68)."""
     artifact = _artifact_or_404(artifact_id)
@@ -1051,6 +1065,9 @@ def invoice_pay(artifact_id: str, reference: str) -> dict:
                 customer_email="customer@example.com",
                 reference=f"{reference}-{uuid4().hex[:4]}",
                 description=f"{inv.description} ({artifact.config.business_name})",
+                # Back to the invoice page after checkout (#178), where the
+                # resume-poll (#172) picks up and confirms with Monnify.
+                redirect_url=f"{_public_base_url(request)}/preview/{artifact_id}/invoice/{reference}",
             )
     except MonnifyError as exc:
         raise HTTPException(status_code=502, detail=f"Monnify sandbox error: {exc}") from None
@@ -1263,6 +1280,65 @@ def verify_order(artifact_id: str, reference: str) -> Order:
             raise HTTPException(
                 status_code=502, detail=f"Monnify sandbox error: {exc}"
             ) from None
+
+
+@app.post("/monnify/webhook")
+async def monnify_webhook(request: Request) -> dict:
+    """Monnify's push channel for final transaction status (#178).
+
+    We practice what MON002 preaches: the signature (HMAC-SHA512 of the raw
+    body with the merchant secret) is verified before anything else, and even
+    then the payload is only a TRIGGER - the order flips solely on the answer
+    of our authoritative query-verify (#53). Cheat-sheet Pro-Tip 1: webhooks
+    over status-endpoint looping; the page auto-poll (#172) stays as fallback.
+    """
+    raw = await request.body()
+    signature = request.headers.get("monnify-signature", "")
+
+    def _matches(secret: str) -> bool:
+        if not secret:
+            return False
+        expected = hmac.new(secret.encode(), raw, hashlib.sha512).hexdigest()
+        return hmac.compare_digest(expected, signature)
+
+    try:
+        payload = json.loads(raw or b"{}")
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="invalid webhook body") from None
+    event_data = payload.get("eventData") or {}
+    payment_reference = str(
+        event_data.get("paymentReference") or payload.get("paymentReference") or ""
+    )
+    # The payment reference is a LOOKUP key only (never trusted state): it lets
+    # a per-workflow merchant secret (#68) also satisfy the signature check.
+    order = orders_service.find_by_payment_reference(payment_reference)
+    secrets = [credential_store.settings_for(None).monnify_secret_key]
+    if order is not None:
+        secrets.append(
+            credential_store.settings_for(order.workflow_id).monnify_secret_key
+        )
+    if not any(_matches(s) for s in secrets):
+        log.warning("webhook.bad_signature", payment_reference=payment_reference)
+        raise HTTPException(status_code=401, detail="invalid signature")
+    if order is None:
+        # Signed but not ours (e.g. a replay for a pruned in-memory order):
+        # 200 so Monnify stops retrying; nothing to flip.
+        log.info("webhook.ignored", payment_reference=payment_reference)
+        return {"received": True, "matched": False}
+    with correlation(request_id=new_id("webhook")):
+        try:
+            verified = orders_service.verify(order.reference)
+        except MonnifyError as exc:
+            # 5xx so Monnify retries later; the auto-poll may win meanwhile.
+            raise HTTPException(
+                status_code=502, detail=f"verify failed: {exc}"
+            ) from None
+        log.info(
+            "webhook.processed",
+            order=order.reference,
+            status=verified.status.value,
+        )
+        return {"received": True, "matched": True, "status": verified.status.value}
 
 
 @app.post("/executions", response_model=StartExecutionResponse)

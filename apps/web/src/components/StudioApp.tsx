@@ -49,6 +49,7 @@ import { RightSidebar } from "./RightSidebar";
 import { StudioFloatingChrome } from "./StudioFloatingChrome";
 import { StudioIconRail } from "./StudioIconRail";
 import { TemplatePicker } from "./TemplatePicker";
+import { TracePanel } from "./TracePanel";
 import { WorkflowCanvas } from "./WorkflowCanvas";
 import type {
   BusinessGoal,
@@ -798,6 +799,18 @@ function CanvasInner() {
                       "Compose or open a Flow to generate Python."
                     : "Compose or open a workflow to see its code."
                 }
+              />
+            ) : trace.running || trace.run || trace.events.length > 0 ? (
+              /* Run output lives here (#177): the trace was orphaned by the
+                 Figma shell, so pressing Run streamed events into nothing. */
+              <TracePanel
+                run={trace.run}
+                events={trace.events}
+                selectedSeq={trace.selectedSeq}
+                running={trace.running}
+                error={trace.error}
+                onSelect={trace.setSelectedSeq}
+                onClose={trace.clear}
               />
             ) : (
               <InspectDocumentPanel
