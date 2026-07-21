@@ -57,6 +57,7 @@ def _emit(
     message: str = "",
     friendly: str = "",
     duration_ms: int | None = None,
+    inputs: dict[str, Any] | None = None,
     request: dict[str, Any] | None = None,
     response: dict[str, Any] | None = None,
     outputs: dict[str, Any] | None = None,
@@ -72,6 +73,7 @@ def _emit(
             message=message,
             friendly_text=friendly,
             duration_ms=duration_ms,
+            inputs=inputs,
             request=request,
             response=response,
             outputs=outputs or {},
@@ -99,6 +101,11 @@ def run_workflow(
         )
     )
     context: dict[str, Any] = {"variables": {}, "outputs": {}}
+    # Real data flow (#145): each node sees the merged outputs of its direct
+    # predecessors, in edge order, so values genuinely travel along the graph.
+    preds: dict[str, list[str]] = {}
+    for edge in workflow.edges:
+        preds.setdefault(edge.target, []).append(edge.source)
 
     try:
         start = _entrypoint(workflow)
@@ -135,6 +142,10 @@ def run_workflow(
                 friendly=f"Working on: {node.label or node.type}",
             )
 
+            inputs: dict[str, Any] = {}
+            for upstream in preds.get(node.id, []):
+                inputs.update(context["outputs"].get(upstream, {}))
+            context["inputs"] = inputs
             result: AdapterResult = adapter.invoke(node, context)
             context["outputs"][node.id] = result.outputs
 
@@ -149,6 +160,7 @@ def run_workflow(
                     message="suspended at wait/event node",
                     friendly=f"Waiting: {node.label or node.type}",
                     duration_ms=result.duration_ms,
+                    inputs=inputs,
                     request=result.request,
                     response=result.response,
                     outputs=result.outputs,
@@ -177,6 +189,7 @@ def run_workflow(
                     message=result.error or "adapter failed",
                     friendly=f"Problem at: {node.label or node.type}",
                     duration_ms=result.duration_ms,
+                    inputs=inputs,
                     request=result.request,
                     response=result.response,
                     error=result.error,
@@ -203,6 +216,7 @@ def run_workflow(
                 message=node.label or node.type,
                 friendly=f"Done: {node.label or node.type}",
                 duration_ms=result.duration_ms,
+                inputs=inputs,
                 request=result.request,
                 response=result.response,
                 outputs=result.outputs,

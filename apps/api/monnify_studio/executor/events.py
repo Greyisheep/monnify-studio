@@ -49,6 +49,9 @@ class ExecutionEvent(BaseModel):
     friendly_text: str = ""
     duration_ms: Optional[int] = None
     # Redacted HTTP-ish envelopes + outputs for the trace viewer (#28).
+    # What the node SAW: upstream outputs resolved by the engine (#145),
+    # so the UI can show inputs -> outputs per node (console.log for flows).
+    inputs: Optional[dict[str, Any]] = None
     request: Optional[dict[str, Any]] = None
     response: Optional[dict[str, Any]] = None
     outputs: dict[str, Any] = Field(default_factory=dict)

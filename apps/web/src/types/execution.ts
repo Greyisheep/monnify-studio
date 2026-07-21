@@ -30,6 +30,8 @@ export interface ExecutionEvent {
   node_type?: string | null;
   message: string;
   friendly_text: string;
+  /** What the node saw: upstream outputs resolved by the engine (#145). */
+  inputs?: Record<string, unknown> | null;
   duration_ms?: number | null;
   request?: Record<string, unknown> | null;
   response?: Record<string, unknown> | null;

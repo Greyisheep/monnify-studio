@@ -169,6 +169,23 @@ CORE_NODE_TYPES: list[NodeTypeDef] = [
         inputs=[PortSpec(name="recipient", type=D.ANY, required=False)],
     ),
     NodeTypeDef(
+        type="custom.code",
+        category=C.APPLICATION,
+        title="Code Block",
+        description="Your own code inside the flow (#147): the snippet lives in "
+        "config.code, its declared outputs (config.outputs) feed the next Block "
+        "in practice Runs, and it lands verbatim in the generated Python.",
+        when_to_use="Write your own logic between Monnify calls - fees, filters, "
+        "mappings, custom rules - when no catalog block does what you need.",
+        # Opaque on purpose: EXTERNAL_CALL only. A Code Block must never carry a
+        # safety tag, so it can never silently satisfy MON002/003/004 - the
+        # analyzer treats it as an unknown effect, and the real safety blocks
+        # stay mandatory around it (D3).
+        default_tags=[T.EXTERNAL_CALL],
+        inputs=[PortSpec(name="input", type=D.ANY, required=False)],
+        outputs=[PortSpec(name="output", type=D.ANY, required=False)],
+    ),
+    NodeTypeDef(
         type="app.data_rows",
         category=C.APPLICATION,
         title="Data Rows (CSV / Sheet)",

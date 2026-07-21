@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import re
 from datetime import datetime, timedelta, timezone
 
 from decimal import Decimal
@@ -28,6 +29,7 @@ from monnify_studio.ai import (
     classify_intent,
     compose_flow,
     explain,
+    refine_flow,
 )
 from monnify_studio.analysis import Report, analyze
 from monnify_studio.artifacts import (
@@ -38,6 +40,7 @@ from monnify_studio.artifacts import (
     render_invoice_page,
     render_storefront,
 )
+from monnify_studio.codegen import generate_python
 from monnify_studio.credentials import (
     CredentialStatus,
     MonnifyCredentials,
@@ -424,6 +427,64 @@ def assistant_compose(body: AssistantRequest) -> ComposeResponse:
             provider=outcome.provider,
             caught=len(outcome.report_before.findings),
             remaining=len(outcome.report_after.findings),
+        )
+        return ComposeResponse(
+            workflow=payload.workflow,
+            node_types=payload.node_types,
+            analysis=outcome.report_after,
+            findings_caught=[f.rule_id for f in outcome.report_before.findings],
+            steps=outcome.steps,
+            provider=outcome.provider,
+            explanation=outcome.explanation,
+        )
+
+
+class RefineRequest(BaseModel):
+    workflow_id: str
+    message: str  # plain-words instruction: "add a refund path", "fix this"
+    provider: str | None = None
+
+
+@app.post("/assistant/refine", response_model=ComposeResponse)
+def assistant_refine(body: RefineRequest) -> ComposeResponse:
+    """Moni corrects the flow on the whiteboard (#148, dev item 7).
+
+    Same verify-refuse loop and same response shape as compose, so the canvas
+    updates in place; the revised flow keeps its id. An unclean revision never
+    ships; a non-payment ask gets an honest decline.
+    """
+    with correlation(request_id=new_id("moni")):
+        current = store.get(body.workflow_id)
+        if current is None:
+            raise HTTPException(
+                status_code=404, detail=f"unknown workflow: {body.workflow_id}"
+            )
+        try:
+            outcome = refine_flow(current, body.message, provider=body.provider)
+        except ComposeUnavailable as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from None
+        except ComposeRefused as exc:
+            raise HTTPException(
+                status_code=422, detail=f"Moni can't do that here: {exc.reason}"
+            ) from None
+        except ComposeError as exc:
+            raise HTTPException(
+                status_code=422,
+                detail="Moni could not make that change verifiably safe: "
+                + "; ".join(exc.errors),
+            ) from None
+        except Exception as exc:  # noqa: BLE001 - typed 500 keeps CORS (#106)
+            log.info("assistant.refine.unexpected", error=type(exc).__name__)
+            raise HTTPException(
+                status_code=500, detail="Moni hit an unexpected error; try again."
+            ) from None
+        saved = store.save(outcome.workflow)
+        payload = _enrich(saved)
+        log.info(
+            "assistant.refine",
+            workflow=saved.id,
+            provider=outcome.provider,
+            caught=len(outcome.report_before.findings),
         )
         return ComposeResponse(
             workflow=payload.workflow,
@@ -1081,6 +1142,33 @@ def workflow_dashboard(workflow_id: str, period: str = "all") -> DashboardData:
         totals=artifact_totals(aid, period),
         invoices=orders_service.for_artifact(aid),
         activity=artifact_activity(aid),
+    )
+
+
+class GeneratedCode(BaseModel):
+    language: str
+    filename: str
+    code: str
+
+
+@app.get("/workflows/{workflow_id}/code", response_model=GeneratedCode)
+def workflow_code(workflow_id: str, lang: str = "python") -> GeneratedCode:
+    """Copy REAL code for your flow (#146, dev item 6).
+
+    Deterministic Jinja-free generation - no LLM in the codegen path (D3): the
+    same flow always returns the same module. `lang` is python-only today; the
+    parameter exists so more targets can land without an API break.
+    """
+    workflow = store.get(workflow_id)
+    if workflow is None:
+        raise HTTPException(status_code=404, detail=f"unknown workflow: {workflow_id}")
+    if lang != "python":
+        raise HTTPException(status_code=400, detail="only lang=python is supported today")
+    slug = re.sub(r"[^a-z0-9]+", "_", workflow.name.lower()).strip("_") or "flow"
+    return GeneratedCode(
+        language="python",
+        filename=f"{slug}.py",
+        code=generate_python(workflow),
     )
 
 

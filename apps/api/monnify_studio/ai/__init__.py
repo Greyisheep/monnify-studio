@@ -6,6 +6,7 @@ from .composer import (
     ComposeRefused,
     ComposeUnavailable,
     compose_flow,
+    refine_flow,
 )
 from .explain import Explanation, Source, explain
 from .moni import classify_intent
@@ -25,6 +26,7 @@ __all__ = [
     "Source",
     "classify_intent",
     "compose_flow",
+    "refine_flow",
     "explain",
     "select_provider",
 ]
