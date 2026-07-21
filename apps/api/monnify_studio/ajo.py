@@ -36,6 +36,9 @@ class AjoPayout(BaseModel):
     amount: Decimal  # exact to the kobo (D21)
     ts: datetime
     kind: str = "sandbox"  # honest label until Monnify enables live transfers
+    # A simulated payout (demo of the mechanic) never touches the money book;
+    # only payouts backed by real verified contributions count as money_out.
+    simulated: bool = False
 
 
 class ContributionResult(BaseModel):
@@ -111,7 +114,12 @@ class AjoStore:
         return group
 
     def record_contribution(
-        self, artifact_id: str, member_name: str, amount: object
+        self,
+        artifact_id: str,
+        member_name: str,
+        amount: object,
+        *,
+        simulated: bool = False,
     ) -> ContributionResult | None:
         """A VERIFIED contribution lands (#53 already established the truth).
 
@@ -138,6 +146,7 @@ class AjoStore:
                 beneficiary=group.beneficiary,
                 amount=group.pot,
                 ts=datetime.now(timezone.utc),
+                simulated=simulated,
             )
             group.payouts.append(payout)
             log.info(
@@ -171,11 +180,15 @@ class AjoStore:
         return result
 
     def money_out_for(self, artifact_id: str) -> Decimal:
-        """Exact payout total: the honest money_out source for ledger flows."""
+        """Exact payout total: the honest money_out source for ledger flows.
+
+        Simulated payouts (the demo of the mechanic) are excluded - the money
+        book only ever reflects real money, so it stays 0 until real verified
+        contributions fund a real payout."""
         group = self.group(artifact_id)
         if group is None:
             return money(0)
-        return sum((p.amount for p in group.payouts), money(0))
+        return sum((p.amount for p in group.payouts if not p.simulated), money(0))
 
 
 ajo_store = AjoStore()

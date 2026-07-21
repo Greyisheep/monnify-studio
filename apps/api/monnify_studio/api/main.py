@@ -1033,7 +1033,9 @@ def ajo_simulate_contribution(artifact_id: str, body: AjoSimulateRequest) -> dic
             raise HTTPException(status_code=400, detail="everyone has paid this round")
         member = unpaid[0].name
     amount = money(artifact.config.price_ngn)
-    result = ajo_store.record_contribution(artifact_id, member, amount)
+    result = ajo_store.record_contribution(
+        artifact_id, member, amount, simulated=True
+    )
     if result is not None:
         _ajo_notify(artifact_id, result)
     log.info("ajo.simulated_contribution", artifact_id=artifact_id, member=member)
