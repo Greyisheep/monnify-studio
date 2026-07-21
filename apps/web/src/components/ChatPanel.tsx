@@ -149,6 +149,15 @@ export function ChatPanel({
         return;
       }
 
+      if (result.kind === "refusal") {
+        patchAssistant(assistantId, {
+          streaming: false,
+          statusText: undefined,
+          text: result.explanation,
+        });
+        return;
+      }
+
       const safetyStory =
         result.kind === "refine"
           ? result.findingsCaught.length

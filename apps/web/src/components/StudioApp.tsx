@@ -593,7 +593,9 @@ function CanvasInner() {
               onAdd={(typeKey) => graph.addNode(typeKey)}
               onAsk={session.askMoni}
               onRefine={session.refineWithMoni}
-              hasOpenWorkflow={!!session.activeWorkflowId}
+              hasOpenWorkflow={
+                profile?.path === "developer" && !!session.activeWorkflowId
+              }
               onSetupIntent={async (templateId, config) => {
                 await session.setupFromIntent(templateId, config);
                 focusPreview();
