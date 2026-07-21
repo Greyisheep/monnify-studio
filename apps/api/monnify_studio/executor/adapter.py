@@ -15,6 +15,7 @@ from ..integrations.monnify import MonnifyError, MonnifySandboxClient
 from ..ir.models import Node
 from ..money import covers, money
 from ..observability.redaction import redact
+from .sandbox import SandboxError, run_user_code
 
 
 @dataclass
@@ -47,6 +48,23 @@ def _amount_in(inputs: dict[str, Any], config: dict[str, Any]) -> str:
             if value not in (None, ""):
                 return str(money(value))
     return str(money(_DEFAULT_AMOUNT))
+
+
+def _code_block_outputs(inputs: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
+    """What a custom.code node contributes downstream (#147, #69).
+
+    If the block has a snippet, run it for real in the sandbox over the merged
+    upstream context and flow the mutated ctx; the snippet can only compute, and
+    a failure raises SandboxError (surfaced as an honest failed node, never a
+    fake success). With no snippet, fall back to any declared outputs."""
+    declared = config.get("outputs")
+    declared = declared if isinstance(declared, dict) else {}
+    code = str(config.get("code", "")).strip()
+    if code:
+        # Seed ctx with what flowed in plus any declared values; the snippet may
+        # read or override them.
+        return run_user_code(code, {**inputs, **declared})
+    return declared
 
 
 class MockAdapter:
@@ -104,13 +122,21 @@ class MockAdapter:
         elif node.type == "app.credit_ledger":
             outputs.update(credited=amount)
         elif node.type == "custom.code":
-            # Honest v1 (#147): declared outputs flow downstream; the snippet
-            # itself is NOT executed server-side (sandboxed runtime is the
-            # post-deadline slice - running arbitrary user code unsandboxed
-            # would be reckless).
-            declared = config.get("outputs")
-            if isinstance(declared, dict) and declared:
-                outputs.update(declared)
+            # The snippet runs for real in the sandbox (#147, #69): pure compute
+            # only, jailed away from our credentials. A failure is honest.
+            try:
+                outputs.update(_code_block_outputs(inputs, config))
+            except SandboxError as exc:
+                return AdapterResult(
+                    ok=False,
+                    duration_ms=12,
+                    outputs={"status": "failed"},
+                    request=request,
+                    response=redact(
+                        {"status": 500, "body": {"ok": False, "node_id": node.id, "error": str(exc)}}
+                    ),
+                    error=str(exc),
+                )
 
         response = redact(
             {
@@ -154,7 +180,7 @@ class SandboxAdapter:
     What stays local (never faked, never outsourced):
       * safety.* guards - our correctness layer runs in-process every time.
       * event.* waits - a webhook cannot be awaited synchronously; mark waiting.
-      * custom.code - declared outputs flow; the snippet is not executed (#147).
+      * custom.code - the snippet runs for real in the jailed sandbox (#147).
     A provider error is surfaced honestly as a failed node, not swallowed.
     """
 
@@ -240,12 +266,11 @@ class SandboxAdapter:
             elif is_wait:
                 outputs.update(paid_amount=amount, event="arrived")
             elif node.type == "custom.code":
-                declared = config.get("outputs")
-                if isinstance(declared, dict) and declared:
-                    outputs.update(declared)
+                # Real sandboxed execution (#147, #69); SandboxError -> _failed.
+                outputs.update(_code_block_outputs(inputs, config))
             elif node.type == "app.credit_ledger":
                 outputs.update(credited=amount)
-        except MonnifyError as exc:
+        except (MonnifyError, SandboxError) as exc:
             return self._failed(node, str(exc), request=request)
 
         response = redact({"status": 200, "body": {"ok": True, "node_id": node.id, "live": True, **outputs}})
