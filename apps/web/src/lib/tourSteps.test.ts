@@ -24,12 +24,26 @@ describe("tourSteps (#103)", () => {
     ]);
     for (const step of BUSINESS_TOUR_STEPS) {
       expect(step.chrome).toBe("dashboard");
-      expect(step.target).toMatch(/^biz-/);
+      // Intro/closing steps (welcome, done) have no spotlight target: they
+      // render a full-page dim+blur veil with the card centered on top,
+      // rather than punching a hole around a specific dashboard section.
+      expect(step.target === "" || /^biz-/.test(step.target)).toBe(true);
       expect(step.imageSrc).toMatch(/^\/figma\/tour\/tour-step-\d+\.png$/);
       expect(`${step.title} ${step.body}`.toLowerCase()).not.toMatch(
         /\bir\b|sse|node_type/,
       );
     }
+    expect(BUSINESS_TOUR_STEPS[0]?.target).toBe("");
+    expect(BUSINESS_TOUR_STEPS.at(-1)?.target).toBe("");
+    expect(BUSINESS_TOUR_STEPS.map((step) => step.placement)).toEqual([
+      "center",
+      "below",
+      "below",
+      "above",
+      "above",
+      "right",
+      "center",
+    ]);
   });
 
   it("developer tour has ≤3 steps pointing at catalog/chat/run __AC4 AC9", () => {

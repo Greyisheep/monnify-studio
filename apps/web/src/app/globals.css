@@ -2392,6 +2392,32 @@ body.is-resizing-sidebar iframe {
   background: #fafafa;
 }
 
+/* Cards need a click to reveal Select, then a second click to confirm - hint
+   that on hover/focus so it doesn't feel unresponsive (Isreal's feedback). */
+.studio-template-picker__hint {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+  padding: 3px 8px;
+  border-radius: 8px;
+  background: rgba(10, 10, 10, 0.75);
+  color: #fafafa;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+}
+
+.studio-template-picker__card:hover .studio-template-picker__hint,
+.studio-template-picker__card:focus-visible .studio-template-picker__hint {
+  opacity: 1;
+}
+
 .studio-template-picker__use:disabled {
   opacity: 0.6;
   cursor: not-allowed;
@@ -4399,40 +4425,36 @@ body.is-resizing-sidebar iframe {
 .studio-tour {
   position: fixed;
   inset: 0;
-  z-index: 80;
   pointer-events: none;
 }
 
 .studio-tour__veil {
-  position: absolute;
-  z-index: 0;
-  margin: 0;
-  padding: 0;
-  border: 0;
+  position: fixed;
+  inset: 0;
+  z-index: 80;
   background: rgba(0, 0, 0, 0.16);
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(1.5px);
+  -webkit-backdrop-filter: blur(1.5px);
   pointer-events: auto;
   cursor: default;
 }
 
-.studio-tour__veil--full {
-  inset: 0;
-}
-
-.studio-tour__hole {
-  position: absolute;
-  z-index: 1;
-  border-radius: 0.65rem;
-  outline: 2px solid #3f6212;
-  box-shadow: 0 0 0 3px rgba(63, 98, 18, 0.2);
+/*
+ * The highlighted dashboard section is a separate visual layer between the
+ * full-screen veil and the tour card. It intentionally remains non-interactive
+ * while the modal tour is active.
+ */
+.is-tour-spotlight {
+  position: relative;
+  z-index: 81;
   pointer-events: none;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 /* Dashboard stack: white panel + external CTA (Figma gap 12px, width 222) */
 .studio-tour__stack {
   position: absolute;
-  z-index: 2;
+  z-index: 82;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -4568,7 +4590,7 @@ body.is-resizing-sidebar iframe {
 /* Developer Hover Card */
 .studio-tour__card {
   position: absolute;
-  z-index: 2;
+  z-index: 82;
   padding: 0.65rem 0.75rem 0.75rem;
   border-radius: 1rem;
   border: 1px solid var(--line);

@@ -137,7 +137,11 @@ export function TemplatePicker({
                       ? TEMPLATE_PICKER_SELECT_BUSY_LABEL
                       : TEMPLATE_PICKER_SELECT_LABEL}
                   </button>
-                ) : null}
+                ) : (
+                  <span className="studio-template-picker__hint" aria-hidden>
+                    Click to select
+                  </span>
+                )}
               </div>
               <span className="studio-template-picker__field">
                 <strong>{option.title}</strong>

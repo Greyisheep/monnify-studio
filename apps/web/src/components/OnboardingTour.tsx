@@ -12,7 +12,7 @@ import {
   primaryActionLabel,
   progressLabel,
 } from "@/lib/tourController";
-import type { TourStep } from "@/lib/tourSteps";
+import type { TourPlacement, TourStep } from "@/lib/tourSteps";
 
 export interface OnboardingTourProps {
   step: TourStep;
@@ -34,27 +34,52 @@ function placeCard(
   hole: DOMRect | null,
   cardWidth: number,
   cardHeight: number,
+  placement: TourPlacement = "auto",
 ): { top: number; left: number } {
-  if (!hole) {
+  if (!hole || placement === "center") {
     return {
       top: Math.max(24, (window.innerHeight - cardHeight) / 2),
       left: Math.max(16, (window.innerWidth - cardWidth) / 2),
     };
   }
   const gap = 16;
+  const centeredLeft = Math.min(
+    window.innerWidth - cardWidth - 16,
+    Math.max(16, hole.left + hole.width / 2 - cardWidth / 2),
+  );
+  if (placement === "right") {
+    return {
+      top: Math.min(
+        window.innerHeight - cardHeight - 16,
+        Math.max(16, hole.top),
+      ),
+      left: Math.min(
+        window.innerWidth - cardWidth - 16,
+        Math.max(16, hole.right + gap),
+      ),
+    };
+  }
   const below = hole.bottom + gap;
   const above = hole.top - cardHeight - gap;
+  if (placement === "above") {
+    return {
+      top: Math.max(16, above),
+      left: centeredLeft,
+    };
+  }
+  if (placement === "below") {
+    return {
+      top: Math.min(window.innerHeight - cardHeight - 16, below),
+      left: centeredLeft,
+    };
+  }
   const top =
     below + cardHeight <= window.innerHeight - 16
       ? below
       : above >= 16
         ? above
         : Math.min(window.innerHeight - cardHeight - 16, Math.max(16, hole.top));
-  const left = Math.min(
-    window.innerWidth - cardWidth - 16,
-    Math.max(16, hole.left + hole.width / 2 - cardWidth / 2),
-  );
-  return { top, left };
+  return { top, left: centeredLeft };
 }
 
 export function OnboardingTour({
@@ -87,6 +112,26 @@ export function OnboardingTour({
     };
   }, [step.target]);
 
+  /*
+   * Figma's dashboard tour does not punch a transparent hole through the
+   * backdrop. It lifts the relevant dashboard region above a full-page
+   * dim/blur veil, then places the tour card above that region. Keeping the
+   * actual element (rather than a visual copy) means the highlighted content
+   * stays accurate for each product/dashboard state.
+   */
+  useEffect(() => {
+    if (!dashboard || !step.target) return;
+    const target = document.querySelector(`[data-tour="${step.target}"]`);
+    if (!(target instanceof HTMLElement)) return;
+
+    target.classList.add("is-tour-spotlight");
+    target.setAttribute("inert", "");
+    return () => {
+      target.classList.remove("is-tour-spotlight");
+      target.removeAttribute("inert");
+    };
+  }, [dashboard, step.target]);
+
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
       if (event.key === "Escape") onSkip();
@@ -96,72 +141,19 @@ export function OnboardingTour({
   }, [onSkip]);
 
   const last = stepIndex >= stepCount - 1;
-  const pad = 8;
-  const holeBox = hole
-    ? {
-        top: Math.max(0, hole.top - pad),
-        left: Math.max(0, hole.left - pad),
-        width: hole.width + pad * 2,
-        height: hole.height + pad * 2,
-      }
-    : null;
-
-  const { top: cardTop, left: cardLeft } = placeCard(hole, cardWidth, cardHeight);
+  const { top: cardTop, left: cardLeft } = placeCard(
+    hole,
+    cardWidth,
+    cardHeight,
+    step.placement,
+  );
   const progress = progressLabel(step.chrome, stepIndex, stepCount);
   const primaryLabel = primaryActionLabel(step.chrome, last);
   const showHeaderSkip = dashboard && stepIndex > 0;
 
-  const veil = holeBox
-    ? (() => {
-        const { top: t, left: l, width: w, height: h } = holeBox;
-        const right = l + w;
-        const bottom = t + h;
-        return (
-          <>
-            <button
-              type="button"
-              aria-label="Dismiss tour"
-              className="studio-tour__veil"
-              style={{ top: 0, left: 0, right: 0, height: t }}
-              onClick={onSkip}
-            />
-            <button
-              type="button"
-              aria-label="Dismiss tour"
-              className="studio-tour__veil"
-              style={{ top: bottom, left: 0, right: 0, bottom: 0 }}
-              onClick={onSkip}
-            />
-            <button
-              type="button"
-              aria-label="Dismiss tour"
-              className="studio-tour__veil"
-              style={{ top: t, left: 0, width: l, height: h }}
-              onClick={onSkip}
-            />
-            <button
-              type="button"
-              aria-label="Dismiss tour"
-              className="studio-tour__veil"
-              style={{ top: t, left: right, right: 0, height: h }}
-              onClick={onSkip}
-            />
-            <div className="studio-tour__hole" style={holeBox} aria-hidden />
-          </>
-        );
-      })()
-    : (
-        <button
-          type="button"
-          aria-label="Dismiss tour"
-          className="studio-tour__veil studio-tour__veil--full"
-          onClick={onSkip}
-        />
-      );
-
   return (
     <div className="studio-tour" role="dialog" aria-modal="true" aria-label="Onboarding tour">
-      {veil}
+      <div className="studio-tour__veil" aria-hidden />
       {dashboard ? (
         <div
           className="studio-tour__stack"

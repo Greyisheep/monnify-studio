@@ -5,6 +5,7 @@
 export type TourPath = "business" | "developer";
 
 export type TourChrome = "dashboard" | "hover";
+export type TourPlacement = "auto" | "center" | "above" | "below" | "right";
 
 export interface TourStep {
   id: string;
@@ -13,6 +14,8 @@ export interface TourStep {
   title: string;
   body: string;
   chrome: TourChrome;
+  /** Figma-specified placement of the independent tour card. */
+  placement?: TourPlacement;
   /** Optional preview image inside the dashboard card (Figma media slot). */
   imageSrc?: string;
 }
@@ -20,10 +23,11 @@ export interface TourStep {
 export const BUSINESS_TOUR_STEPS: TourStep[] = [
   {
     id: "welcome",
-    target: "biz-main",
+    target: "",
     title: "Welcome to Monnify Studio",
     body: "Quick tour of your dashboard, it only takes a minute.",
     chrome: "dashboard",
+    placement: "center",
     imageSrc: "/figma/tour/tour-step-1.png",
   },
   {
@@ -32,6 +36,7 @@ export const BUSINESS_TOUR_STEPS: TourStep[] = [
     title: "Your money at a glance",
     body: "Total inflow, total outflow, net profit, and anything that needs your attention, all in one row.",
     chrome: "dashboard",
+    placement: "below",
     imageSrc: "/figma/tour/tour-step-2.png",
   },
   {
@@ -40,6 +45,7 @@ export const BUSINESS_TOUR_STEPS: TourStep[] = [
     title: "The right tool for business",
     body: "This changes based on what you set up, share your shop link, send an invoice, or pay your staff.",
     chrome: "dashboard",
+    placement: "below",
     imageSrc: "/figma/tour/tour-step-3.png",
   },
   {
@@ -48,6 +54,7 @@ export const BUSINESS_TOUR_STEPS: TourStep[] = [
     title: "What’s been happening",
     body: "A summary of your recent payments and payouts at a quick glance.",
     chrome: "dashboard",
+    placement: "above",
     imageSrc: "/figma/tour/tour-step-4.png",
   },
   {
@@ -56,6 +63,7 @@ export const BUSINESS_TOUR_STEPS: TourStep[] = [
     title: "Find any payment",
     body: "Search by name or reference, filter by type or status, and see every payment in detail.",
     chrome: "dashboard",
+    placement: "above",
     imageSrc: "/figma/tour/tour-step-5.png",
   },
   {
@@ -64,14 +72,16 @@ export const BUSINESS_TOUR_STEPS: TourStep[] = [
     title: "Get around easily",
     body: "New starts something fresh, Dashboard is home, and Workflow is for the technical side",
     chrome: "dashboard",
+    placement: "right",
     imageSrc: "/figma/tour/tour-step-6.png",
   },
   {
     id: "done",
-    target: "biz-main",
+    target: "",
     title: "You’re all set",
     body: "That is everything you need to know about monnify studio.",
     chrome: "dashboard",
+    placement: "center",
     imageSrc: "/figma/tour/tour-step-7.png",
   },
 ];
