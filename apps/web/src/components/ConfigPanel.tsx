@@ -11,6 +11,7 @@ export interface ConfigPanelProps {
   node: IrNode | null;
   meta: NodeMeta | undefined;
   selectedFinding: Finding | null;
+  findings?: Finding[];
   onChange: (node: IrNode) => void;
   onClose: () => void;
 }
@@ -43,6 +44,7 @@ export function ConfigPanel({
   node,
   meta,
   selectedFinding,
+  findings = [],
   onChange,
   onClose,
 }: ConfigPanelProps) {
@@ -59,6 +61,59 @@ export function ConfigPanel({
         ? saved
         : (meta?.request_template ?? {});
     return JSON.stringify(body, null, 2);
+  }
+
+  function requestBody(): Record<string, unknown> {
+    const saved = node?.config?.request_body;
+    if (saved && typeof saved === "object" && !Array.isArray(saved)) {
+      return saved as Record<string, unknown>;
+    }
+    return { ...(meta?.request_template ?? {}) };
+  }
+
+  function updateRequestField(key: string, value: unknown) {
+    if (!node) return;
+    onChange({
+      ...node,
+      config: {
+        ...node.config,
+        request_body: { ...requestBody(), [key]: value },
+      },
+    });
+  }
+
+  function updateDeclaredOutput(
+    previousKey: string | null,
+    key: string,
+    value: string,
+  ) {
+    if (!node || !key.trim()) return;
+    const outputs = {
+      ...((node.config?.outputs as Record<string, unknown> | undefined) ?? {}),
+    };
+    if (previousKey && previousKey !== key) delete outputs[previousKey];
+    outputs[key] = value;
+    onChange({ ...node, config: { ...node.config, outputs } });
+  }
+
+  function removeDeclaredOutput(key: string) {
+    if (!node) return;
+    const outputs = {
+      ...((node.config?.outputs as Record<string, unknown> | undefined) ?? {}),
+    };
+    delete outputs[key];
+    onChange({ ...node, config: { ...node.config, outputs } });
+  }
+
+  function addDeclaredOutput() {
+    const outputs = (node?.config?.outputs as Record<string, unknown> | undefined) ?? {};
+    let index = 1;
+    let key = "result";
+    while (key in outputs) {
+      index += 1;
+      key = `result_${index}`;
+    }
+    updateDeclaredOutput(null, key, "");
   }
 
   useEffect(() => {
@@ -176,32 +231,49 @@ export function ConfigPanel({
                   }
                 />
               </label>
-              <label>
-                Declared outputs (JSON object)
-                <textarea
-                  className="json-editor"
-                  rows={4}
-                  spellCheck={false}
-                  value={JSON.stringify(node.config?.outputs ?? {}, null, 2)}
-                  onChange={(event: ChangeEvent<HTMLTextAreaElement>) => {
-                    try {
-                      const parsed = JSON.parse(event.target.value) as unknown;
-                      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-                        onChange({
-                          ...node,
-                          config: {
-                            ...node.config,
-                            outputs: parsed as Record<string, unknown>,
-                          },
-                        });
-                        setJsonError(null);
+              <div className="studio-code-block__outputs">
+                <div>
+                  <h4>Declared outputs</h4>
+                  <p className="muted">
+                    Name the values this block exposes to later steps.
+                  </p>
+                </div>
+                {Object.entries(
+                  (node.config?.outputs as Record<string, unknown> | undefined) ?? {},
+                ).map(([key, value]) => (
+                  <div className="studio-code-block__output" key={key}>
+                    <input
+                      aria-label="Output name"
+                      defaultValue={key}
+                      onBlur={(event) =>
+                        updateDeclaredOutput(key, event.target.value, String(value))
                       }
-                    } catch {
-                      setJsonError("Outputs must be a JSON object");
-                    }
-                  }}
-                />
-              </label>
+                    />
+                    <input
+                      aria-label={`Value for ${key}`}
+                      value={String(value)}
+                      onChange={(event) =>
+                        updateDeclaredOutput(key, key, event.target.value)
+                      }
+                    />
+                    <button
+                      type="button"
+                      className="ghost-btn"
+                      aria-label={`Remove ${key}`}
+                      onClick={() => removeDeclaredOutput(key)}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  className="ghost-btn"
+                  onClick={addDeclaredOutput}
+                >
+                  Add output
+                </button>
+              </div>
             </>
           ) : null}
           {meta?.description && <p className="muted">{meta.description}</p>}
@@ -228,9 +300,56 @@ export function ConfigPanel({
         </div>
       ) : mode === "request" ? (
         <div className="studio-config__body">
-          <p className="muted">
-            {meta?.method} {meta?.path}
-          </p>
+          <div className="studio-request__context">
+            <code>
+              {meta?.method} {meta?.path}
+            </code>
+            {meta?.when_to_use ? <p>{meta.when_to_use}</p> : null}
+            {meta?.doc_url ? (
+              <a href={meta.doc_url} target="_blank" rel="noreferrer">
+                Read Monnify docs
+              </a>
+            ) : null}
+          </div>
+          <div className="studio-request__fields">
+            {Object.entries(requestBody()).flatMap(([key, value]) => {
+              if (
+                typeof value !== "string" &&
+                typeof value !== "number" &&
+                typeof value !== "boolean"
+              ) {
+                return [];
+              }
+              return (
+                <label key={key}>
+                  {key}
+                  {typeof value === "boolean" ? (
+                    <input
+                      type="checkbox"
+                      checked={value}
+                      onChange={(event) =>
+                        updateRequestField(key, event.target.checked)
+                      }
+                    />
+                  ) : (
+                    <input
+                      type={typeof value === "number" ? "number" : "text"}
+                      value={String(value)}
+                      onChange={(event) =>
+                        updateRequestField(
+                          key,
+                          typeof value === "number"
+                            ? Number(event.target.value)
+                            : event.target.value,
+                        )
+                      }
+                    />
+                  )}
+                </label>
+              );
+            })}
+          </div>
+          <p className="muted">Advanced JSON request body</p>
           <textarea
             className="json-editor"
             value={jsonDraft}
@@ -273,6 +392,20 @@ export function ConfigPanel({
           >
             Apply request body
           </button>
+          <div className="studio-request__guardrail">
+            <h3>Safety review</h3>
+            {findings.length > 0 ? (
+              <ul>
+                {findings.map((finding, index) => (
+                  <li key={`${finding.rule_id}-${index}`}>
+                    <strong>[{finding.rule_id}]</strong> {finding.title}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p>No architectural findings. Ship it.</p>
+            )}
+          </div>
         </div>
       ) : (
         <div className="studio-config__body">
