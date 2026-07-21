@@ -70,6 +70,7 @@ from monnify_studio.executor import (
     ExecutionRun,
     MockAdapter,
     RunStatus,
+    SandboxAdapter,
     execution_store,
     run_workflow,
 )
@@ -1324,20 +1325,28 @@ def start_execution(body: StartExecutionRequest) -> StartExecutionResponse:
     MockAdapter is the default so #28 can consume a complete stream without
     sandbox credentials (D11).
     """
-    if not settings.allow_production_execution and body.adapter == "monnify":
-        raise HTTPException(
-            status_code=403,
-            detail="production/sandbox adapter disabled (ALLOW_PRODUCTION_EXECUTION=false)",
-        )
-    if body.adapter != "mock":
+    if body.adapter not in ("mock", "monnify"):
         raise HTTPException(status_code=400, detail=f"unknown adapter: {body.adapter}")
 
     with correlation(request_id=new_id("exec")):
-        run = run_workflow(body.workflow, adapter=MockAdapter())
+        if body.adapter == "monnify":
+            # Run against the REAL sandbox (#9): a 200 is not correctness, so let
+            # the canvas show provider truth. Credential-aware per workflow (D19).
+            resolved = credential_store.settings_for(body.workflow.id)
+            try:
+                resolved.assert_sandbox()  # sandbox-pinned; never prod in the challenge
+                resolved.assert_monnify_credentials()
+            except RuntimeError as exc:
+                raise HTTPException(status_code=422, detail=str(exc)) from None
+            with SandboxAdapter(resolved) as adapter:
+                run = run_workflow(body.workflow, adapter=adapter)
+        else:
+            run = run_workflow(body.workflow, adapter=MockAdapter())
         events = execution_store.list_events(run.id)
         log.info(
             "api.execution.started",
             run_id=run.id,
+            adapter=body.adapter,
             status=run.status.value,
             events=len(events),
         )

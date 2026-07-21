@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
+import monnify_studio.api.main as api_main
 from monnify_studio.api.main import app
 from monnify_studio.executor import (
     ExecutionEventType,
@@ -116,10 +117,19 @@ def test_sse_stream_replays_trace():
     assert "event: done" in body
 
 
-def test_monnify_adapter_blocked_without_flag():
+def test_monnify_adapter_requires_credentials(monkeypatch):
+    """The sandbox-run adapter is available (sandbox-pinned) but refuses to run
+    without Monnify credentials, with a clear 422 rather than a fake trace (#9)."""
+    from monnify_studio.config import Settings
+
+    empty = Settings(monnify_api_key="", monnify_secret_key="", monnify_contract_code="")
+    monkeypatch.setattr(
+        api_main.credential_store, "settings_for", lambda _wid: empty
+    )
     workflow = client.get("/workflows/marketplace-unsafe").json()["workflow"]
     res = client.post("/executions", json={"workflow": workflow, "adapter": "monnify"})
-    assert res.status_code == 403
+    assert res.status_code == 422
+    assert "credential" in res.json()["detail"].lower()
 
 
 def test_unknown_adapter_is_400():
