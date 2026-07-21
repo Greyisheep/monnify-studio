@@ -51,6 +51,7 @@ import { OnboardingTour } from "./OnboardingTour";
 import { PathGate } from "./PathGate";
 import { ProductsStep } from "./ProductsStep";
 import { RightSidebar } from "./RightSidebar";
+import { RunSettingsPanel } from "./RunSettingsPanel";
 import { StudioFloatingChrome } from "./StudioFloatingChrome";
 import { StudioIconRail } from "./StudioIconRail";
 import { TemplatePicker } from "./TemplatePicker";
@@ -58,6 +59,7 @@ import { TracePanel } from "./TracePanel";
 import { WorkflowCanvas } from "./WorkflowCanvas";
 import type {
   BusinessGoal,
+  ExecutionAdapter,
   ShopProduct,
   StudioPath,
   StudioProfile,
@@ -80,7 +82,9 @@ function CanvasInner() {
   const [leftTab, setLeftTab] = useState<"api" | "chat">("api");
   /** Both sidebars hidden — Figma Maincollapsed (21:1732). */
   const [panelsCollapsed, setPanelsCollapsed] = useState(false);
-  const [rightTab, setRightTab] = useState<"preview" | "code">("preview");
+  const [rightTab, setRightTab] = useState<
+    "preview" | "code" | "review" | "settings"
+  >("preview");
   /** Code tab format (#152): JSON from canvas IR; Python from GET /workflows/{id}/code. */
   const [codeFormat, setCodeFormat] = useState<"json" | "python">("json");
   const [pythonFilename, setPythonFilename] = useState<string | null>(null);
@@ -103,6 +107,8 @@ function CanvasInner() {
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [explainBusy, setExplainBusy] = useState(false);
   const [explainNote, setExplainNote] = useState<string | null>(null);
+  const [executionAdapter, setExecutionAdapter] =
+    useState<ExecutionAdapter>("mock");
 
   const session = useStudioSession({ setNodes, setEdges });
   const sidebars = useSidebarWidths();
@@ -903,17 +909,25 @@ function CanvasInner() {
             running={trace.running}
             canAct={!!currentIr}
             busy={session.busy}
+            executionAdapter={executionAdapter}
             onRun={() => {
               if (!currentIr) return;
               setRightTab("preview");
-              void trace.runWorkflow(currentIr);
+              void trace.runWorkflow(currentIr, executionAdapter);
             }}
             onDeploy={() => undefined}
             deployDisabled
             deployTitle="Coming soon"
             onResizeStart={(event) => sidebars.beginResize("right", event)}
           >
-            {selectedIrNode?.type === "custom.code" && rightTab === "code" ? (
+            {rightTab === "settings" ? (
+              <RunSettingsPanel
+                adapter={executionAdapter}
+                workflowId={session.activeWorkflowId}
+                busy={session.busy || trace.running}
+                onAdapterChange={setExecutionAdapter}
+              />
+            ) : selectedIrNode?.type === "custom.code" && rightTab === "code" ? (
               <ConfigPanel
                 node={selectedIrNode}
                 meta={
@@ -1009,7 +1023,7 @@ function CanvasInner() {
                 if (!currentIr) return;
                 setPanelsCollapsed(false);
                 setRightTab("preview");
-                void trace.runWorkflow(currentIr);
+                void trace.runWorkflow(currentIr, executionAdapter);
               }}
               onDeploy={() => undefined}
               deployDisabled

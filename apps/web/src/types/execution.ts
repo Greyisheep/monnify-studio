@@ -10,6 +10,9 @@ export type RunStatus =
   | "completed"
   | "failed";
 
+/** Backed by the API's mock and sandbox-only Monnify adapters. */
+export type ExecutionAdapter = "mock" | "monnify";
+
 export type ExecutionEventType =
   | "run.started"
   | "run.completed"
@@ -42,7 +45,7 @@ export interface ExecutionEvent {
 export interface ExecutionRun {
   id: string;
   workflow_id: string;
-  adapter: string;
+  adapter: ExecutionAdapter;
   status: RunStatus;
   created_at: string;
   finished_at?: string | null;

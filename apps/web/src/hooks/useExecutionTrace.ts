@@ -10,7 +10,12 @@ import {
   startExecution,
   streamExecutionEvents,
 } from "@/lib/api";
-import type { ExecutionEvent, ExecutionRun, Workflow } from "@/types";
+import type {
+  ExecutionAdapter,
+  ExecutionEvent,
+  ExecutionRun,
+  Workflow,
+} from "@/types";
 
 export interface UseExecutionTraceResult {
   run: ExecutionRun | null;
@@ -19,7 +24,7 @@ export interface UseExecutionTraceResult {
   running: boolean;
   error: string | null;
   setSelectedSeq: (seq: number | null) => void;
-  runWorkflow: (workflow: Workflow) => Promise<void>;
+  runWorkflow: (workflow: Workflow, adapter: ExecutionAdapter) => Promise<void>;
   clear: () => void;
 }
 
@@ -41,7 +46,7 @@ export function useExecutionTrace(): UseExecutionTraceResult {
     setRunning(false);
   }, []);
 
-  const runWorkflow = useCallback(async (workflow: Workflow) => {
+  const runWorkflow = useCallback(async (workflow: Workflow, adapter: ExecutionAdapter) => {
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
@@ -53,7 +58,7 @@ export function useExecutionTrace(): UseExecutionTraceResult {
     setRun(null);
 
     try {
-      const started = await startExecution(workflow, "mock");
+      const started = await startExecution(workflow, adapter);
       if (controller.signal.aborted) return;
       setRun(started.run);
 
