@@ -35,6 +35,8 @@ export interface StudioProfile {
   step: OnboardingStep;
   goal: BusinessGoal | null;
   products: ShopProduct[];
+  /** Active Flow for Dashboard rehydration after reload (#169). */
+  workflow_id?: string | null;
 }
 
 export interface StudioProfileUpdate {
@@ -42,4 +44,5 @@ export interface StudioProfileUpdate {
   step?: OnboardingStep;
   goal?: BusinessGoal | null;
   products?: ShopProduct[];
+  workflow_id?: string | null;
 }

@@ -10,6 +10,7 @@ import type {
   CredentialStatus,
   ExecutionEvent,
   ExecutionRun,
+  ExplainResult,
   GenerateArtifactResult,
   GeneratedCode,
   IntentResult,
@@ -242,6 +243,15 @@ export async function composeWorkflow(message: string): Promise<ComposeResult> {
   return postJson<ComposeResult>("/assistant/compose", { message });
 }
 
+/** Doc-grounded Why? answers (#76 / D20). */
+export async function explainAssistant(body: {
+  question: string;
+  node_type?: string | null;
+  workflow_id?: string | null;
+}): Promise<ExplainResult> {
+  return postJson<ExplainResult>("/assistant/explain", body);
+}
+
 /** Revise an existing canvas flow without changing its workflow id (#154). */
 export async function refineWorkflow(
   workflowId: string,
@@ -325,6 +335,15 @@ export async function putAjoMembers(
   members: Array<{ name: string; whatsapp?: string }>,
 ): Promise<AjoStateDto> {
   return putJson<AjoStateDto>(`/preview/${artifactId}/ajo/members`, { members });
+}
+
+/** DEMO ONLY (#173): advance the pool without a real payment so the rotation
+ *  and WhatsApp nudges can be shown end to end. Never touches money_in. */
+export async function simulateAjoContribution(
+  artifactId: string,
+  member = "",
+): Promise<AjoStateDto & { simulated?: { member: string; amount: string } }> {
+  return postJson(`/preview/${artifactId}/ajo/simulate-contribution`, { member });
 }
 
 export async function fetchStudioProfile(): Promise<StudioProfile | null> {

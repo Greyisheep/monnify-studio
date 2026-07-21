@@ -448,7 +448,7 @@ export function BusinessDashboard({
             <BizIcon name="collapse" />
           </button>
         </div>
-        <nav className="biz-sidebar__nav" aria-label="Business menu">
+        <nav className="biz-sidebar__nav" aria-label="Business menu" data-tour="biz-nav">
           <button type="button" className="biz-sidebar__new" onClick={onNew}>
             <BizIcon name="new" />
             {!collapsed && <span>New</span>}
@@ -498,7 +498,7 @@ export function BusinessDashboard({
         </div>
       </aside>
 
-      <main className="biz-main">
+      <main className="biz-main" data-tour="biz-main">
         <header className="biz-main__head">
           <h1>Dashboard</h1>
           <div className="biz-main__actions">
@@ -533,7 +533,7 @@ export function BusinessDashboard({
           </div>
         </header>
 
-        <section className="biz-overview" aria-label="Overview">
+        <section className="biz-overview" aria-label="Overview" data-tour="biz-overview">
           <h2>Overview</h2>
           <div className="biz-overview__grid">
             <article>
@@ -555,10 +555,12 @@ export function BusinessDashboard({
           </div>
         </section>
 
+        <div className="biz-tools" data-tour="biz-tools">
         <div
           className="biz-product-tabs"
           role="tablist"
           aria-label="Products"
+          data-tour="biz-products"
         >
           {PRODUCT_TABS.map((tab) => (
             <button
@@ -574,7 +576,11 @@ export function BusinessDashboard({
           ))}
         </div>
 
-        <section className="biz-product-panel" aria-label={PRODUCT_TABS.find((t) => t.id === productTab)?.label}>
+        <section
+          className="biz-product-panel"
+          aria-label={PRODUCT_TABS.find((t) => t.id === productTab)?.label}
+          data-tour="biz-shop-link"
+        >
           {productTab === "sell" && (
             <>
               <header className="biz-product-panel__head">
@@ -733,8 +739,9 @@ export function BusinessDashboard({
             </>
           )}
         </section>
+        </div>
 
-        <section className="biz-activity" aria-label="Activity">
+        <section className="biz-activity" aria-label="Activity" data-tour="biz-activity">
           <header className="biz-activity__head">
             <div>
               <h2>Activity</h2>
@@ -773,7 +780,7 @@ export function BusinessDashboard({
           )}
         </section>
 
-        <section className="biz-table-card" aria-label="Recent transaction">
+        <section className="biz-table-card" aria-label="Recent transaction" data-tour="biz-transactions">
           <div className="biz-table-card__title">Recent transaction</div>
           <div className="biz-table-card__header">
             <div className="biz-table-card__controls">

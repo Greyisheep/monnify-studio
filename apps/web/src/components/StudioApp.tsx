@@ -17,6 +17,7 @@ import type {
   StudioNodeData,
 } from "@/types";
 import { useExecutionTrace } from "@/hooks/useExecutionTrace";
+import { useOnboardingTour } from "@/hooks/useOnboardingTour";
 import { useSidebarWidths } from "@/hooks/useSidebarWidths";
 import { useStudioGraph } from "@/hooks/useStudioGraph";
 import { useStudioSession } from "@/hooks/useStudioSession";
@@ -26,8 +27,10 @@ import {
   withNodeHighlights,
 } from "@/lib/findings";
 import { flowToWorkflow } from "@/lib/flowIo";
+import { latestRunIoByNode } from "@/lib/runIo";
 import {
   absoluteApiUrl,
+  explainAssistant,
   fetchStudioProfile,
   fetchWorkflowCode,
   fetchWorkflowDashboard,
@@ -40,9 +43,11 @@ import {
   type BusinessNav,
   type DashboardTxn,
 } from "./BusinessDashboard";
+import { ConfigPanel } from "./ConfigPanel";
 import { InspectDocumentPanel } from "./InspectDocumentPanel";
 import { NodePalette } from "./NodePalette";
 import { OnboardingChrome } from "./OnboardingChrome";
+import { OnboardingTour } from "./OnboardingTour";
 import { PathGate } from "./PathGate";
 import { ProductsStep } from "./ProductsStep";
 import { RightSidebar } from "./RightSidebar";
@@ -57,6 +62,8 @@ import type {
   StudioPath,
   StudioProfile,
 } from "@/types";
+
+const HERO_WORKFLOW_IDS = new Set(["marketplace-unsafe", "marketplace-safe"]);
 
 /** Template choice decides products vs dashboard (shop path only adds products). */
 function goalFromTemplate(templateId: string): BusinessGoal {
@@ -94,6 +101,8 @@ function CanvasInner() {
     artifactId: string | null;
   } | null>(null);
   const [templatesOpen, setTemplatesOpen] = useState(false);
+  const [explainBusy, setExplainBusy] = useState(false);
+  const [explainNote, setExplainNote] = useState<string | null>(null);
 
   const session = useStudioSession({ setNodes, setEdges });
   const sidebars = useSidebarWidths();
@@ -124,6 +133,7 @@ function CanvasInner() {
             step: "user_type",
             goal: null,
             products: [],
+            workflow_id: null,
           });
           setProfileError(
             "Cannot reach the Studio API. Keep the backend running on port 8010, then refresh.",
@@ -156,6 +166,7 @@ function CanvasInner() {
             step: "user_type",
             goal: null,
             products: [],
+            workflow_id: null,
           });
           setProfileError(
             "Cannot reach the Studio API. Keep the backend running on port 8010, then refresh.",
@@ -191,10 +202,16 @@ function CanvasInner() {
     return fromFinding;
   }, [selectedFinding, selectedTraceEvent]);
 
-  const displayNodes = useMemo(
-    () => withNodeHighlights(nodes, highlightIds),
-    [nodes, highlightIds],
-  );
+  const displayNodes = useMemo(() => {
+    const highlighted = withNodeHighlights(nodes, highlightIds);
+    const runIo = latestRunIoByNode(trace.events);
+    if (Object.keys(runIo).length === 0) return highlighted;
+    return highlighted.map((node) => {
+      const io = runIo[node.id];
+      if (!io) return { ...node, data: { ...node.data, runIo: null } };
+      return { ...node, data: { ...node.data, runIo: io } };
+    });
+  }, [nodes, highlightIds, trace.events]);
   const displayEdges = useMemo(
     () => withEdgeHighlights(edges, selectedFinding),
     [edges, selectedFinding],
@@ -214,7 +231,7 @@ function CanvasInner() {
   }, [session.selectedFindingIndex]);
 
   useEffect(() => {
-    if (selectedIrNode) {
+    if (selectedIrNode?.id) {
       setRightTab("code");
     }
   }, [selectedIrNode?.id]);
@@ -379,21 +396,29 @@ function CanvasInner() {
       }
 
       try {
-        await session.setupFromIntent(templateId, {});
+        const setup = await session.setupFromIntent(templateId, {});
+        const next = await putStudioProfile({
+          path: "business",
+          goal,
+          step: "dashboard",
+          products: profile?.products ?? [],
+          workflow_id: setup.workflowId,
+        });
+        setProfile(next);
+        setBusinessNav("dashboard");
       } catch (error) {
         session.setTypeError(
           error instanceof Error ? error.message : "Could not set up template",
         );
+        const next = await putStudioProfile({
+          path: "business",
+          goal,
+          step: "dashboard",
+          products: profile?.products ?? [],
+        });
+        setProfile(next);
+        setBusinessNav("dashboard");
       }
-
-      const next = await putStudioProfile({
-        path: "business",
-        goal,
-        step: "dashboard",
-        products: profile?.products ?? [],
-      });
-      setProfile(next);
-      setBusinessNav("dashboard");
     } finally {
       setProfileBusy(false);
     }
@@ -494,11 +519,18 @@ function CanvasInner() {
           ? Number(first.price_ngn)
           : NaN;
       try {
-        await session.setupFromIntent("sell-online", {
+        const setup = await session.setupFromIntent("sell-online", {
           business_name: "My Business",
           ...(first?.name ? { product_name: first.name } : {}),
           ...(Number.isNaN(priceNum) ? {} : { price_ngn: priceNum }),
         });
+        const linked = await putStudioProfile({
+          workflow_id: setup.workflowId,
+          step: "dashboard",
+          path: "business",
+          goal: profile?.goal ?? "sell",
+        });
+        setProfile(linked);
       } catch (setupError) {
         session.setTypeError(
           setupError instanceof Error
@@ -569,6 +601,85 @@ function CanvasInner() {
     profile?.path === "business" &&
     (profile.step === "dashboard" ||
       (profile.step === "done" && businessNav === "dashboard"));
+
+  // #169: restore the business Flow after cold reload (profile.workflow_id, else heuristic).
+  useEffect(() => {
+    if (!profileReady || !session.ready || session.workflow || session.loading) {
+      return;
+    }
+    if (profile?.path !== "business") return;
+    if (profile.step !== "dashboard" && profile.step !== "done") return;
+
+    const preferred = profile.workflow_id?.trim() || null;
+    const fallback = session.workflows.find(
+      (w) => !HERO_WORKFLOW_IDS.has(w.id),
+    )?.id;
+    const id = preferred || fallback || null;
+    if (!id) return;
+    const openWorkflow = session.openWorkflow;
+    void openWorkflow(id).then(() => {
+      if (preferred) return;
+      void putStudioProfile({ workflow_id: id }).then((next) => setProfile(next));
+    });
+  }, [
+    profileReady,
+    profile?.path,
+    profile?.step,
+    profile?.workflow_id,
+    session.ready,
+    session.workflow,
+    session.loading,
+    session.workflows,
+    session.openWorkflow,
+  ]);
+
+  const tourPath =
+    showOnboarding || templatesOpen
+      ? null
+      : showBusinessDashboard
+        ? ("business" as const)
+        : profile?.path === "developer" && profile.step === "done"
+          ? ("developer" as const)
+          : null;
+  // Business tour matches Figma filled dashboard: wait until the owner has
+  // products (shop/data) so highlighted regions match the designed surface.
+  const businessTourReady =
+    tourPath === "business" && (profile?.products?.length ?? 0) > 0;
+  const developerTourReady = tourPath === "developer";
+  const tour = useOnboardingTour({
+    path: tourPath,
+    ready:
+      Boolean(tourPath) &&
+      profileReady &&
+      session.ready &&
+      (tourPath === "business" ? businessTourReady : developerTourReady),
+  });
+
+  async function askWhySelectedNode() {
+    if (!selectedIrNode) return;
+    setExplainBusy(true);
+    setExplainNote(null);
+    setLeftTab("chat");
+    try {
+      const result = await explainAssistant({
+        question: `Why does this Block matter in a payment flow? Explain simply.`,
+        node_type: selectedIrNode.type,
+        workflow_id: session.activeWorkflowId,
+      });
+      const sources =
+        result.sources?.length > 0
+          ? `\n\nSources:\n${result.sources.map((s) => `- ${s.title}: ${s.url}`).join("\n")}`
+          : "";
+      setExplainNote(`${result.answer}${sources}`);
+      session.setDiffNote("Moni answered Why? — see the note under Preview.");
+    } catch (error) {
+      setExplainNote(
+        error instanceof Error ? error.message : "Could not reach Moni explain.",
+      );
+    } finally {
+      setExplainBusy(false);
+    }
+  }
 
   // Feed the Dashboard real money: totals, invoices, activity, and the shop link
   // for this business's workflow (#135). Polls so a payment shows up live.
@@ -661,6 +772,7 @@ function CanvasInner() {
               step: "user_type",
               goal: null,
               products: [],
+              workflow_id: null,
             }).then((next) => {
               setProfile(next);
               setBusinessNav("dashboard");
@@ -676,6 +788,16 @@ function CanvasInner() {
           onPick={(templateId) => void handleTemplatePick(templateId)}
           onOther={() => void handleTemplateOther()}
         />
+        {tour.active && tour.step ? (
+          <OnboardingTour
+            step={tour.step}
+            stepIndex={tour.stepIndex}
+            stepCount={tour.stepCount}
+            onNext={tour.next}
+            onBack={tour.back}
+            onSkip={tour.skip}
+          />
+        ) : null}
       </>
     );
   }
@@ -774,7 +896,18 @@ function CanvasInner() {
             deployTitle="Coming soon"
             onResizeStart={(event) => sidebars.beginResize("right", event)}
           >
-            {rightTab === "code" ? (
+            {selectedIrNode?.type === "custom.code" && rightTab === "code" ? (
+              <ConfigPanel
+                node={selectedIrNode}
+                meta={
+                  session.nodeTypesMeta[selectedIrNode.type] ??
+                  session.catalog[selectedIrNode.type]
+                }
+                selectedFinding={selectedFinding}
+                onChange={(nextNode) => graph.updateSelectedNode(nextNode)}
+                onClose={() => session.setSelectedNodeId(null)}
+              />
+            ) : rightTab === "code" ? (
               <InspectDocumentPanel
                 formatLabel="JSON"
                 formats={[
@@ -816,11 +949,31 @@ function CanvasInner() {
                 onClose={trace.clear}
               />
             ) : (
-              <InspectDocumentPanel
-                formatLabel="Markdown"
-                content={previewMarkdown}
-                emptyHint="Preview will show a markdown summary of the flow."
-              />
+              <div className="studio-preview-stack">
+                {selectedIrNode ? (
+                  <div className="studio-why-bar">
+                    <button
+                      type="button"
+                      className="studio-btn studio-btn--ghost"
+                      disabled={explainBusy || session.busy}
+                      onClick={() => void askWhySelectedNode()}
+                    >
+                      {explainBusy ? "Asking Moni…" : "Why?"}
+                    </button>
+                    <span className="muted">
+                      Ask Moni why “{selectedIrNode.label || selectedIrNode.type}” is here
+                    </span>
+                  </div>
+                ) : null}
+                {explainNote ? (
+                  <pre className="studio-explain-note">{explainNote}</pre>
+                ) : null}
+                <InspectDocumentPanel
+                  formatLabel="Markdown"
+                  content={previewMarkdown}
+                  emptyHint="Preview will show a markdown summary of the flow."
+                />
+              </div>
             )}
           </RightSidebar>
         </div>
@@ -874,6 +1027,7 @@ function CanvasInner() {
             onConnect={graph.onConnect}
             onSelectionChange={graph.onSelectionChange}
             onGraphDirty={() => session.setDirty(true)}
+            onDropNode={(typeKey, flow) => graph.addNode(typeKey, flow)}
           />
         </div>
       </main>
@@ -887,6 +1041,16 @@ function CanvasInner() {
         onPick={(templateId) => void handleTemplatePick(templateId)}
         onOther={() => void handleTemplateOther()}
       />
+      {tour.active && tour.step ? (
+        <OnboardingTour
+          step={tour.step}
+          stepIndex={tour.stepIndex}
+          stepCount={tour.stepCount}
+          onNext={tour.next}
+          onBack={tour.back}
+          onSkip={tour.skip}
+        />
+      ) : null}
     </div>
   );
 }

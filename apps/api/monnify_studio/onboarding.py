@@ -55,6 +55,8 @@ class StudioProfile(BaseModel):
     step: OnboardingStep = "user_type"
     goal: Optional[BusinessGoal] = None
     products: list[ShopProduct] = Field(default_factory=list)
+    # Durable link so business Dashboard rehydrates after cold reload (#169).
+    workflow_id: Optional[str] = None
 
 
 class StudioProfileUpdate(BaseModel):
@@ -62,6 +64,7 @@ class StudioProfileUpdate(BaseModel):
     step: Optional[OnboardingStep] = None
     goal: Optional[BusinessGoal] = None
     products: list[ShopProduct] | None = None
+    workflow_id: Optional[str] = None
 
 
 class ProfileStore:
@@ -92,6 +95,8 @@ class ProfileStore:
             data["goal"] = dumped["goal"]
         if "products" in dumped and dumped["products"] is not None:
             data["products"] = dumped["products"]
+        if "workflow_id" in dumped:
+            data["workflow_id"] = dumped["workflow_id"]
         updated = StudioProfile.model_validate(data)
         self._by_session[session_id] = updated
         log.info(
