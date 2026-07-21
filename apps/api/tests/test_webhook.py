@@ -13,7 +13,6 @@ import json
 
 from fastapi.testclient import TestClient
 
-import monnify_studio.api.main as api_main
 from monnify_studio.api.main import app
 from monnify_studio.orders import orders_service
 
