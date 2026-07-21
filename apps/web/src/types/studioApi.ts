@@ -47,3 +47,10 @@ export interface GenerateArtifactResult {
   preview_url: string;
   dashboard_url: string;
 }
+
+/** GET /workflows/{id}/code (#146 / #152). */
+export interface GeneratedCode {
+  language: string;
+  filename: string;
+  code: string;
+}

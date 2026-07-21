@@ -29,8 +29,10 @@ import { flowToWorkflow } from "@/lib/flowIo";
 import {
   absoluteApiUrl,
   fetchStudioProfile,
+  fetchWorkflowCode,
   fetchWorkflowDashboard,
   putStudioProfile,
+  saveWorkflow,
 } from "@/lib/api";
 import {
   BusinessDashboard,
@@ -71,6 +73,12 @@ function CanvasInner() {
   /** Both sidebars hidden — Figma Maincollapsed (21:1732). */
   const [panelsCollapsed, setPanelsCollapsed] = useState(false);
   const [rightTab, setRightTab] = useState<"preview" | "code">("preview");
+  /** Code tab format (#152): JSON from canvas IR; Python from GET /workflows/{id}/code. */
+  const [codeFormat, setCodeFormat] = useState<"json" | "python">("json");
+  const [pythonFilename, setPythonFilename] = useState<string | null>(null);
+  const [pythonSource, setPythonSource] = useState("");
+  const [pythonBusy, setPythonBusy] = useState(false);
+  const [pythonError, setPythonError] = useState<string | null>(null);
   const [profile, setProfile] = useState<StudioProfile | null>(null);
   const [profileReady, setProfileReady] = useState(false);
   const [profileBusy, setProfileBusy] = useState(false);
@@ -213,11 +221,6 @@ function CanvasInner() {
     setRightTab("preview");
   }
 
-  function seedFromProducts(products: ShopProduct[]) {
-    if (!products[0]) return;
-    focusPreview();
-  }
-
   const previewMarkdown = useMemo(() => {
     const name = session.workflow?.name ?? "Untitled workflow";
     const findings = session.report?.findings?.length ?? 0;
@@ -258,6 +261,55 @@ function CanvasInner() {
     }
     return "";
   }, [currentIr, selectedIrNode]);
+
+  // Python Code tab: debounced save + codegen when Flow changes (#152).
+  useEffect(() => {
+    if (rightTab !== "code" || codeFormat !== "python") return;
+    if (!currentIr?.id) {
+      setPythonSource("");
+      setPythonFilename(null);
+      setPythonError(null);
+      return;
+    }
+
+    const controller = new AbortController();
+    const debounceMs = 400;
+    setPythonBusy(true);
+    setPythonError(null);
+
+    const debounceTimer = window.setTimeout(() => {
+      void (async () => {
+        try {
+          await saveWorkflow(currentIr);
+          if (controller.signal.aborted) return;
+          const generated = await fetchWorkflowCode(
+            currentIr.id,
+            "python",
+            controller.signal,
+          );
+          if (controller.signal.aborted) return;
+          setPythonSource(generated.code);
+          setPythonFilename(generated.filename);
+        } catch (error) {
+          if (controller.signal.aborted) return;
+          setPythonSource("");
+          setPythonFilename(null);
+          setPythonError(
+            error instanceof Error
+              ? error.message
+              : "Could not generate Python for this Flow.",
+          );
+        } finally {
+          if (!controller.signal.aborted) setPythonBusy(false);
+        }
+      })();
+    }, debounceMs);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(debounceTimer);
+    };
+  }, [rightTab, codeFormat, currentIr]);
 
   async function onPathContinue(path: StudioPath) {
     setProfileBusy(true);
@@ -300,30 +352,93 @@ function CanvasInner() {
     }
   }
 
-  /** Onboarding template pick: shop → products; everything else → dashboard (blank → Moni). */
-  async function onOnboardingTemplatePick(templateId: string) {
+  async function handleBusinessTemplatePick(templateId: string) {
     setProfileBusy(true);
+    setProfileError(null);
+    setTemplatesOpen(false);
     try {
       const goal = goalFromTemplate(templateId);
-      if (goal === "sell") {
-        const next = await putStudioProfile({ goal, step: "products" });
+      const inOnboarding =
+        profile?.step === "template" ||
+        profile?.step === "intent" ||
+        profile?.step === "user_type";
+
+      if (
+        goal === "sell" &&
+        (inOnboarding || !(profile?.products?.length))
+      ) {
+        const next = await putStudioProfile({
+          path: "business",
+          goal,
+          step: "products",
+        });
         setProfile(next);
         return;
       }
-      // Actually set up the flow + generate its artifact so the Dashboard has a
-      // real shop and money book to show (#135), not an empty shell.
-      await session.setupFromIntent(templateId, {});
+
+      try {
+        await session.setupFromIntent(templateId, {});
+      } catch (error) {
+        session.setTypeError(
+          error instanceof Error ? error.message : "Could not set up template",
+        );
+      }
+
       const next = await putStudioProfile({
+        path: "business",
         goal,
         step: "dashboard",
-        products: [],
+        products: profile?.products ?? [],
       });
       setProfile(next);
       setBusinessNav("dashboard");
+    } finally {
+      setProfileBusy(false);
+    }
+  }
+
+  async function handleDeveloperTemplatePick(templateId: string) {
+    setTemplatesOpen(false);
+    setProfileBusy(true);
+    try {
+      await session.startFromTemplate(templateId);
+      await markOnboardingDone();
+      setLeftTab("api");
+      focusPreview();
     } catch (error) {
       session.setTypeError(
-        error instanceof Error ? error.message : "Could not save template choice",
+        error instanceof Error ? error.message : "Template failed",
       );
+    } finally {
+      setProfileBusy(false);
+    }
+  }
+
+  async function handleTemplatePick(templateId: string) {
+    if (
+      profile?.path === "business" ||
+      profile?.step === "template" ||
+      profile?.step === "intent" ||
+      profile?.step === "products"
+    ) {
+      await handleBusinessTemplatePick(templateId);
+      return;
+    }
+    await handleDeveloperTemplatePick(templateId);
+  }
+
+  async function handleTemplateOther() {
+    setTemplatesOpen(false);
+    if (profile?.path === "business" || profile?.step === "template") {
+      await onOnboardingBlank();
+      return;
+    }
+    setProfileBusy(true);
+    try {
+      await session.startBlank();
+      await markOnboardingDone();
+      setLeftTab("chat");
+      focusPreview();
     } finally {
       setProfileBusy(false);
     }
@@ -353,26 +468,47 @@ function CanvasInner() {
 
   async function onProductsNext(products: ShopProduct[]) {
     setProfileBusy(true);
+    setProfileError(null);
     try {
-      const next = await putStudioProfile({ products, step: "dashboard" });
+      // Always persist path + goal with products so a partial patch cannot drop
+      // business context (session cookie must be first-party via /studio-backend).
+      const next = await putStudioProfile({
+        path: "business",
+        goal: profile?.goal ?? "sell",
+        products: products.map((p) => ({
+          ...p,
+          // Profile store is not for multi-MB data URLs; shop setup uses name/price.
+          image_url:
+            p.image_url && p.image_url.length > 8_000 ? null : p.image_url ?? null,
+        })),
+        step: "dashboard",
+      });
       setProfile(next);
       setBusinessNav("dashboard");
-      // Set up the sell-online flow + shop from the products so the Dashboard
-      // lands on a real shop link and money book (#135).
+
       const first = products[0];
       const priceNum =
         first && first.price_ngn != null && first.price_ngn !== ""
           ? Number(first.price_ngn)
           : NaN;
-      await session.setupFromIntent("sell-online", {
-        business_name: "My Business",
-        ...(first?.name ? { product_name: first.name } : {}),
-        ...(Number.isNaN(priceNum) ? {} : { price_ngn: priceNum }),
-      });
+      try {
+        await session.setupFromIntent("sell-online", {
+          business_name: "My Business",
+          ...(first?.name ? { product_name: first.name } : {}),
+          ...(Number.isNaN(priceNum) ? {} : { price_ngn: priceNum }),
+        });
+      } catch (setupError) {
+        session.setTypeError(
+          setupError instanceof Error
+            ? setupError.message
+            : "Shop setup failed — dashboard is still open.",
+        );
+      }
     } catch (error) {
-      session.setTypeError(
-        error instanceof Error ? error.message : "Could not save products",
-      );
+      const message =
+        error instanceof Error ? error.message : "Could not save products";
+      setProfileError(message);
+      session.setTypeError(message);
     } finally {
       setProfileBusy(false);
     }
@@ -385,6 +521,20 @@ function CanvasInner() {
       setProfile(next);
     } finally {
       setProfileBusy(false);
+    }
+  }
+
+  async function goBusinessDashboard() {
+    if (profile?.path !== "business") return;
+    setBusinessNav("dashboard");
+    if (profile.step === "dashboard" || profile.step === "done") return;
+    try {
+      const next = await putStudioProfile({ step: "dashboard" });
+      setProfile(next);
+    } catch (error) {
+      session.setTypeError(
+        error instanceof Error ? error.message : "Could not open dashboard",
+      );
     }
   }
 
@@ -488,10 +638,17 @@ function CanvasInner() {
           notifications={bizData?.notifications}
           shopUrl={bizData?.shopUrl ?? null}
           shareLabel={bizData?.shareLabel}
+          initialProductTab={
+            profile?.goal === "invoice"
+              ? "invoice"
+              : profile?.goal === "savings"
+                ? "ajo"
+                : "sell"
+          }
           activeNav={businessNav === "workflow" ? "workflow" : "dashboard"}
           onNav={(nav) => {
             if (nav === "workflow") void goBusinessWorkflow();
-            else setBusinessNav("dashboard");
+            else void goBusinessDashboard();
           }}
           onNew={() => setTemplatesOpen(true)}
           onLogout={() => {
@@ -511,26 +668,20 @@ function CanvasInner() {
           busy={session.busy || profileBusy}
           dismissible
           onClose={() => setTemplatesOpen(false)}
-          onPick={(templateId) => {
-            void session.startFromTemplate(templateId).then(async () => {
-              await markOnboardingDone();
-              setBusinessNav("workflow");
-              if (profile?.products?.length) seedFromProducts(profile.products);
-              else focusPreview();
-            });
-          }}
-          onBlank={() => {
-            void session.startBlank().then(async () => {
-              await markOnboardingDone();
-              setBusinessNav("workflow");
-              setLeftTab("api");
-              focusPreview();
-            });
-          }}
+          onBack={() => setTemplatesOpen(false)}
+          onPick={(templateId) => void handleTemplatePick(templateId)}
+          onOther={() => void handleTemplateOther()}
         />
       </>
     );
   }
+
+  const railActive: "workflow" | "dashboard" | "new" =
+    profile?.path === "business" && businessNav === "dashboard"
+      ? "dashboard"
+      : templatesOpen
+        ? "new"
+        : "workflow";
 
   return (
     <div
@@ -550,12 +701,11 @@ function CanvasInner() {
             <TemplatePicker
               open
               embedded
-              variant="business-onboarding"
               busy={profileBusy}
               onClose={() => undefined}
               onBack={() => void onTemplateBack()}
-              onPick={(templateId) => void onOnboardingTemplatePick(templateId)}
-              onOther={() => void onOnboardingBlank()}
+              onPick={(templateId) => void handleTemplatePick(templateId)}
+              onOther={() => void handleTemplateOther()}
             />
           ) : (
             <PathGate
@@ -570,12 +720,9 @@ function CanvasInner() {
         <div className="studio-panels" aria-hidden={false}>
           <div className="studio-panels__left">
             <StudioIconRail
-              active="workflow"
+              active={railActive}
               onNew={() => setTemplatesOpen(true)}
-              onDashboard={() => {
-                if (profile?.path !== "business") return;
-                setBusinessNav("dashboard");
-              }}
+              onDashboard={() => void goBusinessDashboard()}
             />
             <NodePalette
               catalog={{ ...session.nodeTypesMeta, ...session.catalog }}
@@ -626,8 +773,31 @@ function CanvasInner() {
             {rightTab === "code" ? (
               <InspectDocumentPanel
                 formatLabel="JSON"
-                content={codeDocument}
-                emptyHint="Compose or open a workflow to see its code."
+                formats={[
+                  { id: "json", label: "JSON" },
+                  { id: "python", label: "Python" },
+                ]}
+                activeFormat={codeFormat}
+                onFormatChange={(id) =>
+                  setCodeFormat(id === "python" ? "python" : "json")
+                }
+                subtitle={
+                  codeFormat === "python" ? pythonFilename : null
+                }
+                content={
+                  codeFormat === "python"
+                    ? pythonError
+                      ? ""
+                      : pythonSource
+                    : codeDocument
+                }
+                busy={codeFormat === "python" && pythonBusy}
+                emptyHint={
+                  codeFormat === "python"
+                    ? pythonError ??
+                      "Compose or open a Flow to generate Python."
+                    : "Compose or open a workflow to see its code."
+                }
               />
             ) : (
               <InspectDocumentPanel
@@ -693,28 +863,13 @@ function CanvasInner() {
       </main>
 
       <TemplatePicker
-        open={templatesOpen && !showOnboarding}
+        open={templatesOpen}
         busy={session.busy || profileBusy}
-        dismissible={profile?.step === "done" && !!session.activeWorkflowId}
-        onClose={() => {
-          if (profile?.step === "done" && session.activeWorkflowId) {
-            setTemplatesOpen(false);
-          }
-        }}
-        onPick={(templateId) => {
-          void session.startFromTemplate(templateId).then(async () => {
-            await markOnboardingDone();
-            if (profile?.products?.length) seedFromProducts(profile.products);
-            else focusPreview();
-          });
-        }}
-        onBlank={() => {
-          void session.startBlank().then(async () => {
-            await markOnboardingDone();
-            setLeftTab("api");
-            focusPreview();
-          });
-        }}
+        dismissible
+        onClose={() => setTemplatesOpen(false)}
+        onBack={() => setTemplatesOpen(false)}
+        onPick={(templateId) => void handleTemplatePick(templateId)}
+        onOther={() => void handleTemplateOther()}
       />
     </div>
   );

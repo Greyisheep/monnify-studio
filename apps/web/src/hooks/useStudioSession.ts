@@ -23,6 +23,7 @@ import {
   saveWorkflow,
   type DataSource,
 } from "@/lib/api";
+import { ApiError } from "@/lib/http";
 import type { HeroId } from "@/lib/constants";
 import { formatGraphDiff } from "@/lib/findings";
 import { workflowToFlow } from "@/lib/flowIo";
@@ -345,11 +346,9 @@ export function useStudioSession({ setNodes, setEdges }: UseStudioSessionOptions
             workflowName: composed.workflow.name,
           };
         } catch (composeError) {
-          const msg =
-            composeError instanceof Error
-              ? composeError.message
-              : String(composeError);
-          if (!msg.startsWith("503")) throw composeError;
+          const unavailable =
+            composeError instanceof ApiError && composeError.status === 503;
+          if (!unavailable) throw composeError;
         }
 
         onStatus?.("Matching a vetted template…");
