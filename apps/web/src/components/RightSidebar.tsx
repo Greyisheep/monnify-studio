@@ -6,13 +6,15 @@
 
 import Image from "next/image";
 import type { PointerEvent as ReactPointerEvent, ReactNode } from "react";
+import type { ExecutionAdapter } from "@/types";
 
 export interface RightSidebarProps {
-  rightTab: "preview" | "code";
-  onRightTabChange: (tab: "preview" | "code") => void;
+  rightTab: "preview" | "code" | "review" | "settings";
+  onRightTabChange: (tab: "preview" | "code" | "review" | "settings") => void;
   running: boolean;
   canAct: boolean;
   busy: boolean;
+  executionAdapter: ExecutionAdapter;
   onRun: () => void;
   onDeploy: () => void;
   deployDisabled?: boolean;
@@ -27,6 +29,7 @@ export function RightSidebar({
   running,
   canAct,
   busy,
+  executionAdapter,
   onRun,
   onDeploy,
   deployDisabled = false,
@@ -78,6 +81,14 @@ export function RightSidebar({
           </button>
           <button
             type="button"
+            className="studio-btn studio-btn--ghost"
+            aria-pressed={rightTab === "settings"}
+            onClick={() => onRightTabChange("settings")}
+          >
+            {executionAdapter === "monnify" ? "Sandbox" : "Practice"}
+          </button>
+          <button
+            type="button"
             className="studio-btn studio-btn--deploy"
             disabled={deployDisabled || busy || !canAct}
             title={deployTitle}
@@ -110,6 +121,24 @@ export function RightSidebar({
           onClick={() => onRightTabChange("code")}
         >
           Code
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={rightTab === "review"}
+          className={rightTab === "review" ? "is-active" : ""}
+          onClick={() => onRightTabChange("review")}
+        >
+          Review
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={rightTab === "settings"}
+          className={rightTab === "settings" ? "is-active" : ""}
+          onClick={() => onRightTabChange("settings")}
+        >
+          Settings
         </button>
       </div>
 
