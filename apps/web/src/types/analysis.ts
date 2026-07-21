@@ -53,6 +53,18 @@ export interface RemediateResult {
   diff: GraphDiff;
 }
 
+/** POST /assistant/explain (D20, #76). */
+export interface ExplainSource {
+  title: string;
+  url: string;
+}
+
+export interface ExplainResult {
+  answer: string;
+  sources: ExplainSource[];
+  provider: string;
+}
+
 /** POST /assistant/compose (monnify_studio.ai). Provenance: #15, #55, D16, D18. */
 export interface ComposeResult {
   workflow: Workflow;

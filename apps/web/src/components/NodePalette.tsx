@@ -158,7 +158,7 @@ export function NodePalette({
         </button>
       </div>
 
-      <div className="studio-tabs" role="tablist" aria-label="Left panel">
+      <div className="studio-tabs" role="tablist" aria-label="Left panel" data-tour="dev-chat">
         <button
           type="button"
           role="tab"
@@ -181,6 +181,7 @@ export function NodePalette({
 
       <div
         className={`studio-sidebar__scroll${leftTab === "chat" ? " is-chat" : ""}`}
+        data-tour={leftTab === "api" ? "dev-catalog" : undefined}
       >
         {leftTab === "chat" ? (
           <ChatPanel
