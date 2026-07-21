@@ -559,6 +559,7 @@ export function BusinessDashboard({
           className="biz-product-tabs"
           role="tablist"
           aria-label="Products"
+          data-tour="biz-products"
         >
           {PRODUCT_TABS.map((tab) => (
             <button
@@ -574,7 +575,11 @@ export function BusinessDashboard({
           ))}
         </div>
 
-        <section className="biz-product-panel" aria-label={PRODUCT_TABS.find((t) => t.id === productTab)?.label}>
+        <section
+          className="biz-product-panel"
+          aria-label={PRODUCT_TABS.find((t) => t.id === productTab)?.label}
+          data-tour="biz-shop-link"
+        >
           {productTab === "sell" && (
             <>
               <header className="biz-product-panel__head">
@@ -734,7 +739,7 @@ export function BusinessDashboard({
           )}
         </section>
 
-        <section className="biz-activity" aria-label="Activity">
+        <section className="biz-activity" aria-label="Activity" data-tour="biz-activity">
           <header className="biz-activity__head">
             <div>
               <h2>Activity</h2>
