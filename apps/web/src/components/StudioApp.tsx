@@ -220,11 +220,6 @@ function CanvasInner() {
     setRightTab("preview");
   }
 
-  function seedFromProducts(products: ShopProduct[]) {
-    if (!products[0]) return;
-    focusPreview();
-  }
-
   const previewMarkdown = useMemo(() => {
     const name = session.workflow?.name ?? "Untitled workflow";
     const findings = session.report?.findings?.length ?? 0;
