@@ -6,6 +6,8 @@
 
 import Image from "next/image";
 
+import { PRACTICE_RUN_LABEL, PRACTICE_RUN_RUNNING } from "@/lib/studioCopy";
+
 export interface StudioFloatingChromeProps {
   workflowName?: string;
   running: boolean;
@@ -88,7 +90,7 @@ export function StudioFloatingChrome({
             height={12}
             unoptimized
           />
-          {running ? "Running…" : "Run"}
+          {running ? PRACTICE_RUN_RUNNING : PRACTICE_RUN_LABEL}
         </button>
         <button
           type="button"

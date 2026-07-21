@@ -7,6 +7,8 @@
 import Image from "next/image";
 import type { PointerEvent as ReactPointerEvent, ReactNode } from "react";
 
+import { PRACTICE_RUN_LABEL, PRACTICE_RUN_RUNNING } from "@/lib/studioCopy";
+
 export interface RightSidebarProps {
   rightTab: "preview" | "code";
   onRightTabChange: (tab: "preview" | "code") => void;
@@ -73,7 +75,7 @@ export function RightSidebar({
               height={12}
               unoptimized
             />
-            {running ? "Running…" : "Run"}
+            {running ? PRACTICE_RUN_RUNNING : PRACTICE_RUN_LABEL}
           </button>
           <button
             type="button"

@@ -7,6 +7,10 @@
 import { useEffect, useState, type FormEvent } from "react";
 
 import { fetchCredentialStatus, putCredentials } from "@/lib/api";
+import {
+  CREDENTIALS_HEADING,
+  CREDENTIALS_SUBHEAD,
+} from "@/lib/studioCopy";
 import type { CredentialStatus } from "@/types";
 
 export interface CredentialsFormProps {
@@ -51,7 +55,7 @@ export function CredentialsForm({ workflowId, busy }: CredentialsFormProps) {
       setApiKey("");
       setSecretKey("");
       setContractCode("");
-      setMessage("Credentials saved for this workflow.");
+      setMessage("Connection saved for this workflow.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Save failed");
     } finally {
@@ -62,19 +66,19 @@ export function CredentialsForm({ workflowId, busy }: CredentialsFormProps) {
   if (!workflowId) {
     return (
       <div className="studio-creds">
-        <h3>Connect your Monnify account</h3>
-        <p className="muted">Open a workflow to attach sandbox keys.</p>
+        <h3>{CREDENTIALS_HEADING}</h3>
+        <p className="muted">{CREDENTIALS_SUBHEAD}</p>
       </div>
     );
   }
 
   return (
     <div className="studio-creds">
-      <h3>Connect your Monnify account</h3>
+      <h3>{CREDENTIALS_HEADING}</h3>
       <p className="muted">
         {status?.configured
-          ? `Configured (${status.source}). Values are write-only.`
-          : "Optional: we use a practice account until then."}
+          ? `Connected (${status.source}). Values are write-only.`
+          : CREDENTIALS_SUBHEAD}
       </p>
       <form className="studio-creds__form" onSubmit={onSubmit}>
         <label>
@@ -113,7 +117,7 @@ export function CredentialsForm({ workflowId, busy }: CredentialsFormProps) {
           className="studio-btn studio-btn--primary"
           disabled={busy || saving}
         >
-          {saving ? "Saving…" : "Save credentials"}
+          {saving ? "Saving…" : "Save connection"}
         </button>
       </form>
       {message && <p className="studio-creds__msg">{message}</p>}

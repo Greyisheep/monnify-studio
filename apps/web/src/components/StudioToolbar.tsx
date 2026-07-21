@@ -4,6 +4,8 @@
  */
 "use client";
 
+import { PRACTICE_RUN_LABEL, PRACTICE_RUN_RUNNING } from "@/lib/studioCopy";
+
 export interface StudioToolbarProps {
   canDelete: boolean;
   busy: boolean;
@@ -90,7 +92,7 @@ export function StudioToolbar({
           disabled={busy || running || !canAct}
           onClick={onRun}
         >
-          {running ? "Running…" : "Practice run (no real money)"}
+          {running ? PRACTICE_RUN_RUNNING : PRACTICE_RUN_LABEL}
         </button>
       </div>
     </div>

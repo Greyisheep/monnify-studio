@@ -404,6 +404,29 @@ body.is-resizing-sidebar iframe {
   color: #737373;
 }
 
+.studio-sidebar__advanced-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.studio-sidebar__advanced-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.studio-sidebar__chevron.is-open {
+  transform: rotate(90deg);
+}
+
 .studio-sidebar__group ul {
   list-style: none;
   margin: 0 0 0;

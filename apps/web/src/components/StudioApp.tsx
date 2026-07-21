@@ -26,6 +26,7 @@ import {
   withNodeHighlights,
 } from "@/lib/findings";
 import { flowToWorkflow } from "@/lib/flowIo";
+import { PRACTICE_RUN_LABEL } from "@/lib/studioCopy";
 import {
   absoluteApiUrl,
   fetchStudioProfile,
@@ -236,7 +237,7 @@ function CanvasInner() {
       "## Next",
       "- Edit nodes on the canvas",
       "- Open Code for the workflow JSON",
-      "- Run to stream an execution trace",
+      `- ${PRACTICE_RUN_LABEL} to stream an execution trace`,
     ];
     return lines.join("\n");
   }, [

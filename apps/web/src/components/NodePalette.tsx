@@ -6,8 +6,9 @@
 "use client";
 
 import Image from "next/image";
-import type { PointerEvent as ReactPointerEvent } from "react";
+import { useState, type PointerEvent as ReactPointerEvent } from "react";
 
+import { isAdvancedCatalogNode } from "@/lib/studioCopy";
 import type { IntentResult, MoniAskResult, NodeMeta } from "@/types";
 import { ChatPanel } from "./ChatPanel";
 
@@ -77,8 +78,21 @@ function isFeatured(meta: NodeMeta): boolean {
 }
 
 function groupCatalog(catalog: Record<string, NodeMeta>) {
-  const groups = new Map<string, NodeMeta[]>();
+  const mainCatalog: Record<string, NodeMeta> = {};
+  const advanced: NodeMeta[] = [];
+
   for (const meta of Object.values(catalog)) {
+    if (isAdvancedCatalogNode(meta)) {
+      advanced.push(meta);
+      continue;
+    }
+    mainCatalog[meta.type] = meta;
+  }
+
+  advanced.sort((left, right) => left.title.localeCompare(right.title));
+
+  const groups = new Map<string, NodeMeta[]>();
+  for (const meta of Object.values(mainCatalog)) {
     const category = displayCategory(meta);
     const list = groups.get(category) ?? [];
     list.push(meta);
@@ -87,7 +101,7 @@ function groupCatalog(catalog: Record<string, NodeMeta>) {
   for (const list of groups.values()) {
     list.sort((left, right) => left.title.localeCompare(right.title));
   }
-  return [...groups.entries()].sort(([left], [right]) => {
+  const mainGroups = [...groups.entries()].sort(([left], [right]) => {
     const leftRank = CATEGORY_ORDER.indexOf(left);
     const rightRank = CATEGORY_ORDER.indexOf(right);
     const leftScore = leftRank === -1 ? 999 : leftRank;
@@ -95,6 +109,8 @@ function groupCatalog(catalog: Record<string, NodeMeta>) {
     if (leftScore !== rightScore) return leftScore - rightScore;
     return left.localeCompare(right);
   });
+
+  return { mainGroups, advanced };
 }
 
 export function NodePalette({
@@ -111,7 +127,8 @@ export function NodePalette({
   onSetupIntent,
   onResizeStart,
 }: NodePaletteProps) {
-  const groups = groupCatalog(catalog);
+  const { mainGroups, advanced } = groupCatalog(catalog);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
 
   if (collapsed) {
     return null;
@@ -179,10 +196,10 @@ export function NodePalette({
           <ChatPanel busy={busy} onAsk={onAsk} onSetupIntent={onSetupIntent} />
         ) : (
           <>
-            {groups.length === 0 && (
+            {mainGroups.length === 0 && advanced.length === 0 && (
               <p className="studio-sidebar__empty">Catalog loading…</p>
             )}
-            {groups.map(([category, items]) => (
+            {mainGroups.map(([category, items]) => (
               <section key={category} className="studio-sidebar__group">
                 <h3>{category}</h3>
                 <ul>
@@ -239,6 +256,63 @@ export function NodePalette({
                 </ul>
               </section>
             ))}
+            {advanced.length > 0 && (
+              <section className="studio-sidebar__group">
+                <button
+                  type="button"
+                  className="studio-sidebar__advanced-toggle"
+                  aria-expanded={advancedOpen}
+                  onClick={() => setAdvancedOpen((open) => !open)}
+                >
+                  <h3>Advanced</h3>
+                  <Image
+                    src="/figma/icon-chevron-right.svg"
+                    alt=""
+                    width={16}
+                    height={16}
+                    unoptimized
+                    className={
+                      advancedOpen
+                        ? "studio-sidebar__chevron is-open"
+                        : "studio-sidebar__chevron"
+                    }
+                  />
+                </button>
+                {advancedOpen ? (
+                  <ul>
+                    {advanced.map((item) => (
+                      <li key={item.type}>
+                        <button
+                          type="button"
+                          className="studio-sidebar__item"
+                          onClick={() => onAdd(item.type)}
+                        >
+                          <Image
+                            src="/figma/icon-catalog-node.svg"
+                            alt=""
+                            width={16}
+                            height={16}
+                            unoptimized
+                            className="studio-sidebar__icon"
+                          />
+                          <span className="studio-sidebar__item-label">
+                            {item.title}
+                          </span>
+                          <Image
+                            src="/figma/icon-chevron-right.svg"
+                            alt=""
+                            width={16}
+                            height={16}
+                            unoptimized
+                            className="studio-sidebar__chevron"
+                          />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </section>
+            )}
           </>
         )}
       </div>

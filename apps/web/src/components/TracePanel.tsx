@@ -8,6 +8,7 @@
 import { useEffect, useState } from "react";
 
 import { eventFriendlySummary, eventHasTechnicalDetail } from "@/lib/traceEvent";
+import { PRACTICE_RUN_LABEL } from "@/lib/studioCopy";
 import type { ExecutionEvent, ExecutionRun } from "@/types";
 
 export interface TracePanelProps {
@@ -123,7 +124,7 @@ export function TracePanel({
               ? `${run.status} · ${run.adapter} · ${run.id.slice(0, 8)}`
               : running
                 ? "Starting run…"
-                : "Run the workflow to stream events"}
+                : `Use ${PRACTICE_RUN_LABEL} to stream events`}
           </p>
         </div>
         <button type="button" className="ghost-btn" onClick={onClose}>
@@ -136,7 +137,7 @@ export function TracePanel({
       <ul className="studio-trace__list">
         {events.length === 0 && !running && !error && (
           <li className="studio-trace__empty">
-            No events yet. Click Practice run in the toolbar.
+            No events yet. Click {PRACTICE_RUN_LABEL}.
           </li>
         )}
         {running && events.length === 0 && (

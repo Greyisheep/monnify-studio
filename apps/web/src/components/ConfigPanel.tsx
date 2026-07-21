@@ -5,6 +5,7 @@
 
 import { useEffect, useState, type ChangeEvent } from "react";
 
+import { categoryLabel } from "@/lib/studioCopy";
 import type { Finding, IrNode, NodeMeta } from "@/types";
 
 export interface ConfigPanelProps {
@@ -79,9 +80,7 @@ export function ConfigPanel({
       <div className="studio-config__head">
         <div>
           <h2>{node.label || meta?.title || node.type}</h2>
-          <p>
-            {meta?.category ?? "node"} · {node.type}
-          </p>
+          <p>{categoryLabel(meta?.category ?? "application")}</p>
         </div>
         <button type="button" className="ghost-btn" onClick={onClose}>
           Close
@@ -127,10 +126,6 @@ export function ConfigPanel({
                 onChange({ ...node, label: event.target.value })
               }
             />
-          </label>
-          <label>
-            Type
-            <input value={node.type} readOnly />
           </label>
           {meta?.description && <p className="muted">{meta.description}</p>}
           {(meta?.inputs?.length ?? 0) > 0 && (
