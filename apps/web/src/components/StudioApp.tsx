@@ -506,6 +506,7 @@ function CanvasInner() {
           open={templatesOpen}
           busy={session.busy || profileBusy}
           dismissible
+          variant="business-onboarding"
           onClose={() => setTemplatesOpen(false)}
           onPick={(templateId) => {
             void session.startFromTemplate(templateId).then(async () => {
@@ -515,13 +516,9 @@ function CanvasInner() {
               else focusPreview();
             });
           }}
-          onBlank={() => {
-            void session.startBlank().then(async () => {
-              await markOnboardingDone();
-              setBusinessNav("workflow");
-              setLeftTab("api");
-              focusPreview();
-            });
+          onOther={() => {
+            setTemplatesOpen(false);
+            void onOnboardingBlank();
           }}
         />
       </>
@@ -688,6 +685,9 @@ function CanvasInner() {
         open={templatesOpen && !showOnboarding}
         busy={session.busy || profileBusy}
         dismissible={profile?.step === "done" && !!session.activeWorkflowId}
+        variant={
+          profile?.path === "business" ? "business-onboarding" : "default"
+        }
         onClose={() => {
           if (profile?.step === "done" && session.activeWorkflowId) {
             setTemplatesOpen(false);
@@ -700,13 +700,22 @@ function CanvasInner() {
             else focusPreview();
           });
         }}
-        onBlank={() => {
-          void session.startBlank().then(async () => {
-            await markOnboardingDone();
-            setLeftTab("api");
-            focusPreview();
-          });
-        }}
+        onBlank={
+          profile?.path === "developer"
+            ? () => {
+                void session.startBlank().then(async () => {
+                  await markOnboardingDone();
+                  setLeftTab("api");
+                  focusPreview();
+                });
+              }
+            : undefined
+        }
+        onOther={
+          profile?.path === "business"
+            ? () => void onOnboardingBlank()
+            : undefined
+        }
       />
     </div>
   );
