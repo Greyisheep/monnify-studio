@@ -1,5 +1,8 @@
-"""The ajo / thrift-contribution template: members save into a pool, one gets
-the payout each cycle (#134, #105).
+"""The ajo / thrift-contribution template: a rotating savings pool (ROSCA).
+
+Everyone contributes into the shared pool each cycle, and at the end of the cycle
+ONE member collects the WHOLE pot. The turn rotates, so over a full round every
+member gets one payout of the entire pool (#134, #105).
 
 Three paths, all analyzer-clean:
   - Setup: give each member a dedicated account and send the details.
@@ -35,13 +38,13 @@ def ajo() -> Workflow:
         _n("credit", "app.credit_ledger", "Credit Member Contribution", 1500, 170),
         _n("notify_in", "app.notify", "Tell Member: Contribution Received", 1800, 170),
         # Row 3: money out - the scheduled payout to this cycle's member.
-        _n("schedule", "event.scheduled", "Payout Day", 0, 340),
+        _n("schedule", "event.scheduled", "Payout Day (this member's turn)", 0, 340),
         _n("balance", "safety.balance_guard", "Check Pool Covers Payout", 300, 340),
         _n("valbank", "monnify.validate_bank_account", "Validate Receiver Account", 600, 340),
-        _n("payout", "monnify.initiate_transfer", "Pay This Cycle's Member", 900, 340),
+        _n("payout", "monnify.initiate_transfer", "Pay the Whole Pot to This Member", 900, 340),
         _n("status", "monnify.query_transfer_status", "Check Payout Status", 1200, 340),
         _n("recon", "safety.reconciliation", "Reconcile the Pool", 1500, 340),
-        _n("notify_out", "app.notify", "Tell Member: You Got the Pool", 1800, 340),
+        _n("notify_out", "app.notify", "Tell Member: You Collected the Pot", 1800, 340),
     ]
     edges = [
         Edge(source="accounts", target="send_acct"),
@@ -65,10 +68,12 @@ def ajo() -> Workflow:
         name="Ajo / Thrift Contributions",
         provider="monnify",
         description=(
-            "Members save into a shared pool through their own dedicated accounts; "
-            "each contribution is only credited after Monnify confirms it, and the "
-            "cycle payout only leaves after the pool is checked and the receiver "
-            "account is validated (#134, #105)."
+            "A rotating savings pool (ROSCA / ajo / esusu). Members contribute into "
+            "the shared pool through their own dedicated accounts, each contribution "
+            "credited only after Monnify confirms it. At the end of each cycle one "
+            "member collects the WHOLE pot, and the turn rotates so everyone gets a "
+            "turn over the full round. The payout only leaves after the pool is "
+            "checked and the receiver's account is validated (#134, #105)."
         ),
         variables={
             "member_reference": Variable(name="member_reference"),
