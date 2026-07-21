@@ -43,7 +43,7 @@ const OPTIONS: PickerOption[] = [
   {
     id: "ajo",
     title: "Start a savings group (Ajo)",
-    description: "Setup a payment link and a dashboard for your orders",
+    description: "Collect member contributions and track the rotating pool",
     image: "/figma/templates/template-ajo.png",
     kind: "template",
   },
