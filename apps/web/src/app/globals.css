@@ -3941,16 +3941,16 @@ body.is-resizing-sidebar iframe {
 .studio-tour__dim {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.16);
-  backdrop-filter: blur(1.5px);
+  background: transparent;
   pointer-events: auto;
 }
 
 .studio-tour__hole {
   position: absolute;
   border-radius: 0.65rem;
-  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.16);
-  outline: 2px solid color-mix(in srgb, #3f6212 70%, #fff);
+  /* Highlight only — no full-page dim/mask (avoids glossy wash over the UI). */
+  outline: 2px solid #3f6212;
+  box-shadow: 0 0 0 3px rgba(63, 98, 18, 0.2);
   pointer-events: none;
   z-index: 1;
 }
