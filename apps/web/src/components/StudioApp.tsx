@@ -957,6 +957,7 @@ function CanvasInner() {
                 node={selectedIrNode}
                 meta={selectedNodeMeta}
                 selectedFinding={selectedFinding}
+                findings={session.report?.findings ?? []}
                 onChange={(nextNode) => graph.updateSelectedNode(nextNode)}
                 onClose={() => session.setSelectedNodeId(null)}
               />
