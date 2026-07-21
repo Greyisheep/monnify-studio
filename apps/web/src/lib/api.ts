@@ -236,6 +236,17 @@ export async function composeWorkflow(message: string): Promise<ComposeResult> {
   return postJson<ComposeResult>("/assistant/compose", { message });
 }
 
+/** Revise an existing canvas flow without changing its workflow id (#154). */
+export async function refineWorkflow(
+  workflowId: string,
+  message: string,
+): Promise<ComposeResult> {
+  return postJson<ComposeResult>("/assistant/refine", {
+    workflow_id: workflowId,
+    message,
+  });
+}
+
 export async function classifyIntent(message: string): Promise<IntentResult> {
   return postJson<IntentResult>("/assistant/intent", { message });
 }

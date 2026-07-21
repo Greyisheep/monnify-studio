@@ -596,6 +596,10 @@ function CanvasInner() {
               onToggleCollapsed={() => setPanelsCollapsed(true)}
               onAdd={(typeKey) => graph.addNode(typeKey)}
               onAsk={session.askMoni}
+              onRefine={session.refineWithMoni}
+              hasOpenWorkflow={
+                profile?.path === "developer" && !!session.activeWorkflowId
+              }
               onSetupIntent={async (templateId, config) => {
                 await session.setupFromIntent(templateId, config);
                 focusPreview();

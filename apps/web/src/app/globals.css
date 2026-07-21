@@ -1764,6 +1764,17 @@ body.is-resizing-sidebar iframe {
   margin-top: 0.35rem;
 }
 
+.studio-chat__choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.35rem;
+}
+
+.studio-chat__choices .studio-chat__setup {
+  margin-top: 0;
+}
+
 .studio-chat__bubble--assistant {
   background: var(--paper);
   color: var(--ink);

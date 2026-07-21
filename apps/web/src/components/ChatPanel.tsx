@@ -28,11 +28,17 @@ export interface ChatMessage {
     config: IntentResult["config"];
     confidence: number;
   };
+  flowChoice?: { message: string };
 }
 
 export interface ChatPanelProps {
   busy: boolean;
+  hasOpenWorkflow: boolean;
   onAsk: (
+    message: string,
+    onStatus?: (text: string) => void,
+  ) => Promise<MoniAskResult>;
+  onRefine: (
     message: string,
     onStatus?: (text: string) => void,
   ) => Promise<MoniAskResult>;
@@ -88,7 +94,13 @@ function ChatMessageBody({
   );
 }
 
-export function ChatPanel({ busy, onAsk, onSetupIntent }: ChatPanelProps) {
+export function ChatPanel({
+  busy,
+  hasOpenWorkflow,
+  onAsk,
+  onRefine,
+  onSetupIntent,
+}: ChatPanelProps) {
   const [messages, setMessages] = useState<ChatMessage[]>(STARTER);
   const [draft, setDraft] = useState("");
   const tailRef = useRef<HTMLDivElement>(null);
@@ -107,31 +119,19 @@ export function ChatPanel({ busy, onAsk, onSetupIntent }: ChatPanelProps) {
     );
   }
 
-  async function submit(text: string) {
-    const trimmed = text.trim();
-    if (!trimmed || busy) return;
-
-    const userMessage: ChatMessage = {
-      id: `user-${Date.now()}`,
-      role: "user",
-      text: trimmed,
-    };
-    const assistantId = `assistant-${Date.now()}`;
-    setMessages((current) => [
-      ...current,
-      userMessage,
-      {
-        id: assistantId,
-        role: "assistant",
-        text: "",
-        streaming: true,
-        statusText: "Working…",
-      },
-    ]);
-    setDraft("");
-
+  async function runRequest(
+    text: string,
+    assistantId: string,
+    mode: "compose" | "refine",
+  ) {
+    patchAssistant(assistantId, {
+      text: "",
+      streaming: true,
+      statusText: mode === "refine" ? "Checking a revision…" : "Working…",
+      flowChoice: undefined,
+    });
     try {
-      const result = await onAsk(trimmed, (status) => {
+      const result = await (mode === "refine" ? onRefine : onAsk)(text, (status) => {
         patchAssistant(assistantId, { statusText: status });
       });
 
@@ -149,13 +149,38 @@ export function ChatPanel({ busy, onAsk, onSetupIntent }: ChatPanelProps) {
         return;
       }
 
+      if (result.kind === "refusal") {
+        patchAssistant(assistantId, {
+          streaming: false,
+          statusText: undefined,
+          text: result.explanation,
+        });
+        return;
+      }
+
+      const safetyStory =
+        result.kind === "refine"
+          ? result.findingsCaught.length
+            ? `\n\nMoni proposed → checker caught ${result.findingsCaught.join(", ")} → fixed${
+                result.steps.length
+                  ? ` (${result.steps.map((step) => step.action).join("; ")})`
+                  : ""
+              } → clean.`
+            : `\n\nMoni proposed → checker checked${
+                result.steps.length
+                  ? ` (${result.steps.map((step) => step.action).join("; ")})`
+                  : ""
+              } → clean.`
+          : "";
       const suffix =
-        result.kind === "compose" ? " Loaded on the canvas, edit freely." : "";
+        result.kind === "compose" || result.kind === "refine"
+          ? " Loaded on the canvas, edit freely."
+          : "";
       patchAssistant(assistantId, {
         streaming: false,
         statusText: undefined,
-        text: `${result.explanation}${suffix}`,
-        loadedOnCanvas: result.kind === "compose",
+        text: `${result.explanation}${safetyStory}${suffix}`,
+        loadedOnCanvas: result.kind === "compose" || result.kind === "refine",
       });
     } catch (error) {
       patchAssistant(assistantId, {
@@ -167,6 +192,34 @@ export function ChatPanel({ busy, onAsk, onSetupIntent }: ChatPanelProps) {
             : "Could not reach Moni. Is the API running?",
       });
     }
+  }
+
+  async function submit(text: string) {
+    const trimmed = text.trim();
+    if (!trimmed || busy) return;
+
+    const userMessage: ChatMessage = {
+      id: `user-${Date.now()}`,
+      role: "user",
+      text: trimmed,
+    };
+    const assistantId = `assistant-${Date.now()}`;
+    setMessages((current) => [
+      ...current,
+      userMessage,
+      {
+        id: assistantId,
+        role: "assistant",
+        text: hasOpenWorkflow
+          ? "Would you like to change this Flow, or start a new one?"
+          : "",
+        streaming: !hasOpenWorkflow,
+        statusText: hasOpenWorkflow ? undefined : "Working…",
+        flowChoice: hasOpenWorkflow ? { message: trimmed } : undefined,
+      },
+    ]);
+    setDraft("");
+    if (!hasOpenWorkflow) void runRequest(trimmed, assistantId, "compose");
   }
 
   async function setup(message: ChatMessage) {
@@ -252,6 +305,30 @@ export function ChatPanel({ busy, onAsk, onSetupIntent }: ChatPanelProps) {
                     >
                       Set this up
                     </button>
+                  ) : null}
+                  {message.flowChoice ? (
+                    <div className="studio-chat__choices" role="group" aria-label="Choose Flow action">
+                      <button
+                        type="button"
+                        className="studio-btn studio-btn--primary studio-chat__setup"
+                        disabled={busy}
+                        onClick={() =>
+                          void runRequest(message.flowChoice!.message, message.id, "refine")
+                        }
+                      >
+                        Fix / change this Flow
+                      </button>
+                      <button
+                        type="button"
+                        className="studio-btn studio-chat__setup"
+                        disabled={busy}
+                        onClick={() =>
+                          void runRequest(message.flowChoice!.message, message.id, "compose")
+                        }
+                      >
+                        Start a new Flow
+                      </button>
+                    </div>
                   ) : null}
                 </>
               )}
