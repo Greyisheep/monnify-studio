@@ -3634,7 +3634,7 @@ body.is-resizing-sidebar iframe {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin: 0 0 12px;
+  margin: 0;
 }
 .biz-product-tabs button {
   height: 32px;
@@ -3657,7 +3657,7 @@ body.is-resizing-sidebar iframe {
 }
 
 .biz-product-panel {
-  margin: 0 0 16px;
+  margin: 0;
   padding: 0;
   background: #fff;
   border: 0.8px solid #e5e5e5;
@@ -3795,8 +3795,14 @@ body.is-resizing-sidebar iframe {
   align-self: flex-start;
 }
 
+/* Outer strip matches Figma's flat, hairline-divided section (padding 20,
+   border-bottom) — the rounded card lives inside it, inset like every other
+   section (Overview, Tools, Table), so left/right edges stay aligned. */
 .biz-activity {
-  margin: 0 0 16px;
+  padding: 20px;
+  border-bottom: 0.8px solid #e5e5e5;
+}
+.biz-activity__card {
   background: #fff;
   border: 0.8px solid #e5e5e5;
   border-radius: 20px;
@@ -4302,5 +4308,7 @@ body.is-resizing-sidebar iframe {
 .biz-tools {
   display: flex;
   flex-direction: column;
-  gap: inherit;
+  gap: 20px;
+  padding: 20px;
+  border-bottom: 0.8px solid #e5e5e5;
 }
