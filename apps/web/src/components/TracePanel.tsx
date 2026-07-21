@@ -136,7 +136,7 @@ export function TracePanel({
       <ul className="studio-trace__list">
         {events.length === 0 && !running && !error && (
           <li className="studio-trace__empty">
-            No events yet. Click Practice run in the toolbar.
+            No events yet. Click Run in the toolbar.
           </li>
         )}
         {running && events.length === 0 && (
