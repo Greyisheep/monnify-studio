@@ -7,6 +7,7 @@
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { SEE_HOW_IT_WORKS_LABEL } from "@/lib/businessHome";
 import type { ShopProduct } from "@/types";
 
 function BizIcon({
@@ -430,9 +431,11 @@ export function BusinessDashboard({
             type="button"
             className={`biz-sidebar__link${activeNav === "workflow" ? " is-active" : ""}`}
             onClick={() => onNav("workflow")}
+            title={SEE_HOW_IT_WORKS_LABEL}
+            aria-label={SEE_HOW_IT_WORKS_LABEL}
           >
             <BizIcon name="workflow" />
-            {!collapsed && <span>Workflow</span>}
+            {!collapsed && <span>{SEE_HOW_IT_WORKS_LABEL}</span>}
           </button>
         </nav>
         <div className="biz-sidebar__user">
@@ -730,8 +733,17 @@ export function BusinessDashboard({
         </section>
 
         <footer className="biz-footer">
-          <BizIcon name="clock" size={14} />
-          Last updated {updated}
+          <span className="biz-footer__updated">
+            <BizIcon name="clock" size={14} />
+            Last updated {updated}
+          </span>
+          <button
+            type="button"
+            className="biz-see-how"
+            onClick={() => onNav("workflow")}
+          >
+            {SEE_HOW_IT_WORKS_LABEL}
+          </button>
         </footer>
       </main>
     </div>

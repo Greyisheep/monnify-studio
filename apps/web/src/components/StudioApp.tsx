@@ -33,6 +33,11 @@ import {
   putStudioProfile,
 } from "@/lib/api";
 import {
+  defaultBusinessNav,
+  landingStepForPath,
+  showBusinessDashboard as shouldShowBusinessDashboard,
+} from "@/lib/businessHome";
+import {
   BusinessDashboard,
   type BizNotification,
   type BusinessNav,
@@ -128,12 +133,9 @@ function CanvasInner() {
             if (!cancelled) setProfile(next);
           });
         }
-        if (loaded.path === "business" && loaded.step === "dashboard") {
-          setBusinessNav("dashboard");
-        }
-        if (loaded.path === "business" && loaded.step === "done") {
-          setLeftTab("chat");
-          setBusinessNav("workflow");
+        // Business home is always the Dashboard; whiteboard is opt-in only (#135).
+        if (loaded.path === "business") {
+          setBusinessNav(defaultBusinessNav(loaded.step));
         }
         setProfileReady(true);
       })
@@ -264,14 +266,17 @@ function CanvasInner() {
     try {
       const next = await putStudioProfile({
         path,
-        step: path === "business" ? "template" : "done",
+        step: landingStepForPath(path),
         goal: null,
       });
       setProfile(next);
       if (path === "developer") {
+        // Developer door: whiteboard-first workspace (#135).
         setTemplatesOpen(false);
         setLeftTab("api");
+        setBusinessNav("workflow");
       } else {
+        setBusinessNav(defaultBusinessNav("template"));
         setLeftTab("chat");
         focusPreview();
       }
@@ -387,12 +392,14 @@ function CanvasInner() {
     }
   }
 
+  /** Opt-in graduation: editable whiteboard with Moni as the safety net (#135). */
   async function goBusinessWorkflow() {
     setBusinessNav("workflow");
     if (profile?.step === "dashboard" || profile?.step === "template") {
       const next = await putStudioProfile({ step: "done" });
       setProfile(next);
     }
+    setPanelsCollapsed(false);
     setLeftTab("chat");
     focusPreview();
   }
@@ -413,9 +420,11 @@ function CanvasInner() {
       profile.step === "products");
   const showBusinessDashboard =
     profileReady &&
-    profile?.path === "business" &&
-    (profile.step === "dashboard" ||
-      (profile.step === "done" && businessNav === "dashboard"));
+    shouldShowBusinessDashboard({
+      path: profile?.path,
+      step: profile?.step,
+      businessNav,
+    });
 
   // Feed the Dashboard real money: totals, invoices, activity, and the shop link
   // for this business's workflow (#135). Polls so a payment shows up live.
@@ -566,7 +575,11 @@ function CanvasInner() {
         <div className="studio-panels" aria-hidden={false}>
           <div className="studio-panels__left">
             <StudioIconRail
-              active="workflow"
+              active={
+                profile?.path === "business" && businessNav === "dashboard"
+                  ? "dashboard"
+                  : "workflow"
+              }
               onNew={() => setTemplatesOpen(true)}
               onDashboard={() => {
                 if (profile?.path !== "business") return;

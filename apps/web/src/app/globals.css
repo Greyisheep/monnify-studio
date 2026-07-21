@@ -3396,14 +3396,37 @@ body.is-resizing-sidebar iframe {
 .biz-footer {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 4px;
-  padding: 20px 0;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 20px 24px;
   min-height: 60px;
   color: #171717;
   font-size: 14px;
   line-height: 20px;
   letter-spacing: 0.0179em;
+}
+
+.biz-footer__updated {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.biz-see-how {
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 14px;
+  color: #0f766e;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.biz-see-how:hover {
+  color: #115e59;
 }
 
 @media (max-width: 960px) {
