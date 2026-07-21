@@ -23,6 +23,7 @@ import type {
   WorkflowPayload,
   WorkflowSummary,
 } from "@/types";
+import type { ChaosReport } from "@/types/chaos";
 
 import unsafePayload from "@/data/marketplace-unsafe.json";
 import safePayload from "@/data/marketplace-safe.json";
@@ -162,6 +163,29 @@ export async function remediateWorkflow(
     workflow,
     rule_id: ruleId ?? "ALL",
   });
+}
+
+/**
+ * Run the architecture scenario suite (#11 / #29).
+ * Planned contract: POST /workflows/{workflowId}/chaos/run → ChaosReport.
+ */
+export async function runChaosSuite(workflow: Workflow): Promise<ChaosReport> {
+  const response = await fetch(`${API_BASE}/workflows/${workflow.id}/chaos/run`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ workflow }),
+    credentials: "include",
+  });
+  if (response.status === 404 || response.status === 501) {
+    throw new Error(
+      "Chaos scenario engine not available yet (#11). Expected POST /workflows/{id}/chaos/run.",
+    );
+  }
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`${response.status} /workflows/${workflow.id}/chaos/run: ${text}`);
+  }
+  return response.json() as Promise<ChaosReport>;
 }
 
 /** Start a mock IR run (#8). Live API required; no fixture fallback. */

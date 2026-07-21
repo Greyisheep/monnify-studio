@@ -2497,6 +2497,139 @@ body.is-resizing-sidebar iframe {
   overflow-wrap: anywhere;
 }
 
+.studio-chaos {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  z-index: 12;
+  width: min(360px, calc(100% - 1.5rem));
+  max-height: min(72vh, 640px);
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 0.75rem 0.85rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--panel) 94%, white);
+  box-shadow: var(--shadow-sm);
+  overflow: auto;
+}
+
+.studio-chaos__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+
+.studio-chaos__head h2 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.studio-chaos__head p {
+  margin: 0.2rem 0 0;
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+}
+
+.studio-chaos__stub {
+  margin: 0;
+  padding: 0.55rem 0.65rem;
+  border-radius: 0.45rem;
+  background: var(--paper);
+  color: var(--ink-soft);
+  font-size: 0.74rem;
+  line-height: 1.45;
+}
+
+.studio-chaos__stub code {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+}
+
+.studio-chaos__actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.studio-chaos__error {
+  margin: 0;
+  padding: 0.45rem 0.55rem;
+  border-radius: 0.4rem;
+  background: var(--surface-danger-soft);
+  color: var(--danger);
+  font-size: 0.76rem;
+}
+
+.studio-chaos__counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.studio-chaos__count {
+  padding: 0.2rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  border: 1px solid var(--line);
+}
+
+.studio-chaos__count--pass {
+  color: var(--success);
+}
+
+.studio-chaos__count--fail {
+  color: var(--danger);
+}
+
+.studio-chaos__empty,
+.studio-chaos__run-meta {
+  margin: 0;
+  font-size: 0.76rem;
+  color: var(--ink-soft);
+}
+
+.studio-chaos__scenario h3,
+.studio-chaos__trace h3,
+.studio-chaos__finding h3 {
+  margin: 0 0 0.35rem;
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+
+.studio-chaos__scenario-msg {
+  margin: 0;
+  font-size: 0.76rem;
+  color: var(--danger);
+}
+
+.studio-chaos__finding .finding-hit {
+  width: 100%;
+  text-align: left;
+}
+
+.studio-break-btn {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.75rem;
+  z-index: 11;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  font: inherit;
+  font-size: 0.76rem;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+}
+
+.studio-break-btn:hover {
+  border-color: color-mix(in srgb, var(--danger) 40%, var(--line));
+  color: var(--danger);
+}
+
 .studio-node {
   min-width: 180px;
   max-width: 240px;

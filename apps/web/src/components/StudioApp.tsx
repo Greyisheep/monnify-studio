@@ -16,6 +16,7 @@ import {
 import type {
   StudioNodeData,
 } from "@/types";
+import { useChaosSuite } from "@/hooks/useChaosSuite";
 import { useExecutionTrace } from "@/hooks/useExecutionTrace";
 import { useSidebarWidths } from "@/hooks/useSidebarWidths";
 import { useStudioGraph } from "@/hooks/useStudioGraph";
@@ -25,6 +26,7 @@ import {
   withEdgeHighlights,
   withNodeHighlights,
 } from "@/lib/findings";
+import { counterexampleFromTrace, isChaosUiEnabled } from "@/lib/chaos";
 import { flowToWorkflow } from "@/lib/flowIo";
 import {
   absoluteApiUrl,
@@ -38,6 +40,7 @@ import {
   type BusinessNav,
   type DashboardTxn,
 } from "./BusinessDashboard";
+import { FailureTracePanel } from "./FailureTracePanel";
 import { InspectDocumentPanel } from "./InspectDocumentPanel";
 import { NodePalette } from "./NodePalette";
 import { OnboardingChrome } from "./OnboardingChrome";
@@ -83,6 +86,8 @@ function CanvasInner() {
     shopUrl: string | null;
   } | null>(null);
   const [templatesOpen, setTemplatesOpen] = useState(false);
+  const [failurePanelOpen, setFailurePanelOpen] = useState(false);
+  const chaosUiEnabled = isChaosUiEnabled();
 
   const session = useStudioSession({ setNodes, setEdges });
   const sidebars = useSidebarWidths();
@@ -100,6 +105,14 @@ function CanvasInner() {
     setWorkflow: session.setWorkflow,
   });
   const trace = useExecutionTrace();
+  const chaos = useChaosSuite();
+
+  useEffect(() => {
+    if (!chaosUiEnabled || trace.running) return;
+    if (counterexampleFromTrace(trace.events)) {
+      setFailurePanelOpen(true);
+    }
+  }, [chaosUiEnabled, trace.running, trace.events]);
 
   useEffect(() => {
     let cancelled = false;
@@ -659,6 +672,40 @@ function CanvasInner() {
             >
               ← Dashboard
             </button>
+          ) : null}
+          {chaosUiEnabled ? (
+            <button
+              type="button"
+              className="studio-break-btn"
+              onClick={() => setFailurePanelOpen(true)}
+            >
+              Break test
+            </button>
+          ) : null}
+          {chaosUiEnabled && failurePanelOpen ? (
+            <FailureTracePanel
+              workflowName={session.workflow?.name ?? ""}
+              report={session.report}
+              chaosReport={chaos.report}
+              chaosError={chaos.error}
+              chaosLoading={chaos.loading}
+              run={trace.run}
+              events={trace.events}
+              selectedSeq={trace.selectedSeq}
+              running={trace.running}
+              traceError={trace.error}
+              onSelectSeq={trace.setSelectedSeq}
+              onSelectFinding={session.setSelectedFindingIndex}
+              onApplyFix={(ruleId) =>
+                currentIr && void session.applyFix(currentIr, ruleId)
+              }
+              onRunChaosSuite={() => {
+                if (!currentIr) return;
+                void chaos.runSuite(currentIr);
+              }}
+              onClose={() => setFailurePanelOpen(false)}
+              busy={session.busy}
+            />
           ) : null}
           <WorkflowCanvas
             nodes={displayNodes}

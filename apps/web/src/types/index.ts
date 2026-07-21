@@ -45,4 +45,9 @@ export type {
   RunStatus,
   StartExecutionResult,
 } from "./execution";
+export type {
+  ChaosReport,
+  ScenarioResult,
+  ScenarioStatus,
+} from "./chaos";
 export type { EdgeKind, IrEdge, IrNode, Position, Workflow } from "./workflow";
