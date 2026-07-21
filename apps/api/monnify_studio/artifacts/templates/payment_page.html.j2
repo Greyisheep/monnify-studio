@@ -50,6 +50,41 @@
     const status = document.getElementById("status");
     let orderRef = null;
 
+    // The fake-credit-alert trust boundary (#53): only a server-side check
+    // with Monnify can mark anything paid - claiming or polling just asks.
+    async function checkWithMonnify() {
+      const res = await fetch(
+        "/preview/{{ artifact_id }}/orders/" + orderRef + "/verify",
+        { method: "POST" },
+      );
+      if (!res.ok) throw new Error((await res.json()).detail || "verify failed");
+      return res.json();
+    }
+
+    // Auto-verify (#172): after checkout opens, quietly re-ask Monnify so a
+    // completed payment confirms itself. Claim button stays as the fallback.
+    let polling = false;
+    function pollUntilConfirmed() {
+      if (polling || !orderRef) return;
+      polling = true;
+      const startedAt = Date.now();
+      const timer = setInterval(async () => {
+        if (Date.now() - startedAt > 180000) {
+          clearInterval(timer);
+          polling = false;
+          status.textContent = "Paid already? Tap ‘I have sent the money’ and we’ll check with Monnify.";
+          return;
+        }
+        try {
+          const order = await checkWithMonnify();
+          if (order.status === "verified") {
+            clearInterval(timer);
+            status.textContent = "Payment confirmed. Thank you!";
+          }
+        } catch { /* transient; keep polling */ }
+      }, 5000);
+    }
+
     btn.addEventListener("click", async () => {
       btn.disabled = true;
       status.textContent = "Creating secure checkout...";
@@ -58,9 +93,10 @@
         if (!res.ok) throw new Error((await res.json()).detail || "checkout failed");
         const data = await res.json();
         orderRef = data.order_reference;
-        status.textContent = "Opening Monnify checkout (order " + orderRef + ")";
+        status.textContent = "Opening Monnify checkout (order " + orderRef + "). This page confirms itself once Monnify sees your payment.";
         claim.hidden = false;
         window.open(data.checkout_url, "_blank", "noopener");
+        pollUntilConfirmed();
       } catch (err) {
         status.textContent = "Could not start checkout: " + err.message;
       } finally {
@@ -68,19 +104,12 @@
       }
     });
 
-    // The fake-credit-alert trust boundary (#53): claiming payment only
-    // triggers a server-side check with Monnify; it never marks anything paid.
     claim.addEventListener("click", async () => {
       if (!orderRef) return;
       claim.disabled = true;
       status.textContent = "Checking with Monnify...";
       try {
-        const res = await fetch(
-          "/preview/{{ artifact_id }}/orders/" + orderRef + "/verify",
-          { method: "POST" },
-        );
-        if (!res.ok) throw new Error((await res.json()).detail || "verify failed");
-        const order = await res.json();
+        const order = await checkWithMonnify();
         status.textContent = order.status === "verified"
           ? "Payment confirmed. Thank you!"
           : "We checked with Monnify: " + order.note + ".";

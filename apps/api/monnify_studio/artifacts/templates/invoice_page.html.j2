@@ -165,6 +165,36 @@
   <script>
     const status = document.getElementById("status");
     const pay = document.getElementById("pay");
+    // Ask Monnify for the truth. Only its answer can flip the status (#53).
+    async function checkWithMonnify() {
+      const res = await fetch(
+        "/preview/{{ artifact_id }}/orders/{{ invoice.reference }}/verify",
+        { method: "POST" });
+      const order = await res.json();
+      if (order.status === "verified") { location.reload(); return true; }
+      return order.note || "No confirmed payment yet.";
+    }
+    // Auto-verify (#172): once checkout opens, quietly re-ask Monnify every
+    // few seconds so a completed payment confirms itself - no manual tap.
+    // The claim button stays as the fallback for slow or resumed sessions.
+    let polling = false;
+    function pollUntilConfirmed() {
+      if (polling) return;
+      polling = true;
+      const startedAt = Date.now();
+      const timer = setInterval(async () => {
+        if (Date.now() - startedAt > 180000) {
+          clearInterval(timer);
+          polling = false;
+          status.textContent = "Paid already? Tap ‘I have sent the money’ and we’ll check with Monnify.";
+          return;
+        }
+        try {
+          const outcome = await checkWithMonnify();
+          if (outcome === true) clearInterval(timer);
+        } catch { /* transient; keep polling */ }
+      }, 5000);
+    }
     pay.addEventListener("click", async () => {
       pay.disabled = true;
       status.textContent = "Opening secure checkout...";
@@ -175,7 +205,8 @@
         if (!res.ok) throw new Error(await res.text());
         const data = await res.json();
         window.open(data.checkout_url, "_blank");
-        status.textContent = "Checkout opened in a new tab. After paying, come back and tap ‘I have sent the money’.";
+        status.textContent = "Checkout opened in a new tab. This page confirms itself once Monnify sees your payment.";
+        pollUntilConfirmed();
       } catch (e) {
         status.textContent = "Could not start checkout. Try again.";
       } finally { pay.disabled = false; }
@@ -183,14 +214,15 @@
     document.getElementById("claim").addEventListener("click", async () => {
       status.textContent = "Checking with Monnify...";
       try {
-        const res = await fetch(
-          "/preview/{{ artifact_id }}/orders/{{ invoice.reference }}/verify",
-          { method: "POST" });
-        const order = await res.json();
-        if (order.status === "verified") { location.reload(); return; }
-        status.textContent = order.note || "No confirmed payment yet.";
+        const outcome = await checkWithMonnify();
+        if (outcome !== true) status.textContent = outcome;
       } catch { status.textContent = "Could not check right now. Try again."; }
     });
+    {% if invoice.payment_reference %}
+    // A checkout was already started for this invoice in an earlier visit
+    // (e.g. the member paid, closed the tab, and came back): resume polling.
+    pollUntilConfirmed();
+    {% endif %}
   </script>
   {% endif %}
 </body>
