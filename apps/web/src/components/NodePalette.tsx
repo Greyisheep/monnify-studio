@@ -25,6 +25,11 @@ export interface NodePaletteProps {
     message: string,
     onStatus?: (text: string) => void,
   ) => Promise<MoniAskResult>;
+  onRefine: (
+    message: string,
+    onStatus?: (text: string) => void,
+  ) => Promise<MoniAskResult>;
+  hasOpenWorkflow: boolean;
   onSetupIntent: (
     templateId: string,
     config: IntentResult["config"],
@@ -108,6 +113,8 @@ export function NodePalette({
   onToggleCollapsed,
   onAdd,
   onAsk,
+  onRefine,
+  hasOpenWorkflow,
   onSetupIntent,
   onResizeStart,
 }: NodePaletteProps) {
@@ -176,7 +183,13 @@ export function NodePalette({
         className={`studio-sidebar__scroll${leftTab === "chat" ? " is-chat" : ""}`}
       >
         {leftTab === "chat" ? (
-          <ChatPanel busy={busy} onAsk={onAsk} onSetupIntent={onSetupIntent} />
+          <ChatPanel
+            busy={busy}
+            hasOpenWorkflow={hasOpenWorkflow}
+            onAsk={onAsk}
+            onRefine={onRefine}
+            onSetupIntent={onSetupIntent}
+          />
         ) : (
           <>
             {groups.length === 0 && (
