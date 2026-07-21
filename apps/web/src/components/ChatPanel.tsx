@@ -14,14 +14,14 @@ import {
 } from "react";
 
 import { parseChatBlocks, stripCanvasSuffix } from "@/lib/chatMessage";
-import type { IntentResult, MoniAskResult } from "@/types";
+import type { IntentResult, MoniAskResult, MoniCorrectionEntry } from "@/types";
 
 export interface ChatMessage {
   id: string;
   role: "user" | "assistant";
   text: string;
   streaming?: boolean;
-  statusText?: string;
+  timeline?: MoniCorrectionEntry[];
   loadedOnCanvas?: boolean;
   intent?: {
     templateId: string;
@@ -34,7 +34,7 @@ export interface ChatPanelProps {
   busy: boolean;
   onAsk: (
     message: string,
-    onStatus?: (text: string) => void,
+    onProgress?: (entry: MoniCorrectionEntry) => void,
   ) => Promise<MoniAskResult>;
   onSetupIntent: (
     templateId: string,
@@ -56,6 +56,23 @@ const PROMPTS = [
   "Sell online with verified payments",
   "Make payroll for my team",
 ];
+
+function MoniTimeline({ entries }: { entries: MoniCorrectionEntry[] }) {
+  if (entries.length === 0) return null;
+
+  return (
+    <ol className="studio-chat__timeline" aria-label="Moni self-correction">
+      {entries.map((entry) => (
+        <li
+          key={entry.id}
+          className={`studio-chat__timeline-item studio-chat__timeline-item--${entry.phase}`}
+        >
+          {entry.text}
+        </li>
+      ))}
+    </ol>
+  );
+}
 
 function ChatMessageBody({
   text,
@@ -107,6 +124,19 @@ export function ChatPanel({ busy, onAsk, onSetupIntent }: ChatPanelProps) {
     );
   }
 
+  function appendTimeline(id: string, entry: MoniCorrectionEntry) {
+    setMessages((current) =>
+      current.map((message) =>
+        message.id === id
+          ? {
+              ...message,
+              timeline: [...(message.timeline ?? []), entry],
+            }
+          : message,
+      ),
+    );
+  }
+
   async function submit(text: string) {
     const trimmed = text.trim();
     if (!trimmed || busy) return;
@@ -125,20 +155,19 @@ export function ChatPanel({ busy, onAsk, onSetupIntent }: ChatPanelProps) {
         role: "assistant",
         text: "",
         streaming: true,
-        statusText: "Working…",
+        timeline: [],
       },
     ]);
     setDraft("");
 
     try {
-      const result = await onAsk(trimmed, (status) => {
-        patchAssistant(assistantId, { statusText: status });
+      const result = await onAsk(trimmed, (entry) => {
+        appendTimeline(assistantId, entry);
       });
 
       if (result.kind === "intent") {
         patchAssistant(assistantId, {
           streaming: false,
-          statusText: undefined,
           text: result.explanation,
           intent: {
             templateId: result.templateId,
@@ -153,14 +182,12 @@ export function ChatPanel({ busy, onAsk, onSetupIntent }: ChatPanelProps) {
         result.kind === "compose" ? " Loaded on the canvas, edit freely." : "";
       patchAssistant(assistantId, {
         streaming: false,
-        statusText: undefined,
         text: `${result.explanation}${suffix}`,
         loadedOnCanvas: result.kind === "compose",
       });
     } catch (error) {
       patchAssistant(assistantId, {
         streaming: false,
-        statusText: undefined,
         text:
           error instanceof Error
             ? error.message
@@ -228,9 +255,7 @@ export function ChatPanel({ busy, onAsk, onSetupIntent }: ChatPanelProps) {
             >
               {message.streaming ? (
                 <div className="studio-chat__thinking">
-                  <span className="studio-chat__thinking-label">
-                    {message.statusText ?? "Working…"}
-                  </span>
+                  <MoniTimeline entries={message.timeline ?? []} />
                   <span className="studio-chat__dots" aria-hidden>
                     <span />
                     <span />
@@ -239,6 +264,9 @@ export function ChatPanel({ busy, onAsk, onSetupIntent }: ChatPanelProps) {
                 </div>
               ) : (
                 <>
+                  {message.timeline && message.timeline.length > 0 ? (
+                    <MoniTimeline entries={message.timeline} />
+                  ) : null}
                   <ChatMessageBody
                     text={message.text}
                     loadedOnCanvas={message.loadedOnCanvas}

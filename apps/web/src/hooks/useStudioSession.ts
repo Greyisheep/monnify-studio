@@ -20,8 +20,10 @@ import {
   remediateWorkflow,
   resetWorkflow,
   saveWorkflow,
+  streamComposeWorkflow,
   type DataSource,
 } from "@/lib/api";
+import { moniCorrectionFromResult } from "@/lib/moniCorrection";
 import type { HeroId } from "@/lib/constants";
 import { formatGraphDiff } from "@/lib/findings";
 import { workflowToFlow } from "@/lib/flowIo";
@@ -37,6 +39,7 @@ import type {
   GenerateArtifactResult,
   IntentResult,
   MoniAskResult,
+  MoniCorrectionEntry,
   NodeMeta,
   StudioNodeData,
   Workflow,
@@ -313,14 +316,35 @@ export function useStudioSession({ setNodes, setEdges }: UseStudioSessionOptions
   const askMoni = useCallback(
     async (
       message: string,
-      onStatus?: (text: string) => void,
+      onProgress?: (entry: MoniCorrectionEntry) => void,
     ): Promise<MoniAskResult> => {
       setBusy(true);
       setTypeError(null);
       try {
         try {
-          onStatus?.("Composing a flow…");
-          const composed = await composeWorkflow(message);
+          onProgress?.({
+            id: "status-start",
+            phase: "status",
+            text: "Reading what you need…",
+          });
+
+          const streamed = await streamComposeWorkflow(message, (entry) => {
+            onProgress?.(entry);
+          });
+          const composed =
+            streamed ??
+            (await (async () => {
+              onProgress?.({
+                id: "status-compose",
+                phase: "status",
+                text: "Designing nodes from the catalog…",
+              });
+              const result = await composeWorkflow(message);
+              for (const entry of moniCorrectionFromResult(result)) {
+                onProgress?.(entry);
+              }
+              return result;
+            })());
           applyPayload(
             composed.workflow,
             { ...catalog, ...composed.node_types },
@@ -351,7 +375,11 @@ export function useStudioSession({ setNodes, setEdges }: UseStudioSessionOptions
           if (!msg.startsWith("503")) throw composeError;
         }
 
-        onStatus?.("Matching a vetted template…");
+        onProgress?.({
+          id: "status-template",
+          phase: "status",
+          text: "Matching a vetted template…",
+        });
         const intent = await classifyIntent(message);
         if (
           !intent.template_id ||

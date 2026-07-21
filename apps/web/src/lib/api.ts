@@ -12,6 +12,8 @@ import type {
   ExecutionRun,
   GenerateArtifactResult,
   IntentResult,
+  MoniCorrectionEntry,
+  MoniCorrectionSsePayload,
   MonnifyCredentialInput,
   NodeMeta,
   RemediateResult,
@@ -23,6 +25,9 @@ import type {
   WorkflowPayload,
   WorkflowSummary,
 } from "@/types";
+
+import { moniCorrectionFromSse } from "@/lib/moniCorrection";
+import { consumeSseStream } from "@/lib/sse";
 
 import unsafePayload from "@/data/marketplace-unsafe.json";
 import safePayload from "@/data/marketplace-safe.json";
@@ -204,32 +209,76 @@ export async function streamExecutionEvents(
     throw new Error(`${response.status} /executions/${runId}/events/stream`);
   }
 
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
+  await consumeSseStream(response, (eventName, data) => {
+    if (eventName === "done") return;
+    if (!data || data === "{}") return;
+    onEvent(JSON.parse(data) as ExecutionEvent);
+  });
+}
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    const chunks = buffer.split("\n\n");
-    buffer = chunks.pop() ?? "";
-
-    for (const chunk of chunks) {
-      const lines = chunk.split("\n");
-      let eventName = "message";
-      const dataLines: string[] = [];
-      for (const line of lines) {
-        if (line.startsWith("event:")) eventName = line.slice(6).trim();
-        if (line.startsWith("data:")) dataLines.push(line.slice(5).trim());
-      }
-      if (eventName === "done") return;
-      if (dataLines.length === 0) continue;
-      const payload = dataLines.join("\n");
-      if (!payload || payload === "{}") continue;
-      onEvent(JSON.parse(payload) as ExecutionEvent);
-    }
+/**
+ * Stream Moni compose self-correction (#110). Returns null when the stream
+ * endpoint is unavailable so callers can fall back to POST /assistant/compose.
+ */
+export async function streamComposeWorkflow(
+  message: string,
+  onEntry: (entry: MoniCorrectionEntry) => void,
+  signal?: AbortSignal,
+): Promise<ComposeResult | null> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE}/assistant/compose/stream`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "text/event-stream",
+      },
+      body: JSON.stringify({ message }),
+      signal,
+      cache: "no-store",
+      credentials: "include",
+    });
+  } catch {
+    return null;
   }
+
+  if (response.status === 404 || response.status === 405) {
+    return null;
+  }
+  if (!response.ok || !response.body) {
+    const text = await response.text();
+    throw new Error(`${response.status} /assistant/compose/stream: ${text}`);
+  }
+
+  let result: ComposeResult | null = null;
+  let streamError: Error | null = null;
+
+  await consumeSseStream(response, (eventName, data) => {
+    if (eventName === "done") return;
+    if (!data) return;
+
+    if (eventName === "error") {
+      const payload = JSON.parse(data) as { status?: number; detail?: string };
+      streamError = new Error(
+        `${payload.status ?? 500}: ${payload.detail ?? "compose failed"}`,
+      );
+      return;
+    }
+
+    if (eventName === "result") {
+      result = JSON.parse(data) as ComposeResult;
+      return;
+    }
+
+    const entry = moniCorrectionFromSse(
+      eventName,
+      JSON.parse(data) as MoniCorrectionSsePayload,
+    );
+    if (entry) onEntry(entry);
+  });
+
+  if (streamError) throw streamError;
+  return result;
 }
 
 export async function composeWorkflow(message: string): Promise<ComposeResult> {

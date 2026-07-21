@@ -1717,8 +1717,55 @@ body.is-resizing-sidebar iframe {
 
 .studio-chat__thinking {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-start;
   gap: 8px;
+}
+
+.studio-chat__timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+.studio-chat__timeline-item {
+  position: relative;
+  padding-left: 14px;
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.studio-chat__timeline-item::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.45em;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 35%, var(--line));
+}
+
+.studio-chat__timeline-item--finding::before {
+  background: color-mix(in srgb, #c2410c 70%, var(--line));
+}
+
+.studio-chat__timeline-item--correcting::before {
+  background: color-mix(in srgb, var(--accent) 65%, var(--line));
+}
+
+.studio-chat__timeline-item--passed {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.studio-chat__timeline-item--passed::before {
+  background: color-mix(in srgb, #15803d 75%, var(--line));
 }
 
 .studio-chat__thinking-label {

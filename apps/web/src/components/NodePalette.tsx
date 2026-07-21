@@ -8,7 +8,7 @@
 import Image from "next/image";
 import type { PointerEvent as ReactPointerEvent } from "react";
 
-import type { IntentResult, MoniAskResult, NodeMeta } from "@/types";
+import type { IntentResult, MoniAskResult, MoniCorrectionEntry, NodeMeta } from "@/types";
 import { ChatPanel } from "./ChatPanel";
 
 export interface NodePaletteProps {
@@ -23,7 +23,7 @@ export interface NodePaletteProps {
   onAdd: (typeKey: string) => void;
   onAsk: (
     message: string,
-    onStatus?: (text: string) => void,
+    onProgress?: (entry: MoniCorrectionEntry) => void,
   ) => Promise<MoniAskResult>;
   onSetupIntent: (
     templateId: string,

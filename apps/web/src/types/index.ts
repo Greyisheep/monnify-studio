@@ -23,6 +23,11 @@ export type {
 } from "./analysis";
 export type { MoniAskResult } from "./assistant";
 export type {
+  MoniCorrectionEntry,
+  MoniCorrectionPhase,
+  MoniCorrectionSsePayload,
+} from "./moniCorrection";
+export type {
   ArtifactConfigInput,
   CredentialStatus,
   GenerateArtifactResult,
