@@ -29,6 +29,7 @@ from monnify_studio.ai import (
     classify_intent,
     compose_flow,
     explain,
+    refine_flow,
 )
 from monnify_studio.analysis import Report, analyze
 from monnify_studio.artifacts import (
@@ -426,6 +427,64 @@ def assistant_compose(body: AssistantRequest) -> ComposeResponse:
             provider=outcome.provider,
             caught=len(outcome.report_before.findings),
             remaining=len(outcome.report_after.findings),
+        )
+        return ComposeResponse(
+            workflow=payload.workflow,
+            node_types=payload.node_types,
+            analysis=outcome.report_after,
+            findings_caught=[f.rule_id for f in outcome.report_before.findings],
+            steps=outcome.steps,
+            provider=outcome.provider,
+            explanation=outcome.explanation,
+        )
+
+
+class RefineRequest(BaseModel):
+    workflow_id: str
+    message: str  # plain-words instruction: "add a refund path", "fix this"
+    provider: str | None = None
+
+
+@app.post("/assistant/refine", response_model=ComposeResponse)
+def assistant_refine(body: RefineRequest) -> ComposeResponse:
+    """Moni corrects the flow on the whiteboard (#148, dev item 7).
+
+    Same verify-refuse loop and same response shape as compose, so the canvas
+    updates in place; the revised flow keeps its id. An unclean revision never
+    ships; a non-payment ask gets an honest decline.
+    """
+    with correlation(request_id=new_id("moni")):
+        current = store.get(body.workflow_id)
+        if current is None:
+            raise HTTPException(
+                status_code=404, detail=f"unknown workflow: {body.workflow_id}"
+            )
+        try:
+            outcome = refine_flow(current, body.message, provider=body.provider)
+        except ComposeUnavailable as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from None
+        except ComposeRefused as exc:
+            raise HTTPException(
+                status_code=422, detail=f"Moni can't do that here: {exc.reason}"
+            ) from None
+        except ComposeError as exc:
+            raise HTTPException(
+                status_code=422,
+                detail="Moni could not make that change verifiably safe: "
+                + "; ".join(exc.errors),
+            ) from None
+        except Exception as exc:  # noqa: BLE001 - typed 500 keeps CORS (#106)
+            log.info("assistant.refine.unexpected", error=type(exc).__name__)
+            raise HTTPException(
+                status_code=500, detail="Moni hit an unexpected error; try again."
+            ) from None
+        saved = store.save(outcome.workflow)
+        payload = _enrich(saved)
+        log.info(
+            "assistant.refine",
+            workflow=saved.id,
+            provider=outcome.provider,
+            caught=len(outcome.report_before.findings),
         )
         return ComposeResponse(
             workflow=payload.workflow,
