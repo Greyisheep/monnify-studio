@@ -23,7 +23,6 @@ import {
   saveWorkflow,
   type DataSource,
 } from "@/lib/api";
-import { ApiError } from "@/lib/http";
 import type { HeroId } from "@/lib/constants";
 import { formatGraphDiff } from "@/lib/findings";
 import { workflowToFlow } from "@/lib/flowIo";
@@ -434,16 +433,20 @@ export function useStudioSession({ setNodes, setEdges }: UseStudioSessionOptions
           findingsCaught: refined.findings_caught,
           steps: refined.steps,
         };
-      } catch (error) {
-        if (error instanceof ApiError && error.status === 422) {
-          return {
-            kind: "refusal",
-            explanation: error.message,
-            workflowName: null,
-          };
-        }
+      } catch (error: unknown) {
         const text =
           error instanceof Error ? error.message : "Moni could not change this Flow.";
+        if (text.startsWith("422 /assistant/refine:")) {
+          const detail = text.slice("422 /assistant/refine:".length).trim();
+          let reason = detail;
+          try {
+            const parsed = JSON.parse(detail) as { detail?: string };
+            if (typeof parsed.detail === "string") reason = parsed.detail;
+          } catch {
+            // FastAPI may return plain text detail.
+          }
+          return { kind: "refusal", explanation: reason, workflowName: null };
+        }
         setTypeError(text);
         throw error;
       } finally {
