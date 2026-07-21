@@ -2193,8 +2193,9 @@ body.is-resizing-sidebar iframe {
 }
 
 .studio-modal__card--templates {
-  width: min(875px, calc(100vw - 32px));
-  padding: 40px;
+  width: min(900px, calc(100vw - 32px));
+  max-height: none;
+  padding: 40px 40px 16px;
   border-radius: 16px;
   border: 1px solid #e5e5e5;
   background: #fff;
@@ -2202,9 +2203,9 @@ body.is-resizing-sidebar iframe {
 }
 
 .studio-onboard__card--templates {
-  width: min(875px, 100%);
+  width: min(900px, 100%);
   gap: 40px;
-  padding: 40px;
+  padding: 40px 40px 16px;
   background: #fff;
   border: 1px solid #e5e5e5;
   border-radius: 16px;
@@ -2281,15 +2282,15 @@ body.is-resizing-sidebar iframe {
 }
 
 /*
- * Figma template thumbs (103:3306 blank, 103:3312 payments, 103:3317 invoice, 103:3322 payroll).
- * Full rounded frame exports (378×316), fill #F5F2ED, h-150, r-8. Art is the Figma node raster.
+ * Figma template thumbs (#144:4306 / #155:5019): h-150, r-8, #F5F2ED blank.
+ * Selected: 1px #013D41 stroke + rgba(0,0,0,0.2) dim; Select = mini outline (#155:5020).
  */
 .studio-template-picker__thumb {
   position: relative;
   display: block;
   width: 100%;
   height: 150px;
-  border: 0;
+  border: 1px solid #e5e5e5;
   border-radius: 8px;
   background: #f5f2ed;
   overflow: hidden;
@@ -2298,10 +2299,8 @@ body.is-resizing-sidebar iframe {
 }
 
 .studio-template-picker__thumb.is-selected {
-  box-shadow:
-    0 0 0 2px #013d41,
-    0 1px 2px -1px rgba(0, 0, 0, 0.1),
-    0 1px 3px 0 rgba(0, 0, 0, 0.1);
+  border-color: #013d41;
+  box-shadow: none;
 }
 
 .studio-template-picker__thumb.is-selected::after {
@@ -2309,7 +2308,7 @@ body.is-resizing-sidebar iframe {
   position: absolute;
   inset: 0;
   z-index: 0;
-  background: rgba(232, 232, 232, 0.55);
+  background: rgba(0, 0, 0, 0.2);
   pointer-events: none;
 }
 
@@ -2338,17 +2337,17 @@ body.is-resizing-sidebar iframe {
   top: 50%;
   transform: translate(-50%, -50%);
   z-index: 2;
-  border: 0;
-  border-radius: 999px;
-  padding: 8px 14px;
+  border: 1px solid #d4d4d4;
+  border-radius: 8px;
+  padding: 3px 8px;
   background: #fff;
   color: #013d41;
   font: inherit;
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 500;
   line-height: 16px;
   white-space: nowrap;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   cursor: pointer;
 }
 
@@ -2381,7 +2380,8 @@ body.is-resizing-sidebar iframe {
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 12px;
+  gap: 8px;
+  padding: 0;
 }
 
 .studio-template-picker__back {
@@ -3976,8 +3976,10 @@ body.is-resizing-sidebar iframe {
   justify-content: center;
   width: 100%;
   height: 100%;
-  font-size: 40px;
+  font-size: 24px;
+  font-weight: 400;
   line-height: 1;
+  color: #0a0a0a;
 }
 
 /* Preview-before-share nudge (#160): Preview button pulses + tooltips on first
