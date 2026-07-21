@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import type { ExecutionEvent } from "@/types";
 
-import { eventFriendlySummary, eventHasTechnicalDetail } from "./traceEvent";
+import {
+  blockRunResults,
+  eventFriendlySummary,
+  eventHasTechnicalDetail,
+} from "./traceEvent";
 
 function baseEvent(overrides: Partial<ExecutionEvent> = {}): ExecutionEvent {
   return {
@@ -52,6 +56,15 @@ describe("eventHasTechnicalDetail", () => {
         }),
       ),
     ).toBe(true);
+    expect(
+      eventHasTechnicalDetail(
+        baseEvent({
+          message: "",
+          friendly_text: "Done",
+          inputs: { amount: 45000 },
+        }),
+      ),
+    ).toBe(true);
   });
 
   it("is false for friendly-only events", () => {
@@ -65,5 +78,32 @@ describe("eventHasTechnicalDetail", () => {
         }),
       ),
     ).toBe(false);
+  });
+});
+
+describe("blockRunResults", () => {
+  it("keeps the latest stateful event per Block", () => {
+    const results = blockRunResults([
+      baseEvent({ seq: 1, type: "node.started", node_id: "collect" }),
+      baseEvent({
+        seq: 2,
+        type: "node.completed",
+        node_id: "collect",
+        inputs: { amount: 45000 },
+        outputs: { status: "PAID" },
+        duration_ms: 120,
+      }),
+      baseEvent({ seq: 3, type: "node.waiting", node_id: "notify" }),
+      baseEvent({ seq: 4, type: "log", node_id: "collect" }),
+    ]);
+
+    expect(results.collect).toMatchObject({
+      state: "done",
+      event: { seq: 2, inputs: { amount: 45000 } },
+    });
+    expect(results.notify).toMatchObject({
+      state: "waiting",
+      event: { seq: 3 },
+    });
   });
 });

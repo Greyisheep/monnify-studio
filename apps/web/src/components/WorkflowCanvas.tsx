@@ -22,7 +22,7 @@ import {
 import "@xyflow/react/dist/style.css";
 
 import type { ConnectionFeedback } from "@/hooks/useStudioGraph";
-import type { StudioNodeData } from "@/types";
+import type { BlockRunResult, StudioNodeData } from "@/types";
 import { StudioNode } from "./StudioNode";
 import { StudioZoomControls } from "./StudioZoomControls";
 
@@ -31,6 +31,7 @@ const nodeTypes: NodeTypes = { studio: StudioNode };
 export interface WorkflowCanvasProps {
   nodes: Node<StudioNodeData>[];
   edges: Edge[];
+  blockResults: Record<string, BlockRunResult>;
   loading: boolean;
   busy: boolean;
   typeError: string | null;
@@ -63,6 +64,7 @@ function FitViewOnLayout({ layoutNonce }: { layoutNonce: number }) {
 export function WorkflowCanvas({
   nodes,
   edges,
+  blockResults,
   loading,
   busy,
   typeError,
@@ -102,7 +104,10 @@ export function WorkflowCanvas({
         <div className="studio-banner studio-banner--ok">{diffNote}</div>
       )}
       <ReactFlow
-        nodes={nodes}
+        nodes={nodes.map((node) => ({
+          ...node,
+          data: { ...node.data, execution: blockResults[node.id] },
+        }))}
         edges={edges}
         onNodesChange={(nodeChanges) => {
           onNodesChange(nodeChanges);

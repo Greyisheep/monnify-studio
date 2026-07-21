@@ -26,6 +26,7 @@ import {
   withNodeHighlights,
 } from "@/lib/findings";
 import { flowToWorkflow } from "@/lib/flowIo";
+import { blockRunResults } from "@/lib/traceEvent";
 import {
   absoluteApiUrl,
   fetchStudioProfile,
@@ -187,6 +188,10 @@ function CanvasInner() {
   const displayEdges = useMemo(
     () => withEdgeHighlights(edges, selectedFinding),
     [edges, selectedFinding],
+  );
+  const blockResults = useMemo(
+    () => blockRunResults(trace.events),
+    [trace.events],
   );
 
   const selectedIrNode = useMemo(() => {
@@ -663,6 +668,7 @@ function CanvasInner() {
           <WorkflowCanvas
             nodes={displayNodes}
             edges={displayEdges}
+            blockResults={blockResults}
             loading={session.loading}
             busy={session.busy || trace.running}
             typeError={session.typeError}

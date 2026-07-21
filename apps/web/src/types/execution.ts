@@ -39,6 +39,14 @@ export interface ExecutionEvent {
   error?: string | null;
 }
 
+export type BlockRunState = "running" | "done" | "waiting" | "failed";
+
+/** Most recent stateful event for one Block in the active Run. */
+export interface BlockRunResult {
+  state: BlockRunState;
+  event: ExecutionEvent;
+}
+
 export interface ExecutionRun {
   id: string;
   workflow_id: string;

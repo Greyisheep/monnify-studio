@@ -39,6 +39,8 @@ export type {
   StudioProfileUpdate,
 } from "./onboarding";
 export type {
+  BlockRunResult,
+  BlockRunState,
   ExecutionEvent,
   ExecutionEventType,
   ExecutionRun,

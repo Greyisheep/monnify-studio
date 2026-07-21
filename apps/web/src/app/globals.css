@@ -2557,6 +2557,133 @@ body.is-resizing-sidebar iframe {
   line-height: 1.25;
 }
 
+.studio-node__run {
+  margin-top: 0.5rem;
+}
+
+.studio-node__run-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-bottom: 0.3rem;
+  font-family: var(--font-mono);
+  font-size: 0.59rem;
+  line-height: 1;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.studio-node__run-state::before {
+  content: "";
+  width: 0.42rem;
+  height: 0.42rem;
+  border-radius: 50%;
+  background: var(--ink-soft);
+}
+
+.studio-node.is-running .studio-node__run-state::before {
+  background: var(--accent);
+  animation: studio-node-pulse 1.2s ease-in-out infinite;
+}
+
+.studio-node.is-done .studio-node__run-state::before {
+  background: var(--accent);
+}
+
+.studio-node.is-waiting .studio-node__run-state::before {
+  background: var(--warn);
+}
+
+.studio-node.is-failed .studio-node__run-state::before {
+  background: var(--danger);
+}
+
+@keyframes studio-node-pulse {
+  50% {
+    opacity: 0.38;
+  }
+}
+
+.studio-node__io-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  width: 100%;
+  padding: 0.32rem 0.42rem;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel) 72%, var(--surface-warm));
+  color: var(--ink);
+  cursor: pointer;
+  font: 0.62rem/1.25 var(--font-mono);
+  text-align: left;
+}
+
+.studio-node__io-pill:hover {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
+}
+
+.studio-node__io-pill span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.studio-node__io-pill span:first-child,
+.studio-node__io-pill span:last-child {
+  min-width: 0;
+  flex: 1;
+}
+
+.studio-node__io-pill span:nth-child(2) {
+  color: var(--ink-soft);
+}
+
+.studio-node__run-detail {
+  margin-top: 0.45rem;
+  padding-top: 0.45rem;
+  border-top: 1px solid var(--line);
+}
+
+.studio-node__run-detail > strong {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: 0.68rem;
+  text-transform: capitalize;
+}
+
+.studio-node__run-detail > div + div {
+  margin-top: 0.38rem;
+}
+
+.studio-node__run-detail span {
+  display: block;
+  margin-bottom: 0.16rem;
+  font-family: var(--font-mono);
+  font-size: 0.57rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.studio-node__run-detail pre {
+  max-height: 8rem;
+  margin: 0;
+  padding: 0.35rem;
+  overflow: auto;
+  border-radius: 0.3rem;
+  background: var(--paper);
+  font: 0.59rem/1.35 var(--font-mono);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.studio-node__run-error {
+  color: var(--danger);
+}
+
 .studio-node__type {
   display: block;
   margin-top: 0.3rem;
