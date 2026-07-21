@@ -1889,6 +1889,51 @@ body.is-resizing-sidebar iframe {
   color: #0a0a0a;
 }
 
+.studio-doc__formats {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  padding: 2px;
+  border-radius: 8px;
+  background: #f5f2ed;
+}
+
+.studio-doc__format-tab {
+  border: 0;
+  background: transparent;
+  color: #0a0a0a;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  padding: 2px 8px;
+  min-height: 20px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.studio-doc__format-tab.is-active {
+  background: #fff;
+  box-shadow:
+    0 1px 2px -1px rgba(0, 0, 0, 0.1),
+    0 1px 3px 0 rgba(0, 0, 0, 0.1);
+}
+
+.studio-doc__format-tab:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.studio-doc__subtitle {
+  margin: -8px 0 0;
+  padding: 0 4px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  color: #737373;
+  font-family: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
 .studio-doc__copy {
   display: inline-flex;
   align-items: center;

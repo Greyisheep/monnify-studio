@@ -11,6 +11,7 @@ import type {
   ExecutionEvent,
   ExecutionRun,
   GenerateArtifactResult,
+  GeneratedCode,
   IntentResult,
   MonnifyCredentialInput,
   NodeMeta,
@@ -152,6 +153,28 @@ export async function resetWorkflow(workflowId: string): Promise<WorkflowPayload
 
 export async function saveWorkflow(workflow: Workflow): Promise<WorkflowPayload> {
   return putJson<WorkflowPayload>(`/workflows/${workflow.id}`, workflow);
+}
+
+/** Deterministic Flow → Python module (#146). Frontend Code tab (#152). */
+export async function fetchWorkflowCode(
+  workflowId: string,
+  lang: string = "python",
+): Promise<GeneratedCode> {
+  const response = await fetch(
+    `${API_BASE}/workflows/${encodeURIComponent(workflowId)}/code?lang=${encodeURIComponent(lang)}`,
+    { cache: "no-store", credentials: "include" },
+  );
+  if (!response.ok) {
+    let detail = `Code fetch failed (${response.status})`;
+    try {
+      const body = (await response.json()) as { detail?: string };
+      if (body.detail) detail = body.detail;
+    } catch {
+      /* keep status message */
+    }
+    throw new Error(detail);
+  }
+  return (await response.json()) as GeneratedCode;
 }
 
 export async function remediateWorkflow(

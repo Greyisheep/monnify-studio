@@ -29,8 +29,10 @@ import { flowToWorkflow } from "@/lib/flowIo";
 import {
   absoluteApiUrl,
   fetchStudioProfile,
+  fetchWorkflowCode,
   fetchWorkflowDashboard,
   putStudioProfile,
+  saveWorkflow,
 } from "@/lib/api";
 import {
   BusinessDashboard,
@@ -71,6 +73,12 @@ function CanvasInner() {
   /** Both sidebars hidden — Figma Maincollapsed (21:1732). */
   const [panelsCollapsed, setPanelsCollapsed] = useState(false);
   const [rightTab, setRightTab] = useState<"preview" | "code">("preview");
+  /** Code tab format (#152): JSON from canvas IR; Python from GET /workflows/{id}/code. */
+  const [codeFormat, setCodeFormat] = useState<"json" | "python">("json");
+  const [pythonFilename, setPythonFilename] = useState<string | null>(null);
+  const [pythonSource, setPythonSource] = useState("");
+  const [pythonBusy, setPythonBusy] = useState(false);
+  const [pythonError, setPythonError] = useState<string | null>(null);
   const [profile, setProfile] = useState<StudioProfile | null>(null);
   const [profileReady, setProfileReady] = useState(false);
   const [profileBusy, setProfileBusy] = useState(false);
@@ -257,6 +265,47 @@ function CanvasInner() {
     }
     return "";
   }, [currentIr, selectedIrNode]);
+
+  // Python Code tab: sync store then fetch generated module when Flow changes (#152).
+  useEffect(() => {
+    if (rightTab !== "code" || codeFormat !== "python") return;
+    if (!currentIr?.id) {
+      setPythonSource("");
+      setPythonFilename(null);
+      setPythonError(null);
+      return;
+    }
+
+    let cancelled = false;
+    setPythonBusy(true);
+    setPythonError(null);
+
+    void (async () => {
+      try {
+        await saveWorkflow(currentIr);
+        if (cancelled) return;
+        const generated = await fetchWorkflowCode(currentIr.id, "python");
+        if (cancelled) return;
+        setPythonSource(generated.code);
+        setPythonFilename(generated.filename);
+      } catch (error) {
+        if (cancelled) return;
+        setPythonSource("");
+        setPythonFilename(null);
+        setPythonError(
+          error instanceof Error
+            ? error.message
+            : "Could not generate Python for this Flow.",
+        );
+      } finally {
+        if (!cancelled) setPythonBusy(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [rightTab, codeFormat, currentIr]);
 
   async function onPathContinue(path: StudioPath) {
     setProfileBusy(true);
@@ -617,9 +666,36 @@ function CanvasInner() {
           >
             {rightTab === "code" ? (
               <InspectDocumentPanel
-                formatLabel="JSON"
-                content={codeDocument}
-                emptyHint="Compose or open a workflow to see its code."
+                formatLabel={
+                  codeFormat === "python"
+                    ? (pythonFilename ?? "Python")
+                    : "JSON"
+                }
+                formats={[
+                  { id: "json", label: "JSON" },
+                  { id: "python", label: "Python" },
+                ]}
+                activeFormat={codeFormat}
+                onFormatChange={(id) =>
+                  setCodeFormat(id === "python" ? "python" : "json")
+                }
+                subtitle={
+                  codeFormat === "python" ? pythonFilename : null
+                }
+                content={
+                  codeFormat === "python"
+                    ? pythonError
+                      ? ""
+                      : pythonSource
+                    : codeDocument
+                }
+                busy={codeFormat === "python" && pythonBusy}
+                emptyHint={
+                  codeFormat === "python"
+                    ? pythonError ??
+                      "Compose or open a Flow to generate Python."
+                    : "Compose or open a workflow to see its code."
+                }
               />
             ) : (
               <InspectDocumentPanel

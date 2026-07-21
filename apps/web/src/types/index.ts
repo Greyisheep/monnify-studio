@@ -26,6 +26,7 @@ export type {
   ArtifactConfigInput,
   CredentialStatus,
   GenerateArtifactResult,
+  GeneratedCode,
   MonnifyCredentialInput,
   TemplateInfo,
   WorkflowSummary,

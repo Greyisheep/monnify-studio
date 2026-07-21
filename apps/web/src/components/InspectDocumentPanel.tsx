@@ -1,22 +1,40 @@
 /**
  * Right inspect document pane — Figma Chat and Code panel (118:3740).
- * Header: format label + Copy; body: scrollable mono text.
+ * Header: format label (or JSON|Python toggle) + Copy; body: scrollable mono text.
+ * Provenance: #152, #146.
  */
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
+
+export interface InspectFormatOption {
+  id: string;
+  label: string;
+}
 
 export interface InspectDocumentPanelProps {
-  /** Shown as the left header label (e.g. Markdown, JSON). */
+  /** Shown as the left header label when no format toggle (e.g. Markdown). */
   formatLabel: string;
   content: string;
   emptyHint?: string;
+  /** Optional Code-tab format switcher (#152). */
+  formats?: InspectFormatOption[];
+  activeFormat?: string;
+  onFormatChange?: (id: string) => void;
+  /** Extra line under the head (e.g. generated Python filename). */
+  subtitle?: string | null;
+  busy?: boolean;
 }
 
 export function InspectDocumentPanel({
   formatLabel,
   content,
   emptyHint = "Nothing to show yet.",
+  formats,
+  activeFormat,
+  onFormatChange,
+  subtitle,
+  busy = false,
 }: InspectDocumentPanelProps) {
   const [copied, setCopied] = useState(false);
   const text = content.trim();
@@ -32,15 +50,46 @@ export function InspectDocumentPanel({
     }
   }
 
+  let headLeft: ReactNode;
+  if (formats && formats.length > 0 && onFormatChange) {
+    headLeft = (
+      <div
+        className="studio-doc__formats"
+        role="tablist"
+        aria-label="Code format"
+      >
+        {formats.map((format) => (
+          <button
+            key={format.id}
+            type="button"
+            role="tab"
+            aria-selected={activeFormat === format.id}
+            className={
+              activeFormat === format.id
+                ? "studio-doc__format-tab is-active"
+                : "studio-doc__format-tab"
+            }
+            disabled={busy}
+            onClick={() => onFormatChange(format.id)}
+          >
+            {format.label}
+          </button>
+        ))}
+      </div>
+    );
+  } else {
+    headLeft = <span className="studio-doc__format">{formatLabel}</span>;
+  }
+
   return (
     <div className="studio-doc">
       <div className="studio-doc__head">
-        <span className="studio-doc__format">{formatLabel}</span>
+        {headLeft}
         <button
           type="button"
           className="studio-doc__copy"
           onClick={() => void onCopy()}
-          disabled={!text}
+          disabled={!text || busy}
         >
           <svg
             width="12"
@@ -67,8 +116,11 @@ export function InspectDocumentPanel({
           {copied ? "Copied" : "Copy"}
         </button>
       </div>
+      {subtitle ? <p className="studio-doc__subtitle">{subtitle}</p> : null}
       <div className="studio-doc__body">
-        {text ? (
+        {busy && !text ? (
+          <p className="studio-doc__empty">Generating…</p>
+        ) : text ? (
           <pre className="studio-doc__pre">{text}</pre>
         ) : (
           <p className="studio-doc__empty">{emptyHint}</p>
