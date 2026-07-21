@@ -16,9 +16,10 @@ function crumbFor(step: OnboardingStep): CrumbId {
   return step === "user_type" ? "user_type" : "setup";
 }
 
-/** Figma templates float over the studio whiteboard (103:3264), not a solid page. */
-function overStudio(step: OnboardingStep): boolean {
-  return step === "template" || step === "intent";
+/** The onboarding screens sit on a solid light page in Figma (233:7084), not
+ *  frosted over the studio whiteboard - every step uses the solid background. */
+function overStudio(_step: OnboardingStep): boolean {
+  return false;
 }
 
 export function OnboardingChrome({
