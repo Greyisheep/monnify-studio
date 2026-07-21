@@ -210,6 +210,56 @@ class GoogleProvider:
         return schema.model_validate_json(resp.text)
 
 
+class FailoverProvider:
+    """Try each available provider in order; fall through on ANY failure (#15).
+
+    A single provider is a single point of failure - a key that is out of credit,
+    rate-limited, or briefly down 503s the whole feature (we felt exactly this).
+    So Chat runs a chain: the primary, then the next funded/available provider,
+    then the next. Only if EVERY real provider fails do we drop to the keyword
+    fallback (which classifies intent but cannot compose, D18). The error is a
+    fast BadRequest/RateLimit in practice, not a hang, so failover is quick; the
+    per-call timeout still guards a genuine stall.
+    """
+
+    def __init__(self, providers: list[AIProvider], fallback: "KeywordFallback") -> None:
+        self._providers = providers
+        self._fallback = fallback
+        # Report the primary's name so selection logs/tests see the intended provider.
+        self.name = providers[0].name if providers else fallback.name
+
+    def available(self) -> bool:
+        return True
+
+    def structured(
+        self, *, system: str, user: str, message: str = "",
+        schema: type[BaseModel] = MoniIntent, max_tokens: int = 1024,
+    ) -> BaseModel:
+        last_error: Exception | None = None
+        for provider in self._providers:
+            try:
+                result = provider.structured(
+                    system=system, user=user, message=message,
+                    schema=schema, max_tokens=max_tokens,
+                )
+                if provider.name != self._providers[0].name:
+                    log.info("ai.provider.failover.served", provider=provider.name)
+                return result
+            except Exception as exc:  # any failure -> try the next provider
+                last_error = exc
+                log.warning(
+                    "ai.provider.failed",
+                    provider=provider.name,
+                    error=type(exc).__name__,
+                )
+        # Every real provider failed. Keyword can still classify intent; for
+        # compose it raises NotImplementedError, which the caller surfaces (D18).
+        log.warning("ai.provider.all_failed", last_error=type(last_error).__name__ if last_error else None)
+        return self._fallback.structured(
+            system=system, user=user, message=message, schema=schema, max_tokens=max_tokens,
+        )
+
+
 _ORDER = ["anthropic", "openai", "google"]
 _REGISTRY: dict[str, type] = {
     "anthropic": AnthropicProvider,
@@ -219,15 +269,19 @@ _REGISTRY: dict[str, type] = {
 
 
 def select_provider(preferred: str | None = None) -> AIProvider:
-    """First available provider (preferred, then env default, then order), else fallback."""
+    """Build a failover chain of available providers (preferred, then env default,
+    then order), falling back to keyword classification if none are available."""
     order: list[str] = []
     for candidate in (preferred, os.getenv("AI_PROVIDER"), *_ORDER):
         if candidate and candidate in _REGISTRY and candidate not in order:
             order.append(candidate)
-    for name in order:
-        provider = _REGISTRY[name]()
-        if provider.available():
-            log.info("ai.provider.selected", provider=name)
-            return provider
-    log.info("ai.provider.selected", provider="keyword")
-    return KeywordFallback()
+    available = [p for name in order if (p := _REGISTRY[name]()).available()]
+    if not available:
+        log.info("ai.provider.selected", provider="keyword")
+        return KeywordFallback()
+    log.info(
+        "ai.provider.selected",
+        provider=available[0].name,
+        chain=[p.name for p in available],
+    )
+    return FailoverProvider(available, KeywordFallback())
