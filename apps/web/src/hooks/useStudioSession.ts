@@ -209,6 +209,7 @@ export function useStudioSession({ setNodes, setEdges }: UseStudioSessionOptions
       setSource("api");
       setDiffNote("Blank canvas ready, add nodes from the catalog");
       await refreshWorkflows();
+      return saved.workflow;
     } catch (error) {
       setTypeError(error instanceof Error ? error.message : "Blank canvas failed");
       throw error;

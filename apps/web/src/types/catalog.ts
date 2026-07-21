@@ -21,6 +21,11 @@ export interface NodeMeta {
   category: NodeCategory;
   title: string;
   description?: string;
+  when_to_use?: string;
+  doc_url?: string;
+  method?: string;
+  path?: string;
+  request_template?: Record<string, unknown>;
   inputs?: PortMeta[];
   outputs?: PortMeta[];
 }

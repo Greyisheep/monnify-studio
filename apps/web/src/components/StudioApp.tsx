@@ -51,9 +51,11 @@ import { OnboardingTour } from "./OnboardingTour";
 import { PathGate } from "./PathGate";
 import { ProductsStep } from "./ProductsStep";
 import { RightSidebar } from "./RightSidebar";
+import { ReviewPanel } from "./ReviewPanel";
 import { RunSettingsPanel } from "./RunSettingsPanel";
 import { StudioFloatingChrome } from "./StudioFloatingChrome";
 import { StudioIconRail } from "./StudioIconRail";
+import { StudioToolbar } from "./StudioToolbar";
 import { TemplatePicker } from "./TemplatePicker";
 import { TracePanel } from "./TracePanel";
 import { WorkflowCanvas } from "./WorkflowCanvas";
@@ -241,6 +243,11 @@ function CanvasInner() {
       currentIr.nodes.find((node) => node.id === session.selectedNodeId) ?? null
     );
   }, [currentIr, session.selectedNodeId]);
+
+  const selectedNodeMeta = selectedIrNode
+    ? (session.nodeTypesMeta[selectedIrNode.type] ??
+      session.catalog[selectedIrNode.type])
+    : undefined;
 
   useEffect(() => {
     if (session.selectedFindingIndex != null) {
@@ -492,16 +499,18 @@ function CanvasInner() {
   async function onOnboardingBlank() {
     setProfileBusy(true);
     try {
-      // Blank / Other → Moni chat in Studio.
+      const workflow = await session.startBlank();
+      // “Something else” starts with a generic business dashboard. The user can
+      // still open Workflow/Moni from the rail to refine this blank flow.
       const next = await putStudioProfile({
+        path: "business",
         goal: "other",
-        step: "done",
+        step: "dashboard",
         products: [],
+        workflow_id: workflow?.id ?? null,
       });
       setProfile(next);
-      setBusinessNav("workflow");
-      setLeftTab("chat");
-      focusPreview();
+      setBusinessNav("dashboard");
     } catch (error) {
       session.setTypeError(
         error instanceof Error ? error.message : "Could not start blank setup",
@@ -920,20 +929,33 @@ function CanvasInner() {
             deployTitle="Coming soon"
             onResizeStart={(event) => sidebars.beginResize("right", event)}
           >
-            {rightTab === "settings" ? (
+            {rightTab === "review" ? (
+              <ReviewPanel
+                workflowName={session.workflow?.name ?? "Untitled workflow"}
+                report={session.report}
+                loading={session.loading}
+                busy={session.busy}
+                selectedFindingIndex={session.selectedFindingIndex}
+                onSelectFinding={session.setSelectedFindingIndex}
+                onApplyFix={(ruleId) => {
+                  if (currentIr) void session.applyFix(currentIr, ruleId);
+                }}
+                onClose={() => setRightTab("preview")}
+              />
+            ) : rightTab === "settings" ? (
               <RunSettingsPanel
                 adapter={executionAdapter}
                 workflowId={session.activeWorkflowId}
                 busy={session.busy || trace.running}
                 onAdapterChange={setExecutionAdapter}
               />
-            ) : selectedIrNode?.type === "custom.code" && rightTab === "code" ? (
+            ) : selectedIrNode &&
+              rightTab === "code" &&
+              (selectedIrNode.type === "custom.code" ||
+                Object.keys(selectedNodeMeta?.request_template ?? {}).length > 0) ? (
               <ConfigPanel
                 node={selectedIrNode}
-                meta={
-                  session.nodeTypesMeta[selectedIrNode.type] ??
-                  session.catalog[selectedIrNode.type]
-                }
+                meta={selectedNodeMeta}
                 selectedFinding={selectedFinding}
                 onChange={(nextNode) => graph.updateSelectedNode(nextNode)}
                 onClose={() => session.setSelectedNodeId(null)}
@@ -1011,6 +1033,36 @@ function CanvasInner() {
       ) : null}
 
       <main className="studio-main">
+        {!panelsCollapsed ? (
+          <StudioToolbar
+            canDelete={!!session.selectedNodeId}
+            busy={session.busy || trace.running}
+            canAct={!!currentIr}
+            hasFindings={(session.report?.findings.length ?? 0) > 0}
+            paletteOpen={leftTab === "api"}
+            reviewOpen={rightTab === "review"}
+            traceOpen={!!trace.run || trace.events.length > 0}
+            running={trace.running}
+            onTogglePalette={() => setLeftTab("api")}
+            onToggleReview={() => setRightTab("review")}
+            onToggleTrace={() => setRightTab("preview")}
+            onDelete={graph.deleteSelected}
+            onReanalyze={() => {
+              if (currentIr) void session.runAnalyze(currentIr);
+            }}
+            onSave={() => {
+              if (currentIr) void session.save(currentIr);
+            }}
+            onApplyAll={() => {
+              if (currentIr) void session.applyFix(currentIr);
+            }}
+            onRun={() => {
+              if (!currentIr) return;
+              setRightTab("preview");
+              void trace.runWorkflow(currentIr, executionAdapter);
+            }}
+          />
+        ) : null}
         <div className="studio-canvas-card">
           {panelsCollapsed ? (
             <StudioFloatingChrome

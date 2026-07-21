@@ -112,7 +112,9 @@ function displayCategory(meta: NodeMeta): string {
 }
 
 function isFeatured(meta: NodeMeta): boolean {
-  return meta.title.toLowerCase().includes("invoice");
+  return (
+    meta.title.toLowerCase().includes("invoice") || meta.type === "custom.code"
+  );
 }
 
 function groupCatalog(catalog: Record<string, NodeMeta>) {
@@ -320,6 +322,7 @@ export function NodePalette({
                 <ul>
                   {items.map((item, itemIndex) => {
                     const featured = isFeatured(item);
+                    const isCodeBlock = item.type === "custom.code";
                     const tipAnchor =
                       showTip && category === groups[0]?.[0] && itemIndex === 0;
                     const isDragSource =
@@ -413,7 +416,11 @@ export function NodePalette({
                           <span className="studio-sidebar__item-label">
                             {item.title}
                           </span>
-                          {featured ? (
+                          {featured && isCodeBlock ? (
+                            <span className="studio-sidebar__item-badge">
+                              Custom code
+                            </span>
+                          ) : featured ? (
                             <span className="studio-sidebar__item-badge" aria-hidden>
                               <Image
                                 src="/figma/icon-invoice-badge.svg"
