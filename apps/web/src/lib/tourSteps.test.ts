@@ -25,6 +25,7 @@ describe("tourSteps (#103)", () => {
     for (const step of BUSINESS_TOUR_STEPS) {
       expect(step.chrome).toBe("dashboard");
       expect(step.target).toMatch(/^biz-/);
+      expect(step.imageSrc).toMatch(/^\/figma\/tour\/tour-step-\d+\.png$/);
       expect(`${step.title} ${step.body}`.toLowerCase()).not.toMatch(
         /\bir\b|sse|node_type/,
       );

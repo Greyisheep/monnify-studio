@@ -34,6 +34,16 @@ describe("tourController (#103)", () => {
     ).toBe(false);
   });
 
+  it("business ready gate requires caller to pass products/data __AC1", () => {
+    // StudioApp sets ready=false until profile.products.length > 0
+    expect(
+      shouldActivateTour({ path: "business", ready: false, dismissed: false }),
+    ).toBe(false);
+    expect(
+      shouldActivateTour({ path: "business", ready: true, dismissed: false }),
+    ).toBe(true);
+  });
+
   it("does not re-activate after dismiss __AC7", () => {
     expect(
       shouldActivateTour({ path: "business", ready: true, dismissed: true }),

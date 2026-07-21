@@ -639,9 +639,18 @@ function CanvasInner() {
         : profile?.path === "developer" && profile.step === "done"
           ? ("developer" as const)
           : null;
+  // Business tour matches Figma filled dashboard: wait until the owner has
+  // products (shop/data) so highlighted regions match the designed surface.
+  const businessTourReady =
+    tourPath === "business" && (profile?.products?.length ?? 0) > 0;
+  const developerTourReady = tourPath === "developer";
   const tour = useOnboardingTour({
     path: tourPath,
-    ready: Boolean(tourPath) && profileReady && session.ready,
+    ready:
+      Boolean(tourPath) &&
+      profileReady &&
+      session.ready &&
+      (tourPath === "business" ? businessTourReady : developerTourReady),
   });
 
   async function askWhySelectedNode() {

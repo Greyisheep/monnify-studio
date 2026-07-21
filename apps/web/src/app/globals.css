@@ -3930,7 +3930,7 @@ body.is-resizing-sidebar iframe {
   overflow: auto;
 }
 
-/* Onboarding tour (#103) */
+/* Onboarding tour (#103) — Figma card 189:6968 */
 .studio-tour {
   position: fixed;
   inset: 0;
@@ -3938,23 +3938,156 @@ body.is-resizing-sidebar iframe {
   pointer-events: none;
 }
 
-.studio-tour__dim {
+.studio-tour__veil {
   position: absolute;
-  inset: 0;
-  background: transparent;
+  z-index: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: rgba(0, 0, 0, 0.16);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
   pointer-events: auto;
+  cursor: default;
+}
+
+.studio-tour__veil--full {
+  inset: 0;
 }
 
 .studio-tour__hole {
   position: absolute;
+  z-index: 1;
   border-radius: 0.65rem;
-  /* Highlight only — no full-page dim/mask (avoids glossy wash over the UI). */
   outline: 2px solid #3f6212;
   box-shadow: 0 0 0 3px rgba(63, 98, 18, 0.2);
   pointer-events: none;
-  z-index: 1;
 }
 
+/* Dashboard stack: white panel + external CTA (Figma gap 12px, width 222) */
+.studio-tour__stack {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 222px;
+  pointer-events: auto;
+}
+
+.studio-tour__panel {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+}
+
+.studio-tour__step-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 4px 8px;
+  border-bottom: 0.8px solid #e5e5e5;
+}
+
+.studio-tour__progress {
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 16px;
+  color: #737373;
+}
+
+.studio-tour__skip-link {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 16px;
+  color: #171717;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.studio-tour__media {
+  padding: 8px;
+  border-bottom: 0.8px solid #e5e5e5;
+}
+
+.studio-tour__media-img {
+  display: block;
+  width: 100%;
+  height: 151px;
+  object-fit: cover;
+  border-radius: 16px;
+  border: 0.8px solid #e5e5e5;
+}
+
+.studio-tour__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 8px 12px;
+}
+
+.studio-tour__stack .studio-tour__title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: #171717;
+}
+
+.studio-tour__stack .studio-tour__body {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.4;
+  color: #525252;
+}
+
+.studio-tour__cta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+}
+
+.studio-tour__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  cursor: pointer;
+}
+
+.studio-tour__btn--outline {
+  background: #fff;
+  border: 0.8px solid #d4d4d4;
+  color: #0a0a0a;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.studio-tour__btn--primary {
+  background: #171717;
+  border: 0;
+  color: #fafafa;
+}
+
+/* Developer Hover Card */
 .studio-tour__card {
   position: absolute;
   z-index: 2;
@@ -3966,68 +4099,9 @@ body.is-resizing-sidebar iframe {
   pointer-events: auto;
 }
 
-.studio-tour__card.is-dashboard {
-  width: 222px;
-  padding: 0;
-  border-radius: 10px;
-  border: none;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-  overflow: hidden;
-}
-
 .studio-tour__card.is-hover {
   width: min(307px, calc(100vw - 32px));
   border: 1.5px solid #4d7c0f;
-}
-
-.studio-tour__dash-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  padding: 4px 8px;
-  border-bottom: 0.8px solid #e5e5e5;
-}
-
-.studio-tour__skip-link {
-  border: 0;
-  background: transparent;
-  padding: 0;
-  font: inherit;
-  font-size: 10px;
-  font-weight: 600;
-  color: #171717;
-  text-decoration: underline;
-  cursor: pointer;
-}
-
-.studio-tour__card.is-dashboard .studio-tour__title {
-  margin: 0;
-  padding: 8px 8px 0;
-  font-size: 14px;
-  font-weight: 600;
-  line-height: 1.4;
-  color: #171717;
-}
-
-.studio-tour__card.is-dashboard .studio-tour__body {
-  margin: 0;
-  padding: 4px 8px 12px;
-  font-size: 12px;
-  line-height: 1.4;
-  color: #525252;
-}
-
-.studio-tour__card.is-dashboard .studio-tour__actions {
-  padding: 0 8px 12px;
-  justify-content: space-between;
-}
-
-.studio-tour__mini {
-  padding: 6px 12px !important;
-  font-size: 12px !important;
-  border-radius: 8px !important;
-  min-height: 0 !important;
 }
 
 .studio-tour__card-head {
@@ -4046,18 +4120,12 @@ body.is-resizing-sidebar iframe {
   font-weight: 600;
 }
 
-.studio-tour__progress {
-  font-size: 10px;
-  font-weight: 500;
-  color: #737373;
-}
-
-.studio-tour__title {
+.studio-tour__card .studio-tour__title {
   margin: 0 0 0.25rem;
   font-size: 0.95rem;
 }
 
-.studio-tour__body {
+.studio-tour__card .studio-tour__body {
   margin: 0 0 0.75rem;
   font-size: 0.8rem;
   line-height: 1.4;
