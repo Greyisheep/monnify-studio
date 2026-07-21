@@ -100,6 +100,44 @@ class WhatsAppNotifier:
         feed = f"Thank-you sent to buyer on WhatsApp (payment of NGN {amount:,.2f} confirmed)"
         return self._send_and_record(artifact_id, number, text, feed)
 
+    def ajo_nudge(
+        self,
+        *,
+        artifact_id: str,
+        number: str,
+        member: str,
+        paid_count: int,
+        member_count: int,
+        beneficiary: str,
+        who_paid: str,
+    ) -> bool:
+        """The offline social pressure of ajo, automated (#173): after each
+        verified contribution, everyone who has not paid this round hears it."""
+        text = (
+            f"Ajo update: {who_paid} has paid. {paid_count} of {member_count} are in "
+            f"this round. {member}, you have not paid yet - please contribute so "
+            f"{beneficiary}'s pot can complete."
+        )
+        feed = f"Nudge sent to {member} on WhatsApp ({paid_count}/{member_count} paid)"
+        return self._send_and_record(artifact_id, number, text, feed)
+
+    def ajo_payout(
+        self,
+        *,
+        artifact_id: str,
+        number: str,
+        beneficiary: str,
+        amount: Decimal,
+        next_beneficiary: str,
+    ) -> bool:
+        text = (
+            f"Ajo pot complete! {beneficiary} takes NGN {amount:,.2f} this round "
+            f"(sandbox payout - every contribution verified with Monnify). "
+            f"Next round starts now; next up: {next_beneficiary}."
+        )
+        feed = f"Pot complete: NGN {amount:,.2f} to {beneficiary} (sandbox payout)"
+        return self._send_and_record(artifact_id, number, text, feed)
+
 
 whatsapp_notifier = WhatsAppNotifier()
 
