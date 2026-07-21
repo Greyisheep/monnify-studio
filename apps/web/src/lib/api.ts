@@ -1,7 +1,7 @@
 /**
- * Studio HTTP client: live FastAPI preferred, offline fixtures as fallback.
- * Hides transport details from hooks/components.
- * Provenance: #4, #27, #28, #44, #15, #55, #51, #52, #68, D6, D17, D19.
+ * Studio API surface: live FastAPI preferred, offline fixtures as fallback.
+ * Transport lives in `./http` (axios). Hooks/components stay unaware of it.
+ * Provenance: #4, #27, #28, #44, #15, #55, #51, #52, #68, #152, D6, D17, D19.
  */
 import type {
   AnalysisReport,
@@ -11,6 +11,7 @@ import type {
   ExecutionEvent,
   ExecutionRun,
   GenerateArtifactResult,
+  GeneratedCode,
   IntentResult,
   MonnifyCredentialInput,
   NodeMeta,
@@ -28,6 +29,14 @@ import unsafePayload from "@/data/marketplace-unsafe.json";
 import safePayload from "@/data/marketplace-safe.json";
 import unsafeAnalysis from "@/data/marketplace-unsafe.analysis.json";
 import safeAnalysis from "@/data/marketplace-safe.analysis.json";
+
+import {
+  API_BASE,
+  getJson,
+  getOptional,
+  postJson,
+  putJson,
+} from "./http";
 
 export type DataSource = "api" | "fixture";
 
@@ -48,9 +57,32 @@ export interface ValidateConnectionResult {
   message: string;
 }
 
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL?.trim() ||
-  (typeof window === "undefined" ? "http://127.0.0.1:8010" : "/studio-backend");
+export interface WorkflowDashboardDto {
+  artifact_id: string | null;
+  shop_path: string | null;
+  /** Goal-aware share link (#160): shop for sellers, contribute for ajo. */
+  share_kind: "shop" | "contribute" | null;
+  share_label: string;
+  share_path: string | null;
+  business_name: string;
+  totals: {
+    money_in: string;
+    money_out: string;
+    profit: string;
+    needs_attention: number;
+  } | null;
+  invoices: Array<{
+    reference: string;
+    amount: string | number;
+    status: string;
+    customer: string;
+    description: string;
+    product: string;
+    created_at?: string;
+    kind: string;
+  }>;
+  activity: Array<{ ts: string; kind: string; text: string }>;
+}
 
 const LOCAL_WORKFLOWS: Record<string, WorkflowPayload> = {
   "marketplace-unsafe": unsafePayload as WorkflowPayload,
@@ -62,51 +94,10 @@ const LOCAL_ANALYSIS: Record<string, AnalysisReport> = {
   "marketplace-safe": safeAnalysis as AnalysisReport,
 };
 
-async function tryGetJson<T>(path: string): Promise<T | null> {
-  try {
-    const response = await fetch(`${API_BASE}${path}`, {
-      cache: "no-store",
-      credentials: "include",
-    });
-    if (!response.ok) return null;
-    return (await response.json()) as T;
-  } catch {
-    return null;
-  }
-}
-
-async function postJson<T>(path: string, body: unknown): Promise<T> {
-  const response = await fetch(`${API_BASE}${path}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-    credentials: "include",
-  });
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`${response.status} ${path}: ${text}`);
-  }
-  return response.json() as Promise<T>;
-}
-
-async function putJson<T>(path: string, body: unknown): Promise<T> {
-  const response = await fetch(`${API_BASE}${path}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-    credentials: "include",
-  });
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`${response.status} ${path}: ${text}`);
-  }
-  return response.json() as Promise<T>;
-}
-
 export async function fetchWorkflow(
   workflowId: string,
 ): Promise<LoadResult<WorkflowPayload>> {
-  const live = await tryGetJson<WorkflowPayload>(`/workflows/${workflowId}`);
+  const live = await getOptional<WorkflowPayload>(`/workflows/${workflowId}`);
   if (live) return { data: live, source: "api" };
   const local = LOCAL_WORKFLOWS[workflowId];
   if (!local) throw new Error(`Unknown workflow: ${workflowId}`);
@@ -116,7 +107,9 @@ export async function fetchWorkflow(
 export async function fetchAnalysis(
   workflowId: string,
 ): Promise<LoadResult<AnalysisReport>> {
-  const live = await tryGetJson<AnalysisReport>(`/workflows/${workflowId}/analysis`);
+  const live = await getOptional<AnalysisReport>(
+    `/workflows/${workflowId}/analysis`,
+  );
   if (live) return { data: live, source: "api" };
   const local = LOCAL_ANALYSIS[workflowId];
   if (!local) throw new Error(`Unknown workflow: ${workflowId}`);
@@ -128,7 +121,7 @@ export async function analyzeWorkflow(workflow: Workflow): Promise<AnalysisRepor
 }
 
 export async function fetchCatalog(): Promise<Record<string, NodeMeta>> {
-  const live = await tryGetJson<Record<string, NodeMeta>>("/catalog");
+  const live = await getOptional<Record<string, NodeMeta>>("/catalog");
   if (live) return live;
   return {
     ...LOCAL_WORKFLOWS["marketplace-unsafe"].node_types,
@@ -154,6 +147,18 @@ export async function saveWorkflow(workflow: Workflow): Promise<WorkflowPayload>
   return putJson<WorkflowPayload>(`/workflows/${workflow.id}`, workflow);
 }
 
+/** Deterministic Flow → Python module (#146). Code tab (#152). */
+export async function fetchWorkflowCode(
+  workflowId: string,
+  lang: string = "python",
+  signal?: AbortSignal,
+): Promise<GeneratedCode> {
+  return getJson<GeneratedCode>(`/workflows/${workflowId}/code`, {
+    params: { lang },
+    signal,
+  });
+}
+
 export async function remediateWorkflow(
   workflow: Workflow,
   ruleId?: string | null,
@@ -173,7 +178,7 @@ export async function startExecution(
 }
 
 export async function fetchExecution(runId: string): Promise<ExecutionRun> {
-  const live = await tryGetJson<ExecutionRun>(`/executions/${runId}`);
+  const live = await getOptional<ExecutionRun>(`/executions/${runId}`);
   if (!live) throw new Error(`Unknown run: ${runId}`);
   return live;
 }
@@ -181,14 +186,14 @@ export async function fetchExecution(runId: string): Promise<ExecutionRun> {
 export async function fetchExecutionEvents(
   runId: string,
 ): Promise<ExecutionEvent[]> {
-  const live = await tryGetJson<ExecutionEvent[]>(`/executions/${runId}/events`);
+  const live = await getOptional<ExecutionEvent[]>(`/executions/${runId}/events`);
   if (!live) throw new Error(`Unknown run events: ${runId}`);
   return live;
 }
 
 /**
- * Consume the SSE execution stream (#8 / #28). Calls `onEvent` for each
- * ExecutionEvent payload, then resolves when `event: done` arrives.
+ * Consume the SSE execution stream (#8 / #28).
+ * Kept on fetch: axios has no first-class ReadableStream / SSE story.
  */
 export async function streamExecutionEvents(
   runId: string,
@@ -197,6 +202,7 @@ export async function streamExecutionEvents(
 ): Promise<void> {
   const response = await fetch(`${API_BASE}/executions/${runId}/events/stream`, {
     headers: { Accept: "text/event-stream" },
+    credentials: "include",
     signal,
     cache: "no-store",
   });
@@ -258,19 +264,17 @@ export async function createFromTemplate(
 }
 
 export async function listWorkflows(): Promise<WorkflowSummary[]> {
-  const live = await tryGetJson<WorkflowSummary[]>("/workflows");
-  return live ?? [];
+  return (await getOptional<WorkflowSummary[]>("/workflows")) ?? [];
 }
 
 export async function listTemplates(): Promise<TemplateInfo[]> {
-  const live = await tryGetJson<TemplateInfo[]>("/templates");
-  return live ?? [];
+  return (await getOptional<TemplateInfo[]>("/templates")) ?? [];
 }
 
 export async function fetchCredentialStatus(
   workflowId: string,
 ): Promise<CredentialStatus | null> {
-  return tryGetJson<CredentialStatus>(`/workflows/${workflowId}/credentials`);
+  return getOptional<CredentialStatus>(`/workflows/${workflowId}/credentials`);
 }
 
 export async function putCredentials(
@@ -289,13 +293,8 @@ export async function generateArtifact(
   });
 }
 
-export function absoluteApiUrl(path: string): string {
-  if (path.startsWith("http://") || path.startsWith("https://")) return path;
-  return `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
-}
-
 export async function fetchStudioProfile(): Promise<StudioProfile | null> {
-  return tryGetJson<StudioProfile>("/studio/profile");
+  return getOptional<StudioProfile>("/studio/profile");
 }
 
 export async function putStudioProfile(
@@ -304,39 +303,12 @@ export async function putStudioProfile(
   return putJson<StudioProfile>("/studio/profile", patch);
 }
 
-export interface WorkflowDashboardDto {
-  artifact_id: string | null;
-  shop_path: string | null;
-  /** Goal-aware share link (#160): shop for sellers, contribute for ajo. */
-  share_kind: "shop" | "contribute" | null;
-  share_label: string;
-  share_path: string | null;
-  business_name: string;
-  totals: {
-    money_in: string;
-    money_out: string;
-    profit: string;
-    needs_attention: number;
-  } | null;
-  invoices: Array<{
-    reference: string;
-    amount: string | number;
-    status: string; // "pending" | "verified" | "rejected"
-    customer: string;
-    description: string;
-    product: string;
-    created_at?: string;
-    kind: string;
-  }>;
-  activity: Array<{ ts: string; kind: string; text: string }>;
-}
-
 /** The business Dashboard's data (money book, invoices, activity), keyed by
  *  workflow id so the UI never threads an artifact id through onboarding (#135). */
 export async function fetchWorkflowDashboard(
   workflowId: string,
 ): Promise<WorkflowDashboardDto | null> {
-  return tryGetJson<WorkflowDashboardDto>(`/workflows/${workflowId}/dashboard`);
+  return getOptional<WorkflowDashboardDto>(`/workflows/${workflowId}/dashboard`);
 }
 
-export { API_BASE };
+export { API_BASE, absoluteApiUrl, ApiError } from "./http";
