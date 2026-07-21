@@ -17,4 +17,6 @@ export interface StudioNodeData extends Record<string, unknown> {
   title: string;
   /** Latest Run I/O for this Block (#151). */
   runIo?: StudioNodeRunIo | null;
+  /** Saved IR config for "Edit triggers" display (Hover Card, read-only this run). */
+  config?: Record<string, unknown>;
 }
