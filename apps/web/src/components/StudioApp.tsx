@@ -205,13 +205,25 @@ function CanvasInner() {
   const displayNodes = useMemo(() => {
     const highlighted = withNodeHighlights(nodes, highlightIds);
     const runIo = latestRunIoByNode(trace.events);
-    if (Object.keys(runIo).length === 0) return highlighted;
+    const configById = new Map(
+      currentIr?.nodes.map((irNode) => [irNode.id, irNode.config]) ?? [],
+    );
     return highlighted.map((node) => {
       const io = runIo[node.id];
-      if (!io) return { ...node, data: { ...node.data, runIo: null } };
-      return { ...node, data: { ...node.data, runIo: io } };
+      const config = configById.get(node.id);
+      const meta =
+        session.catalog[node.data.nodeType] ?? session.nodeTypesMeta[node.data.nodeType];
+      return {
+        ...node,
+        data: {
+          ...node.data,
+          runIo: io ?? null,
+          config: config && Object.keys(config).length > 0 ? config : undefined,
+          inputs: meta?.inputs,
+        },
+      };
     });
-  }, [nodes, highlightIds, trace.events]);
+  }, [nodes, highlightIds, trace.events, currentIr, session.catalog, session.nodeTypesMeta]);
   const displayEdges = useMemo(
     () => withEdgeHighlights(edges, selectedFinding),
     [edges, selectedFinding],
