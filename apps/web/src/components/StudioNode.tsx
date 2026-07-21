@@ -6,6 +6,7 @@
 
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 
+import { isCodeBlock } from "@/lib/codeBlock";
 import type { StudioNodeData } from "@/types";
 
 export type StudioFlowNode = Node<StudioNodeData, "studio">;
@@ -26,7 +27,14 @@ export function StudioNode({ data, selected }: NodeProps<StudioFlowNode>) {
       className={`studio-node ${categoryClass}${selected ? " is-selected is-expanded" : ""}`}
     >
       <Handle type="target" position={Position.Left} className="studio-handle" />
-      <span className="studio-node__cat">{data.category}</span>
+      <span className="studio-node__cat">
+        {isCodeBlock(data.nodeType) && (
+          <span className="studio-node__code-glyph" aria-label="Code Block">
+            {"</>"}
+          </span>
+        )}
+        {data.category}
+      </span>
       <strong className="studio-node__label">{data.label}</strong>
       {selected && (
         <div className="studio-node__detail">

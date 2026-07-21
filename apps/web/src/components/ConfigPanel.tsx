@@ -5,6 +5,11 @@
 
 import { useEffect, useState, type ChangeEvent } from "react";
 
+import {
+  codeBlockConfig,
+  codeBlockOutputRows,
+  isCodeBlock,
+} from "@/lib/codeBlock";
 import type { Finding, IrNode, NodeMeta } from "@/types";
 
 export interface ConfigPanelProps {
@@ -74,6 +79,37 @@ export function ConfigPanel({
     );
   }
 
+  const customCodeConfig = isCodeBlock(node.type) ? codeBlockConfig(node.config) : null;
+  const outputRows = customCodeConfig
+    ? codeBlockOutputRows(customCodeConfig.outputs)
+    : [];
+
+  function updateCodeBlockOutput(
+    rowIndex: number,
+    field: "key" | "value",
+    value: string,
+  ) {
+    const nextRows = outputRows.map((row, index) =>
+      index === rowIndex ? { ...row, [field]: value } : row,
+    );
+    const outputs = Object.fromEntries(
+      nextRows
+        .filter((row) => row.key.trim())
+        .map((row) => [row.key.trim(), row.value]),
+    );
+    onChange({ ...node, config: { ...node.config, outputs } });
+  }
+
+  function removeCodeBlockOutput(rowIndex: number) {
+    const outputs = Object.fromEntries(
+      outputRows
+        .filter((_, index) => index !== rowIndex)
+        .filter((row) => row.key.trim())
+        .map((row) => [row.key.trim(), row.value]),
+    );
+    onChange({ ...node, config: { ...node.config, outputs } });
+  }
+
   return (
     <aside className="studio-config">
       <div className="studio-config__head">
@@ -119,6 +155,65 @@ export function ConfigPanel({
 
       {mode === "business" ? (
         <div className="studio-config__body">
+          {customCodeConfig && (
+            <section className="code-block-config" aria-label="Code Block configuration">
+              <label>
+                Code
+                <textarea
+                  className="code-block-config__editor"
+                  value={customCodeConfig.code}
+                  onChange={(event: ChangeEvent<HTMLTextAreaElement>) =>
+                    onChange({
+                      ...node,
+                      config: { ...node.config, code: event.target.value },
+                    })
+                  }
+                  placeholder="# Write Python for your generated module"
+                  spellCheck={false}
+                />
+              </label>
+              <div className="code-block-config__outputs">
+                <div>
+                  <h3>Declared outputs</h3>
+                  <p>These values flow to the next Block in practice Runs.</p>
+                </div>
+                {outputRows.map((row, index) => (
+                  <div className="code-block-config__output-row" key={`${index}-${row.key}`}>
+                    <input
+                      aria-label={`Output ${index + 1} key`}
+                      value={row.key}
+                      onChange={(event) =>
+                        updateCodeBlockOutput(index, "key", event.target.value)
+                      }
+                      placeholder="key"
+                    />
+                    <input
+                      aria-label={`Output ${index + 1} value`}
+                      value={row.value}
+                      onChange={(event) =>
+                        updateCodeBlockOutput(index, "value", event.target.value)
+                      }
+                      placeholder="value"
+                    />
+                    {row.key && (
+                      <button
+                        type="button"
+                        className="ghost-btn code-block-config__remove"
+                        onClick={() => removeCodeBlockOutput(index)}
+                        aria-label={`Remove output ${row.key}`}
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <p className="code-block-config__notice">
+                Practice Runs use your declared outputs. Your code runs when you copy the
+                generated module; a server-side sandbox is on the roadmap.
+              </p>
+            </section>
+          )}
           <label>
             Label
             <input

@@ -34,3 +34,6 @@ npm-debug.log*
 # Local data
 *.sqlite3
 postgres-data/
+
+# Local e2e-agent-flow run artifacts
+runs/

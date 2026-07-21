@@ -1010,6 +1010,66 @@ body.is-resizing-sidebar iframe {
   resize: none;
 }
 
+.code-block-config {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.code-block-config__editor {
+  min-height: 150px;
+  border: 1px solid var(--line);
+  border-radius: 0.45rem;
+  padding: 0.55rem;
+  background: var(--ink);
+  color: var(--paper);
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  line-height: 1.45;
+  resize: vertical;
+}
+
+.code-block-config__outputs {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.code-block-config__outputs h3,
+.code-block-config__outputs p,
+.code-block-config__notice {
+  margin: 0;
+}
+
+.code-block-config__outputs h3 {
+  font-size: 0.78rem;
+}
+
+.code-block-config__outputs p,
+.code-block-config__notice {
+  color: var(--ink-soft);
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+.code-block-config__output-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.code-block-config__output-row input {
+  min-width: 0;
+}
+
+.code-block-config__remove {
+  padding: 0.3rem 0.4rem;
+  font-size: 0.68rem;
+}
+
 .studio-config__apply {
   width: 100%;
 }
@@ -2542,13 +2602,22 @@ body.is-resizing-sidebar iframe {
 }
 
 .studio-node__cat {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
   font-family: var(--font-mono);
   font-size: 0.62rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--ink-soft);
   margin-bottom: 0.25rem;
+}
+
+.studio-node__code-glyph {
+  color: var(--accent);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: -0.1em;
 }
 
 .studio-node__label {

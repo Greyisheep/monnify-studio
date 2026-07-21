@@ -28,6 +28,7 @@ import unsafePayload from "@/data/marketplace-unsafe.json";
 import safePayload from "@/data/marketplace-safe.json";
 import unsafeAnalysis from "@/data/marketplace-unsafe.analysis.json";
 import safeAnalysis from "@/data/marketplace-safe.analysis.json";
+import { CODE_BLOCK_META } from "./codeBlock";
 
 export type DataSource = "api" | "fixture";
 
@@ -129,8 +130,9 @@ export async function analyzeWorkflow(workflow: Workflow): Promise<AnalysisRepor
 
 export async function fetchCatalog(): Promise<Record<string, NodeMeta>> {
   const live = await tryGetJson<Record<string, NodeMeta>>("/catalog");
-  if (live) return live;
+  if (live) return { [CODE_BLOCK_META.type]: CODE_BLOCK_META, ...live };
   return {
+    [CODE_BLOCK_META.type]: CODE_BLOCK_META,
     ...LOCAL_WORKFLOWS["marketplace-unsafe"].node_types,
     ...LOCAL_WORKFLOWS["marketplace-safe"].node_types,
   };
