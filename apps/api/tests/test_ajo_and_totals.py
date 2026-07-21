@@ -84,3 +84,34 @@ def test_totals_period_defaults_and_bad_period_falls_back_to_all():
 
 def test_totals_404_for_unknown_artifact():
     assert client.get("/preview/nope/totals").status_code == 404
+
+
+def test_workflow_dashboard_bundles_shop_totals_and_invoices():
+    """The Dashboard's data, keyed by workflow id, in one call (#135)."""
+    wf = client.post("/workflows/from-template/invoice").json()["workflow"]
+    gen = client.post(
+        f"/workflows/{wf['id']}/generate", json={"config": {"business_name": "Mama Nkechi"}}
+    ).json()
+    artifact_id = gen["artifact_id"]
+    paid = orders_service.create(
+        reference="WD-PAID",
+        artifact_id=artifact_id,
+        product="Jollof",
+        amount=Decimal("45000"),
+        kind="invoice",
+        customer="Adaeze",
+    )
+    paid.status = OrderStatus.VERIFIED
+
+    data = client.get(f"/workflows/{wf['id']}/dashboard").json()
+    assert data["artifact_id"] == artifact_id
+    assert data["shop_path"] == f"/preview/{artifact_id}/shop"
+    assert data["business_name"] == "Mama Nkechi"
+    assert data["totals"]["money_in"] == "45000.00"
+    assert any(i["reference"] == "WD-PAID" for i in data["invoices"])
+
+
+def test_workflow_dashboard_empty_but_200_before_a_shop_exists():
+    data = client.get("/workflows/no-such-workflow/dashboard")
+    assert data.status_code == 200
+    assert data.json()["artifact_id"] is None

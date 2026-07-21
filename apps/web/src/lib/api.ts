@@ -293,4 +293,35 @@ export async function putStudioProfile(
   return putJson<StudioProfile>("/studio/profile", patch);
 }
 
+export interface WorkflowDashboardDto {
+  artifact_id: string | null;
+  shop_path: string | null;
+  business_name: string;
+  totals: {
+    money_in: string;
+    money_out: string;
+    profit: string;
+    needs_attention: number;
+  } | null;
+  invoices: Array<{
+    reference: string;
+    amount: string | number;
+    status: string; // "pending" | "verified" | "rejected"
+    customer: string;
+    description: string;
+    product: string;
+    created_at?: string;
+    kind: string;
+  }>;
+  activity: Array<{ ts: string; kind: string; text: string }>;
+}
+
+/** The business Dashboard's data (money book, invoices, activity), keyed by
+ *  workflow id so the UI never threads an artifact id through onboarding (#135). */
+export async function fetchWorkflowDashboard(
+  workflowId: string,
+): Promise<WorkflowDashboardDto | null> {
+  return tryGetJson<WorkflowDashboardDto>(`/workflows/${workflowId}/dashboard`);
+}
+
 export { API_BASE };
