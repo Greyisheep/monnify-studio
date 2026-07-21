@@ -296,6 +296,10 @@ export async function putStudioProfile(
 export interface WorkflowDashboardDto {
   artifact_id: string | null;
   shop_path: string | null;
+  /** Goal-aware share link (#160): shop for sellers, contribute for ajo. */
+  share_kind: "shop" | "contribute" | null;
+  share_label: string;
+  share_path: string | null;
   business_name: string;
   totals: {
     money_in: string;

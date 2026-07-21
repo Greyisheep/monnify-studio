@@ -36,7 +36,9 @@ from monnify_studio.artifacts import (
     ArtifactConfig,
     CatalogItem,
     artifact_store,
+    flow_features,
     generate_artifact,
+    render_contribute_page,
     render_invoice_page,
     render_storefront,
 )
@@ -881,6 +883,52 @@ def set_shop_catalog(artifact_id: str, body: CatalogUpdate) -> list[CatalogItem]
     return artifact.config.catalog
 
 
+class ContributeRequest(BaseModel):
+    member: str = Field(min_length=2, max_length=80)
+
+
+@app.get("/preview/{artifact_id}/contribute", response_class=HTMLResponse)
+def contribute_page(artifact_id: str) -> HTMLResponse:
+    """Member-facing contribution page for ledger flows - ajo/esusu (#160).
+
+    The shareable link for a savings group: the member types their name, sees
+    the fixed contribution, pays; the pool only credits after Monnify confirms.
+    """
+    artifact = _artifact_or_404(artifact_id)
+    return HTMLResponse(render_contribute_page(artifact))
+
+
+@app.post("/preview/{artifact_id}/contribute")
+def contribute(artifact_id: str, body: ContributeRequest) -> dict:
+    """A member's contribution becomes a verifiable record (#160).
+
+    Reuses the invoice/verify machinery (#85, #53): the record is only marked
+    paid by provider truth, so the group ledger cannot be faked."""
+    artifact = _artifact_or_404(artifact_id)
+    reference = f"AJO-{uuid4().hex[:6].upper()}"
+    member = body.member.strip()
+    inv = orders_service.create(
+        reference=reference,
+        artifact_id=artifact_id,
+        product=artifact.config.product_name,
+        amount=Decimal(artifact.config.price_ngn),
+        workflow_id=artifact.workflow_id,
+        kind="invoice",
+        customer=member,
+        description=f"{artifact.config.product_name} - {member}",
+    )
+    log.info(
+        "contribute.created",
+        artifact_id=artifact_id,
+        reference=reference,
+        amount=str(inv.amount),
+    )
+    return {
+        "contribution_reference": reference,
+        "pay_url": f"/preview/{artifact_id}/invoice/{reference}",
+    }
+
+
 class ShopSelection(BaseModel):
     id: str
     qty: int = Field(ge=1, le=999)
@@ -1120,24 +1168,50 @@ class DashboardData(BaseModel):
     never has to thread an artifact id through onboarding (#135)."""
 
     artifact_id: str | None = None
-    shop_path: str | None = None  # relative; the web app makes it absolute
+    shop_path: str | None = None  # kept for back-compat; == share_path for shops
+    # Goal-aware share link (#160): a shop link for sellers, a contribution link
+    # for ajo/ledger flows, nothing for flows with no customer-facing page.
+    share_kind: str | None = None  # "shop" | "contribute"
+    share_label: str = ""  # "Your shop link" | "Your contribution link"
+    share_path: str | None = None
     business_name: str = ""
     totals: DashboardTotals | None = None
     invoices: list[Order] = Field(default_factory=list)
     activity: list[ActivityItem] = Field(default_factory=list)
 
 
+def _share_surface(workflow_id: str, artifact_id: str) -> tuple[str | None, str, str | None]:
+    """Which shareable link fits this flow (#160): a ledger flow (ajo/esusu)
+    shares a contribution link; a collecting flow shares its shop; anything
+    else (e.g. pure payroll) has no customer-facing page to share."""
+    workflow = store.get(workflow_id)
+    features = flow_features(workflow) if workflow is not None else None
+    # A ledger flow (ajo/esusu credits a pool) shares a contribution link; a
+    # collecting/invoicing flow shares its shop; a pure payout flow (payroll)
+    # has no customer-facing page, so no share card at all (#160).
+    if features and features.has_ledger:
+        return "contribute", "Your contribution link", f"/preview/{artifact_id}/contribute"
+    if features is None or features.collects or features.has_invoices:
+        return "shop", "Your shop link", f"/preview/{artifact_id}/shop"
+    return None, "", None
+
+
 @app.get("/workflows/{workflow_id}/dashboard", response_model=DashboardData)
 def workflow_dashboard(workflow_id: str, period: str = "all") -> DashboardData:
-    """The business Dashboard's data for a workflow: money totals, invoices, and
-    activity for its generated shop (#135). Empty (but 200) until a shop exists."""
+    """The business Dashboard's data for a workflow: money totals, invoices,
+    activity, and the goal-aware share link (#135, #160). Empty (but 200) until
+    a product exists."""
     artifact = artifact_store.latest_for_workflow(workflow_id)
     if artifact is None:
         return DashboardData()
     aid = artifact.artifact_id
+    kind, label, path = _share_surface(workflow_id, aid)
     return DashboardData(
         artifact_id=aid,
-        shop_path=f"/preview/{aid}/shop",
+        shop_path=path if kind == "shop" else None,
+        share_kind=kind,
+        share_label=label,
+        share_path=path,
         business_name=artifact.config.business_name,
         totals=artifact_totals(aid, period),
         invoices=orders_service.for_artifact(aid),

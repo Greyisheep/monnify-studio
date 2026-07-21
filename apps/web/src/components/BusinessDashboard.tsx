@@ -80,8 +80,10 @@ export interface BusinessDashboardProps {
   /** Verified-only money book from the backend (#135); overrides the computed
    *  tiles so inflow reflects only what Monnify confirmed, never a claim. */
   totals?: { inflow: number; outflow: number; net: number; actions: number } | null;
-  /** Absolute URL of the business's shop, so the owner can share it (#135). */
+  /** Absolute URL of the business's share page (shop or contribution, #135/#160). */
   shopUrl?: string | null;
+  /** Goal-aware label: "Your shop link" or "Your contribution link" (#160). */
+  shareLabel?: string;
   onNav: (nav: BusinessNav) => void;
   onNew?: () => void;
   onLogout?: () => void;
@@ -303,11 +305,24 @@ export function BusinessDashboard({
   notifications: notificationsProp,
   totals,
   shopUrl,
+  shareLabel = "Your shop link",
   onNav,
   onNew,
   onLogout,
 }: BusinessDashboardProps) {
   const [copied, setCopied] = useState(false);
+  // Preview-before-share nudge (#160): pulse + tooltip on first sight of a
+  // share link, auto-quieting after a few seconds so it never nags.
+  const [previewNudge, setPreviewNudge] = useState(true);
+  useEffect(() => {
+    if (!shopUrl || !previewNudge) return;
+    const t = window.setTimeout(() => setPreviewNudge(false), 6000);
+    return () => window.clearTimeout(t);
+  }, [shopUrl, previewNudge]);
+  const isContribution = shareLabel.toLowerCase().includes("contribution");
+  const shareInvite = isContribution
+    ? "Pay your contribution securely"
+    : "Order from my shop and pay securely";
   const [collapsed, setCollapsed] = useState(false);
   const [direction, setDirection] = useState<"inflow" | "outflow">("inflow");
   const [query, setQuery] = useState("");
@@ -521,16 +536,35 @@ export function BusinessDashboard({
         </section>
 
         {shopUrl ? (
-          <section className="biz-shoplink" aria-label="Your shop link">
+          <section className="biz-shoplink" aria-label={shareLabel}>
             <div className="biz-shoplink__text">
-              <span>Your shop link</span>
+              <span>{shareLabel}</span>
               <code>{shopUrl.replace(/^https?:\/\//, "")}</code>
             </div>
             <div className="biz-shoplink__actions">
+              {/* Preview-before-you-share nudge (#160): pulses + shows a tooltip
+                  on first render so an owner checks the page before handing the
+                  link to a customer, then quiets down once they've clicked. */}
+              <a
+                className={`biz-shoplink__preview${previewNudge ? " is-nudge" : ""}`}
+                href={shopUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setPreviewNudge(false)}
+                onMouseEnter={() => setPreviewNudge(false)}
+              >
+                Preview
+                {previewNudge ? (
+                  <span className="biz-shoplink__tip" role="tooltip">
+                    See what your customers see, then share
+                  </span>
+                ) : null}
+              </a>
               <button
                 type="button"
                 className="biz-shoplink__copy"
                 onClick={() => {
+                  setPreviewNudge(false);
                   void navigator.clipboard.writeText(shopUrl).then(() => {
                     setCopied(true);
                     window.setTimeout(() => setCopied(false), 1400);
@@ -542,10 +576,11 @@ export function BusinessDashboard({
               <a
                 className="biz-shoplink__share"
                 href={`https://wa.me/?text=${encodeURIComponent(
-                  `Order from my shop and pay securely: ${shopUrl}`,
+                  `${shareInvite}: ${shopUrl}`,
                 )}`}
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={() => setPreviewNudge(false)}
               >
                 Share on WhatsApp
               </a>
