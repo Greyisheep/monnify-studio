@@ -396,7 +396,7 @@ body.is-resizing-sidebar iframe {
 }
 
 .studio-sidebar__group h3 {
-  margin: 0;
+  margin: 0 0 4px;
   padding: 4px 12px;
   font-size: 12px;
   font-weight: 600;
@@ -410,7 +410,7 @@ body.is-resizing-sidebar iframe {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0;
+  gap: 4px;
 }
 
 .studio-sidebar__item {
@@ -454,17 +454,23 @@ body.is-resizing-sidebar iframe {
   flex-shrink: 0;
 }
 
+/* Anchored to the row it teaches about (Figma `112:4308`'s "Tool tip" sits
+   just past the first row's grip), not floating above the whole list. */
 .studio-dnd-tip {
+  position: absolute;
+  top: 100%;
+  left: 14px;
+  z-index: 1;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
   gap: 6px;
-  margin: 4px 8px 10px;
+  margin-top: 6px;
+  pointer-events: none;
 }
 
 .studio-dnd-tip__hand {
   display: inline-flex;
-  margin-left: 4px;
 }
 
 .studio-dnd-tip__bubble {
@@ -478,6 +484,7 @@ body.is-resizing-sidebar iframe {
   font-size: 12px;
   font-weight: 400;
   line-height: 16px;
+  pointer-events: auto;
 }
 
 .studio-dnd-tip__close {
@@ -492,6 +499,36 @@ body.is-resizing-sidebar iframe {
 
 .studio-canvas.is-dnd-target .react-flow__pane {
   cursor: copy;
+}
+
+/* Catalog row reorder (Figma `112:4924`): dim the row being dragged, and
+   show a hairline insertion point where it will land within its group. */
+.studio-sidebar__row {
+  position: relative;
+}
+
+.studio-sidebar__row.is-drag-source {
+  opacity: 0.2;
+}
+
+.studio-sidebar__row.is-drop-target-before::before,
+.studio-sidebar__row.is-drop-target-after::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  border-radius: 2px;
+  background: #1d4ed8;
+  pointer-events: none;
+}
+
+.studio-sidebar__row.is-drop-target-before::before {
+  top: -1px;
+}
+
+.studio-sidebar__row.is-drop-target-after::after {
+  bottom: -1px;
 }
 
 
@@ -2916,6 +2953,11 @@ body.is-resizing-sidebar iframe {
   padding: 2px;
 }
 
+.biz-sidebar__collapse:hover {
+  background: #f0f0f0;
+  color: #171717;
+}
+
 .biz-sidebar__nav {
   display: flex;
   flex-direction: column;
@@ -2945,6 +2987,12 @@ body.is-resizing-sidebar iframe {
 
 .biz-sidebar__new {
   margin-bottom: 0;
+}
+
+.biz-sidebar__new:hover,
+.biz-sidebar__link:hover:not(.is-active) {
+  background: #f0f0f0;
+  color: #171717;
 }
 
 .biz-sidebar__link.is-active {
@@ -3007,6 +3055,10 @@ body.is-resizing-sidebar iframe {
   border-radius: 6px;
 }
 
+.biz-sidebar__logout:hover {
+  background: #fef2f2;
+}
+
 .biz-main {
   display: flex;
   flex-direction: column;
@@ -3062,6 +3114,11 @@ body.is-resizing-sidebar iframe {
   padding: 0;
 }
 
+.biz-icon-btn:hover {
+  background: #f5f5f5;
+  border-color: #a3a3a3;
+}
+
 .biz-icon-btn.has-dot::after {
   content: "";
   position: absolute;
@@ -3087,6 +3144,11 @@ body.is-resizing-sidebar iframe {
   font-weight: 500 !important;
   line-height: 16px !important;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.biz-export:hover {
+  background: #f5f5f5 !important;
+  border-color: #a3a3a3 !important;
 }
 
 .biz-overview {
@@ -3218,12 +3280,22 @@ body.is-resizing-sidebar iframe {
   opacity: 0.5;
 }
 
+.biz-seg button:hover:not(.is-active) {
+  opacity: 0.8;
+  border-color: #a3a3a3;
+}
+
 .biz-seg button.is-active {
   background: #171717;
   border-color: #171717;
   color: #fafafa;
   opacity: 1;
   box-shadow: none;
+}
+
+.biz-seg button.is-active:hover {
+  background: #262626;
+  border-color: #262626;
 }
 
 .biz-search {
@@ -3281,8 +3353,15 @@ body.is-resizing-sidebar iframe {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
-.biz-filter > button.is-open {
+.biz-filter > button:hover {
+  background: #f5f5f5 !important;
+  border-color: #a3a3a3 !important;
+}
+
+.biz-filter > button.is-open,
+.biz-filter > button.is-open:hover {
   border-color: #0a0a0a !important;
+  background: #fff !important;
 }
 
 .biz-menu {
@@ -3329,6 +3408,10 @@ body.is-resizing-sidebar iframe {
 
 .biz-menu__list li:last-child button {
   border-bottom: 0;
+}
+
+.biz-menu__list button:hover {
+  background: #f5f5f5;
 }
 
 .biz-check {
@@ -3456,6 +3539,10 @@ body.is-resizing-sidebar iframe {
   white-space: nowrap;
 }
 
+.biz-notify__action:hover {
+  color: #0a4a3c;
+}
+
 .biz-notify__read {
   color: #a3a3a3;
   font-size: 12px;
@@ -3470,6 +3557,10 @@ body.is-resizing-sidebar iframe {
   font: inherit;
   font-weight: 500;
   cursor: pointer;
+}
+
+.biz-notify__all:hover {
+  background: #f5f5f5;
 }
 
 .biz-table-wrap {
@@ -3649,11 +3740,19 @@ body.is-resizing-sidebar iframe {
   cursor: pointer;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
+.biz-product-tabs button:hover:not(.is-active) {
+  background: #f5f5f5;
+  border-color: #a3a3a3;
+}
 .biz-product-tabs button.is-active {
   background: #0a0a0a;
   border-color: #0a0a0a;
   color: #fafafa;
   box-shadow: none;
+}
+.biz-product-tabs button.is-active:hover {
+  background: #262626;
+  border-color: #262626;
 }
 
 .biz-product-panel {
@@ -3697,6 +3796,10 @@ body.is-resizing-sidebar iframe {
   font-weight: 500;
   cursor: pointer;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+.biz-product-panel__cta:hover {
+  background: #f5f5f5;
+  border-color: #a3a3a3;
 }
 .biz-product-panel__hint {
   margin: 0;
@@ -3841,6 +3944,10 @@ body.is-resizing-sidebar iframe {
   font-weight: 500;
   cursor: pointer;
 }
+.biz-activity__all:hover {
+  background: #f5f5f5;
+  border-color: #a3a3a3;
+}
 .biz-activity__empty {
   margin: 0;
   padding: 16px;
@@ -3968,10 +4075,17 @@ body.is-resizing-sidebar iframe {
   color: #0a0a0a;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
+.biz-shoplink__copy:hover:not(:disabled) {
+  background: #f5f5f5;
+  border-color: #a3a3a3;
+}
 .biz-shoplink__share {
   border: 0;
   background: #0a0a0a;
   color: #fafafa;
+}
+.biz-shoplink__share:hover:not(:disabled) {
+  background: #262626;
 }
 
 /* Business template picker: placeholder tile for cards without Figma art yet
@@ -4006,6 +4120,9 @@ body.is-resizing-sidebar iframe {
   font-weight: 600;
   text-decoration: none;
   cursor: pointer;
+}
+.biz-shoplink__preview:hover {
+  background: var(--accent-soft);
 }
 .biz-shoplink__preview.is-nudge {
   animation: biz-preview-pulse 1.6s ease-in-out infinite;
@@ -4177,6 +4294,10 @@ body.is-resizing-sidebar iframe {
   cursor: pointer;
 }
 
+.studio-tour__skip-link:hover {
+  color: #525252;
+}
+
 .studio-tour__media {
   padding: 8px;
   border-bottom: 0.8px solid #e5e5e5;
@@ -4242,10 +4363,19 @@ body.is-resizing-sidebar iframe {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
+.studio-tour__btn--outline:hover {
+  background: #f5f5f5;
+  border-color: #a3a3a3;
+}
+
 .studio-tour__btn--primary {
   background: #171717;
   border: 0;
   color: #fafafa;
+}
+
+.studio-tour__btn--primary:hover {
+  background: #333;
 }
 
 /* Developer Hover Card */
