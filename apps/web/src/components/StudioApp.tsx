@@ -60,6 +60,7 @@ function goalFromTemplate(templateId: string): BusinessGoal {
   if (templateId === "sell-online") return "sell";
   if (templateId === "invoice") return "invoice";
   if (templateId === "payroll") return "payroll";
+  if (templateId === "ajo") return "savings";
   return "other";
 }
 
@@ -545,11 +546,12 @@ function CanvasInner() {
             <TemplatePicker
               open
               embedded
+              variant="business-onboarding"
               busy={profileBusy}
               onClose={() => undefined}
               onBack={() => void onTemplateBack()}
               onPick={(templateId) => void onOnboardingTemplatePick(templateId)}
-              onBlank={() => void onOnboardingBlank()}
+              onOther={() => void onOnboardingBlank()}
             />
           ) : (
             <PathGate
