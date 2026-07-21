@@ -16,6 +16,7 @@ from typing import Callable
 from pydantic import BaseModel
 
 from ..ir.models import Workflow
+from .ajo import ajo
 from .invoice import invoice
 from .payroll import payroll
 from .sell_online import sell_online
@@ -61,6 +62,20 @@ _TEMPLATES: dict[str, TemplateDef] = {
             ),
         ),
         builder=invoice,
+    ),
+    "ajo": TemplateDef(
+        info=TemplateInfo(
+            id="ajo",
+            title="Collect contributions (ajo / savings group)",
+            persona="Ajo / esusu / cooperative running a savings pool",
+            description=(
+                "Members save into a shared pool through their own dedicated "
+                "accounts. Every contribution is only credited after Monnify "
+                "confirms it, and the cycle payout only leaves after the pool is "
+                "checked and the receiver's account is validated by name."
+            ),
+        ),
+        builder=ajo,
     ),
     "payroll": TemplateDef(
         info=TemplateInfo(

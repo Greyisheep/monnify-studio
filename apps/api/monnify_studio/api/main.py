@@ -9,6 +9,8 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import re
+from datetime import datetime, timedelta, timezone
 
 from decimal import Decimal
 from uuid import uuid4
@@ -27,6 +29,7 @@ from monnify_studio.ai import (
     classify_intent,
     compose_flow,
     explain,
+    refine_flow,
 )
 from monnify_studio.analysis import Report, analyze
 from monnify_studio.artifacts import (
@@ -37,6 +40,7 @@ from monnify_studio.artifacts import (
     render_invoice_page,
     render_storefront,
 )
+from monnify_studio.codegen import generate_python
 from monnify_studio.credentials import (
     CredentialStatus,
     MonnifyCredentials,
@@ -289,12 +293,19 @@ def _session_id(request: Request, response: Response) -> str:
     if existing:
         return existing
     sid = new_id("sess")
+    # Production genuinely is cross-origin: web and api are separate Cloud Run
+    # services (different hostnames). A SameSite=Lax cookie is never attached
+    # to a cross-site fetch/XHR, so onboarding lost its session on every call
+    # past the first, silently resetting path/goal/step (#135 follow-up). Local
+    # dev goes through the same-origin /studio-backend proxy, so Lax + non-
+    # secure (works over http) is correct there; production needs None+Secure.
+    cross_origin = settings.studio_env != "development"
     response.set_cookie(
         key=SESSION_COOKIE,
         value=sid,
         httponly=True,
-        samesite="lax",
-        secure=settings.studio_env != "development",
+        samesite="none" if cross_origin else "lax",
+        secure=cross_origin,
         max_age=60 * 60 * 24 * 30,
     )
     return sid
@@ -416,6 +427,64 @@ def assistant_compose(body: AssistantRequest) -> ComposeResponse:
             provider=outcome.provider,
             caught=len(outcome.report_before.findings),
             remaining=len(outcome.report_after.findings),
+        )
+        return ComposeResponse(
+            workflow=payload.workflow,
+            node_types=payload.node_types,
+            analysis=outcome.report_after,
+            findings_caught=[f.rule_id for f in outcome.report_before.findings],
+            steps=outcome.steps,
+            provider=outcome.provider,
+            explanation=outcome.explanation,
+        )
+
+
+class RefineRequest(BaseModel):
+    workflow_id: str
+    message: str  # plain-words instruction: "add a refund path", "fix this"
+    provider: str | None = None
+
+
+@app.post("/assistant/refine", response_model=ComposeResponse)
+def assistant_refine(body: RefineRequest) -> ComposeResponse:
+    """Moni corrects the flow on the whiteboard (#148, dev item 7).
+
+    Same verify-refuse loop and same response shape as compose, so the canvas
+    updates in place; the revised flow keeps its id. An unclean revision never
+    ships; a non-payment ask gets an honest decline.
+    """
+    with correlation(request_id=new_id("moni")):
+        current = store.get(body.workflow_id)
+        if current is None:
+            raise HTTPException(
+                status_code=404, detail=f"unknown workflow: {body.workflow_id}"
+            )
+        try:
+            outcome = refine_flow(current, body.message, provider=body.provider)
+        except ComposeUnavailable as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from None
+        except ComposeRefused as exc:
+            raise HTTPException(
+                status_code=422, detail=f"Moni can't do that here: {exc.reason}"
+            ) from None
+        except ComposeError as exc:
+            raise HTTPException(
+                status_code=422,
+                detail="Moni could not make that change verifiably safe: "
+                + "; ".join(exc.errors),
+            ) from None
+        except Exception as exc:  # noqa: BLE001 - typed 500 keeps CORS (#106)
+            log.info("assistant.refine.unexpected", error=type(exc).__name__)
+            raise HTTPException(
+                status_code=500, detail="Moni hit an unexpected error; try again."
+            ) from None
+        saved = store.save(outcome.workflow)
+        payload = _enrich(saved)
+        log.info(
+            "assistant.refine",
+            workflow=saved.id,
+            provider=outcome.provider,
+            caught=len(outcome.report_before.findings),
         )
         return ComposeResponse(
             workflow=payload.workflow,
@@ -1012,6 +1081,95 @@ def artifact_activity(artifact_id: str) -> list[ActivityItem]:
         )
     items.sort(key=lambda i: i.ts, reverse=True)
     return items[:50]
+
+
+class DashboardTotals(BaseModel):
+    period: str  # "today" | "week" | "month" | "all"
+    money_in: Decimal  # verified only, exact to the kobo (D21)
+    money_out: Decimal
+    profit: Decimal
+    orders_total: int
+    verified: int
+    needs_attention: int
+    rejected: int
+
+
+_PERIOD_DAYS = {"today": 1, "week": 7, "month": 30}
+
+
+@app.get("/preview/{artifact_id}/totals", response_model=DashboardTotals)
+def artifact_totals(artifact_id: str, period: str = "week") -> DashboardTotals:
+    """The Dashboard money book: money in / out / profit for a period (#134, #135).
+
+    Money in is the exact sum of orders Monnify verified, never a claim. `period`
+    is today / week / month / all; anything else falls back to all-time.
+    """
+    _artifact_or_404(artifact_id)
+    since: datetime | None = None
+    days = _PERIOD_DAYS.get(period)
+    if days is not None:
+        since = datetime.now(timezone.utc) - timedelta(days=days)
+    else:
+        period = "all"
+    totals = orders_service.totals_for(artifact_id, since=since)
+    return DashboardTotals(period=period, **totals)
+
+
+class DashboardData(BaseModel):
+    """Everything the business Dashboard needs, keyed by workflow id so the UI
+    never has to thread an artifact id through onboarding (#135)."""
+
+    artifact_id: str | None = None
+    shop_path: str | None = None  # relative; the web app makes it absolute
+    business_name: str = ""
+    totals: DashboardTotals | None = None
+    invoices: list[Order] = Field(default_factory=list)
+    activity: list[ActivityItem] = Field(default_factory=list)
+
+
+@app.get("/workflows/{workflow_id}/dashboard", response_model=DashboardData)
+def workflow_dashboard(workflow_id: str, period: str = "all") -> DashboardData:
+    """The business Dashboard's data for a workflow: money totals, invoices, and
+    activity for its generated shop (#135). Empty (but 200) until a shop exists."""
+    artifact = artifact_store.latest_for_workflow(workflow_id)
+    if artifact is None:
+        return DashboardData()
+    aid = artifact.artifact_id
+    return DashboardData(
+        artifact_id=aid,
+        shop_path=f"/preview/{aid}/shop",
+        business_name=artifact.config.business_name,
+        totals=artifact_totals(aid, period),
+        invoices=orders_service.for_artifact(aid),
+        activity=artifact_activity(aid),
+    )
+
+
+class GeneratedCode(BaseModel):
+    language: str
+    filename: str
+    code: str
+
+
+@app.get("/workflows/{workflow_id}/code", response_model=GeneratedCode)
+def workflow_code(workflow_id: str, lang: str = "python") -> GeneratedCode:
+    """Copy REAL code for your flow (#146, dev item 6).
+
+    Deterministic Jinja-free generation - no LLM in the codegen path (D3): the
+    same flow always returns the same module. `lang` is python-only today; the
+    parameter exists so more targets can land without an API break.
+    """
+    workflow = store.get(workflow_id)
+    if workflow is None:
+        raise HTTPException(status_code=404, detail=f"unknown workflow: {workflow_id}")
+    if lang != "python":
+        raise HTTPException(status_code=400, detail="only lang=python is supported today")
+    slug = re.sub(r"[^a-z0-9]+", "_", workflow.name.lower()).strip("_") or "flow"
+    return GeneratedCode(
+        language="python",
+        filename=f"{slug}.py",
+        code=generate_python(workflow),
+    )
 
 
 @app.post("/preview/{artifact_id}/orders/{reference}/verify", response_model=Order)

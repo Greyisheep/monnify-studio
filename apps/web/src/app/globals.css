@@ -3431,3 +3431,77 @@ body.is-resizing-sidebar iframe {
   }
 }
 
+
+/* Business dashboard shop link (#135): share the shop from the money book */
+.biz-shoplink {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin: 0 0 16px;
+  padding: 14px 16px;
+  background: var(--accent-soft);
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
+  border-radius: 12px;
+}
+.biz-shoplink__text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.biz-shoplink__text span {
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+.biz-shoplink__text code {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--accent);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.biz-shoplink__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.biz-shoplink__copy,
+.biz-shoplink__share {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: none;
+}
+.biz-shoplink__copy {
+  border: 1px solid var(--line-strong);
+  background: #fff;
+  color: var(--ink);
+}
+.biz-shoplink__share {
+  border: 0;
+  background: var(--accent);
+  color: #fff;
+}
+
+/* Business template picker: placeholder tile for cards without Figma art yet
+   (ajo, "Something else") - a plain emoji glyph on the same warm fill (#134). */
+.studio-template-picker__placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-size: 40px;
+  line-height: 1;
+}

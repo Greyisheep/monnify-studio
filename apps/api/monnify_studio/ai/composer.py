@@ -166,7 +166,7 @@ def _layout(flow: MoniFlow) -> dict[str, Position]:
     return positions
 
 
-def _to_workflow(flow: MoniFlow, catalog: Catalog) -> Workflow:
+def _to_workflow(flow: MoniFlow, catalog: Catalog, keep_id: str | None = None) -> Workflow:
     positions = _layout(flow)
     nodes = [
         Node(
@@ -183,7 +183,9 @@ def _to_workflow(flow: MoniFlow, catalog: Catalog) -> Workflow:
     ]
     slug = "".join(c if c.isalnum() else "-" for c in flow.name.lower()).strip("-")[:32]
     return Workflow(
-        id=f"moni-{slug or 'flow'}",
+        # Refine (#148) revises the flow already on the whiteboard: it must keep
+        # its id so the canvas and store update in place instead of forking.
+        id=keep_id or f"moni-{slug or 'flow'}",
         name=flow.name,
         provider="monnify",
         description=flow.description,
@@ -245,6 +247,50 @@ def compose_flow(message: str, *, provider: str | None = None) -> ComposeOutcome
     catalog = default_catalog()
     chosen: AIProvider = select_provider(provider)
     base_user = f"{_catalog_prompt(catalog)}\n\nUser need: {message.strip()}"
+    return _run_loop(chosen, catalog, base_user, message, keep_id=None)
+
+
+def _serialize_flow(workflow: Workflow) -> str:
+    """The current whiteboard flow, compact, for Moni to revise (#148)."""
+    lines = ["Nodes (id | type | label):"]
+    lines += [f"- {n.id} | {n.type} | {n.label or ''}" for n in workflow.nodes]
+    lines.append("Edges (source -> target | kind):")
+    lines += [f"- {e.source} -> {e.target} | {e.kind}" for e in workflow.edges]
+    return "\n".join(lines)
+
+
+def refine_flow(
+    workflow: Workflow, instruction: str, *, provider: str | None = None
+) -> ComposeOutcome:
+    """Moni corrects the flow already on the whiteboard (#148, dev item 7).
+
+    Same deterministic generate -> verify -> refuse loop as compose (#106); the
+    only differences are the prompt (current flow + the user's instruction) and
+    that the revised flow KEEPS the workflow's id, so the canvas updates in
+    place. Safety stays the sole hard gate; an unclean revision never ships.
+    """
+    catalog = default_catalog()
+    chosen: AIProvider = select_provider(provider)
+    base_user = (
+        f"{_catalog_prompt(catalog)}\n\n"
+        "The user already has this flow on their whiteboard:\n"
+        f"{_serialize_flow(workflow)}\n\n"
+        f"Their instruction: {instruction.strip()}\n\n"
+        "Revise the flow to follow the instruction. Keep what already works, "
+        "change only what the instruction needs, and return the FULL revised "
+        "flow (every node and edge), not a diff."
+    )
+    return _run_loop(chosen, catalog, base_user, instruction, keep_id=workflow.id)
+
+
+def _run_loop(
+    chosen: AIProvider,
+    catalog: Catalog,
+    base_user: str,
+    fidelity_message: str,
+    *,
+    keep_id: str | None,
+) -> ComposeOutcome:
 
     feedback = ""
     last_errors: list[str] = ["Moni could not produce a verifiably safe flow"]
@@ -275,7 +321,7 @@ def compose_flow(message: str, *, provider: str | None = None) -> ComposeOutcome
             last_errors = errors
             continue
 
-        workflow = _to_workflow(flow, catalog)
+        workflow = _to_workflow(flow, catalog, keep_id=keep_id)
         try:
             report_before = analyze(workflow, catalog)
             result = remediate_all(workflow, catalog)
@@ -292,7 +338,7 @@ def compose_flow(message: str, *, provider: str | None = None) -> ComposeOutcome
                 provider=chosen.name,
                 explanation=flow.explanation,
             )
-            gaps = intent_gaps(message, result.workflow)
+            gaps = intent_gaps(fidelity_message, result.workflow)
             if gaps and fallback is None:
                 # Safe but not what was asked: keep it, ask Moni to cover the
                 # gaps, and allow exactly one extra round for it (#113).

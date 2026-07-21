@@ -77,6 +77,11 @@ export interface BusinessDashboardProps {
   activeNav?: BusinessNav;
   transactions?: DashboardTxn[];
   notifications?: BizNotification[];
+  /** Verified-only money book from the backend (#135); overrides the computed
+   *  tiles so inflow reflects only what Monnify confirmed, never a claim. */
+  totals?: { inflow: number; outflow: number; net: number; actions: number } | null;
+  /** Absolute URL of the business's shop, so the owner can share it (#135). */
+  shopUrl?: string | null;
   onNav: (nav: BusinessNav) => void;
   onNew?: () => void;
   onLogout?: () => void;
@@ -296,10 +301,13 @@ export function BusinessDashboard({
   activeNav = "dashboard",
   transactions,
   notifications: notificationsProp,
+  totals,
+  shopUrl,
   onNav,
   onNew,
   onLogout,
 }: BusinessDashboardProps) {
+  const [copied, setCopied] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [direction, setDirection] = useState<"inflow" | "outflow">("inflow");
   const [query, setQuery] = useState("");
@@ -332,6 +340,9 @@ export function BusinessDashboard({
   }, [transactions, query, direction, statusFilter, typeFilter, dateFilter]);
 
   const overview = useMemo(() => {
+    // Backend totals win when present: money in is verified-only (#135), never
+    // the sum of unconfirmed claims. Fall back to computing from the rows.
+    if (totals) return totals;
     const list = transactions ?? [];
     const inflow = list
       .filter((t) => t.direction === "inflow")
@@ -346,7 +357,7 @@ export function BusinessDashboard({
       net: inflow - outflow,
       actions,
     };
-  }, [transactions]);
+  }, [transactions, totals]);
 
   const unread = notes.filter((n) => !n.read).length;
   const empty = rows.length === 0;
@@ -508,6 +519,39 @@ export function BusinessDashboard({
             </article>
           </div>
         </section>
+
+        {shopUrl ? (
+          <section className="biz-shoplink" aria-label="Your shop link">
+            <div className="biz-shoplink__text">
+              <span>Your shop link</span>
+              <code>{shopUrl.replace(/^https?:\/\//, "")}</code>
+            </div>
+            <div className="biz-shoplink__actions">
+              <button
+                type="button"
+                className="biz-shoplink__copy"
+                onClick={() => {
+                  void navigator.clipboard.writeText(shopUrl).then(() => {
+                    setCopied(true);
+                    window.setTimeout(() => setCopied(false), 1400);
+                  });
+                }}
+              >
+                {copied ? "Copied" : "Copy Link"}
+              </button>
+              <a
+                className="biz-shoplink__share"
+                href={`https://wa.me/?text=${encodeURIComponent(
+                  `Order from my shop and pay securely: ${shopUrl}`,
+                )}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Share on WhatsApp
+              </a>
+            </div>
+          </section>
+        ) : null}
 
         <section className="biz-table-card" aria-label="Payments">
           <div className="biz-table-card__header">
