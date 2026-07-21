@@ -290,12 +290,19 @@ def _session_id(request: Request, response: Response) -> str:
     if existing:
         return existing
     sid = new_id("sess")
+    # Production genuinely is cross-origin: web and api are separate Cloud Run
+    # services (different hostnames). A SameSite=Lax cookie is never attached
+    # to a cross-site fetch/XHR, so onboarding lost its session on every call
+    # past the first, silently resetting path/goal/step (#135 follow-up). Local
+    # dev goes through the same-origin /studio-backend proxy, so Lax + non-
+    # secure (works over http) is correct there; production needs None+Secure.
+    cross_origin = settings.studio_env != "development"
     response.set_cookie(
         key=SESSION_COOKIE,
         value=sid,
         httponly=True,
-        samesite="lax",
-        secure=settings.studio_env != "development",
+        samesite="none" if cross_origin else "lax",
+        secure=cross_origin,
         max_age=60 * 60 * 24 * 30,
     )
     return sid
