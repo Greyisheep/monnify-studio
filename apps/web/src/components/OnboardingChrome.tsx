@@ -16,12 +16,6 @@ function crumbFor(step: OnboardingStep): CrumbId {
   return step === "user_type" ? "user_type" : "setup";
 }
 
-/** The onboarding screens sit on a solid light page in Figma (233:7084), not
- *  frosted over the studio whiteboard - every step uses the solid background. */
-function overStudio(_step: OnboardingStep): boolean {
-  return false;
-}
-
 export function OnboardingChrome({
   active,
   children,
@@ -31,11 +25,12 @@ export function OnboardingChrome({
 }) {
   const activeCrumb = crumbFor(active);
   const activeIndex = STEPS.findIndex((step) => step.id === activeCrumb);
-  const frosted = overStudio(active);
 
+  // Every onboarding screen sits on a solid light page in Figma (233:7084) - no
+  // frosted-over-the-studio treatment.
   return (
     <div
-      className={`studio-onboard${frosted ? " is-over-studio" : ""}`}
+      className="studio-onboard"
       role="dialog"
       aria-modal="true"
     >
