@@ -2954,43 +2954,46 @@ body.is-resizing-sidebar iframe {
   color: var(--accent);
 }
 
-.studio-node__triggers {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-top: 0.55rem;
-}
-
 .studio-node__divider {
   height: 1px;
   background: var(--line);
-  margin: 0 -12px 4px;
+  margin-top: 0.65rem;
+}
+
+.studio-node__triggers {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+  padding-bottom: 8px;
 }
 
 .studio-node__triggers-label {
-  font-size: 0.68rem;
+  font-size: 0.72rem;
   font-weight: 500;
-  color: var(--ink-soft);
+  color: var(--ink);
 }
 
 .studio-node__field {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
 }
 
 .studio-node__field-label {
-  font-size: 0.64rem;
-  color: var(--ink-soft);
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--ink);
 }
 
 .studio-node__field-input {
-  padding: 5px 8px;
+  padding: 4px 6px;
   border-radius: 8px;
   border: 1px solid var(--line);
   box-shadow: var(--shadow-xs);
+  font-family: var(--font-mono);
   font-size: 0.72rem;
-  color: var(--ink-mid);
+  color: var(--ink-soft);
   background: var(--panel);
   cursor: default;
 }

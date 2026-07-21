@@ -59,6 +59,79 @@ function MenuIcon() {
   );
 }
 
+/**
+ * Category glyphs (Figma exports icon-per-nodeType, e.g. "Icon / users" for
+ * bank-account validation, "Icon / receipt" for payment nodes - node-id
+ * 2003:6122/2003:6128 on jj9fKZ…/112:5282). We don't have a per-type icon
+ * asset library, so this maps at the category level instead - still real,
+ * still scannable, not a fabricated one-size-fits-all glyph.
+ */
+function CategoryGlyph({ category }: { category: string }) {
+  const common = { width: 16, height: 16, viewBox: "0 0 16 16", fill: "none" } as const;
+  switch (category) {
+    case "safety":
+      return (
+        <svg {...common} aria-hidden>
+          <circle cx="6" cy="5.2" r="2.1" stroke="currentColor" strokeWidth="1.3" />
+          <path
+            d="M2 13.2c0-2.3 1.8-4.1 4-4.1s4 1.8 4 4.1"
+            stroke="currentColor"
+            strokeWidth="1.3"
+            strokeLinecap="round"
+          />
+          <path
+            d="M10.1 4.4a2 2 0 0 1 0 3.8"
+            stroke="currentColor"
+            strokeWidth="1.2"
+            strokeLinecap="round"
+          />
+          <path
+            d="M11 9.3c1.7.4 2.9 1.8 2.9 3.5"
+            stroke="currentColor"
+            strokeWidth="1.2"
+            strokeLinecap="round"
+          />
+        </svg>
+      );
+    case "monnify":
+      return (
+        <svg {...common} aria-hidden>
+          <rect x="3" y="2.5" width="10" height="11" rx="1.3" stroke="currentColor" strokeWidth="1.2" />
+          <path d="M5 6h6M5 8.3h6M5 10.6h3.2" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
+        </svg>
+      );
+    case "event":
+      return (
+        <svg {...common} aria-hidden>
+          <path
+            d="M8.6 2 4.2 9h3.1L6.9 14 12 6.7H8.9L8.6 2Z"
+            stroke="currentColor"
+            strokeWidth="1.2"
+            strokeLinejoin="round"
+          />
+        </svg>
+      );
+    case "control":
+      return (
+        <svg {...common} aria-hidden>
+          <path d="M3 5h10M3 8h10M3 11h10" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+          <circle cx="6.2" cy="5" r="1.1" fill="currentColor" />
+          <circle cx="10.2" cy="8" r="1.1" fill="currentColor" />
+          <circle cx="7.2" cy="11" r="1.1" fill="currentColor" />
+        </svg>
+      );
+    default:
+      return (
+        <svg {...common} aria-hidden>
+          <rect x="2.5" y="2.5" width="4.6" height="4.6" rx="1" stroke="currentColor" strokeWidth="1.2" />
+          <rect x="8.9" y="2.5" width="4.6" height="4.6" rx="1" stroke="currentColor" strokeWidth="1.2" />
+          <rect x="2.5" y="8.9" width="4.6" height="4.6" rx="1" stroke="currentColor" strokeWidth="1.2" />
+          <rect x="8.9" y="8.9" width="4.6" height="4.6" rx="1" stroke="currentColor" strokeWidth="1.2" />
+        </svg>
+      );
+  }
+}
+
 export function StudioNode({ id, data, selected }: NodeProps<StudioFlowNode>) {
   const categoryClass = CATEGORY_CLASS[data.category] ?? "cat-application";
   const runIo = data.runIo;
@@ -116,14 +189,7 @@ export function StudioNode({ id, data, selected }: NodeProps<StudioFlowNode>) {
               Monnify
             </span>
             <span className="studio-node__icon-chip" aria-hidden>
-              <Image
-                src="/figma/icon-catalog-node.svg"
-                alt=""
-                width={16}
-                height={16}
-                unoptimized
-                className="studio-node__icon-glyph"
-              />
+              <CategoryGlyph category={data.category} />
             </span>
           </div>
           <div className="studio-node__menu" ref={menuRef}>
@@ -181,21 +247,23 @@ export function StudioNode({ id, data, selected }: NodeProps<StudioFlowNode>) {
       ) : null}
 
       {selected && configEntries.length > 0 ? (
-        <div className="studio-node__triggers">
+        <>
           <div className="studio-node__divider" />
-          <span className="studio-node__triggers-label">Edit triggers</span>
-          {configEntries.map(([key, value]) => (
-            <label key={key} className="studio-node__field">
-              <span className="studio-node__field-label">{fieldLabel(key)}</span>
-              <input
-                className="studio-node__field-input"
-                value={fieldValue(value)}
-                readOnly
-                onClick={(event) => event.stopPropagation()}
-              />
-            </label>
-          ))}
-        </div>
+          <div className="studio-node__triggers">
+            <span className="studio-node__triggers-label">Edit triggers</span>
+            {configEntries.map(([key, value]) => (
+              <label key={key} className="studio-node__field">
+                <span className="studio-node__field-label">{fieldLabel(key)}</span>
+                <input
+                  className="studio-node__field-input"
+                  value={fieldValue(value)}
+                  readOnly
+                  onClick={(event) => event.stopPropagation()}
+                />
+              </label>
+            ))}
+          </div>
+        </>
       ) : null}
 
       <Handle type="source" position={Position.Right} className="studio-handle" />
