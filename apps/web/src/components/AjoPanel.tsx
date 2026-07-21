@@ -7,7 +7,12 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { fetchAjoState, putAjoMembers, type AjoStateDto } from "@/lib/api";
+import {
+  fetchAjoState,
+  putAjoMembers,
+  simulateAjoContribution,
+  type AjoStateDto,
+} from "@/lib/api";
 
 interface AjoPanelProps {
   artifactId: string;
@@ -23,6 +28,7 @@ export function AjoPanel({ artifactId }: AjoPanelProps) {
   const [state, setState] = useState<AjoStateDto | null>(null);
   const [draft, setDraft] = useState("");
   const [saving, setSaving] = useState(false);
+  const [simulating, setSimulating] = useState(false);
 
   const load = useCallback(async () => {
     const next = await fetchAjoState(artifactId);
@@ -57,8 +63,19 @@ export function AjoPanel({ artifactId }: AjoPanelProps) {
     }
   };
 
+  const simulate = async () => {
+    setSimulating(true);
+    try {
+      const next = await simulateAjoContribution(artifactId);
+      setState(next);
+    } finally {
+      setSimulating(false);
+    }
+  };
+
   const members = state?.members ?? [];
   const paidCount = members.filter((m) => m.paid).length;
+  const allPaid = members.length > 0 && paidCount === members.length;
 
   return (
     <div className="biz-ajo">
@@ -92,6 +109,24 @@ export function AjoPanel({ artifactId }: AjoPanelProps) {
               </li>
             ))}
           </ul>
+          <div className="biz-ajo__sim">
+            <button
+              type="button"
+              className="biz-shoplink__preview"
+              disabled={simulating || allPaid}
+              onClick={() => void simulate()}
+            >
+              {simulating
+                ? "Simulating…"
+                : allPaid
+                  ? "Round complete"
+                  : "Simulate a pay-in"}
+            </button>
+            <span className="biz-ajo__sim-note">
+              Demo only: advances the pool and sends the real WhatsApp nudge.
+              Money in still needs a Monnify-verified payment.
+            </span>
+          </div>
           {(state?.payouts?.length ?? 0) > 0 ? (
             <div className="biz-ajo__payouts">
               <h3>Payouts</h3>

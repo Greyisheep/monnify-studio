@@ -1002,6 +1002,46 @@ def ajo_set_members(artifact_id: str, body: AjoMembersPut) -> dict:
     return ajo_state(artifact_id)
 
 
+class AjoSimulateRequest(BaseModel):
+    # Simulate one named member paying, or the next unpaid member if omitted.
+    member: str = ""
+
+
+@app.post("/preview/{artifact_id}/ajo/simulate-contribution")
+def ajo_simulate_contribution(artifact_id: str, body: AjoSimulateRequest) -> dict:
+    """DEMO ONLY (#173): advance the rotating pool without a real payment, so
+    the cycle and the WhatsApp nudges can be shown end to end on camera.
+
+    This does NOT touch the money trust boundary: it never marks a Monnify
+    order verified and never affects money_in. It only drives the pool ritual
+    (record the contribution, nudge the unpaid, pay out + rotate when the pot
+    completes) and fires the real WhatsApp messages. Actual contributions
+    still flow through Monnify verification (#53). The response is labeled so
+    the UI can show that this pay-in was simulated.
+    """
+    artifact = _artifact_or_404(artifact_id)
+    group = ajo_store.group(artifact_id)
+    if group is None or not group.members:
+        raise HTTPException(
+            status_code=400, detail="register ajo members before simulating"
+        )
+    member = body.member.strip()
+    if not member:
+        paid = set(group.paid_this_round)
+        unpaid = [m for m in group.members if m.name.strip().casefold() not in paid]
+        if not unpaid:
+            raise HTTPException(status_code=400, detail="everyone has paid this round")
+        member = unpaid[0].name
+    amount = money(artifact.config.price_ngn)
+    result = ajo_store.record_contribution(artifact_id, member, amount)
+    if result is not None:
+        _ajo_notify(artifact_id, result)
+    log.info("ajo.simulated_contribution", artifact_id=artifact_id, member=member)
+    state = ajo_state(artifact_id)
+    state["simulated"] = {"member": member, "amount": str(amount)}
+    return state
+
+
 class ShopSelection(BaseModel):
     id: str
     qty: int = Field(ge=1, le=999)
@@ -1097,6 +1137,38 @@ def _thank_you_on_verified(order: Order) -> None:
         )
 
 
+def _ajo_notify(artifact_id: str, result) -> None:
+    """Fire the WhatsApp ritual for one advance of the pool (#173): nudge the
+    unpaid, or announce the payout when the pot completes. Shared by the real
+    verified-contribution hook and the demo simulation."""
+    if result.payout is not None:
+        group = ajo_store.group(artifact_id)
+        beneficiary_number = ""
+        if group is not None:
+            for m in group.members:
+                if m.name == result.payout.beneficiary:
+                    beneficiary_number = m.whatsapp
+                    break
+        whatsapp_notifier.ajo_payout(
+            artifact_id=artifact_id,
+            number=beneficiary_number,
+            beneficiary=result.payout.beneficiary,
+            amount=result.payout.amount,
+            next_beneficiary=result.next_beneficiary,
+        )
+        return
+    for member in result.unpaid:
+        whatsapp_notifier.ajo_nudge(
+            artifact_id=artifact_id,
+            number=member.whatsapp,
+            member=member.name,
+            paid_count=result.paid_count,
+            member_count=result.member_count,
+            beneficiary=result.next_beneficiary,
+            who_paid=result.member,
+        )
+
+
 def _ajo_on_verified(order: Order) -> None:
     """A verified contribution advances the rotating pool (#173).
 
@@ -1108,34 +1180,8 @@ def _ajo_on_verified(order: Order) -> None:
     result = ajo_store.record_contribution(
         order.artifact_id, order.customer, order.amount
     )
-    if result is None:
-        return
-    if result.payout is not None:
-        group = ajo_store.group(order.artifact_id)
-        beneficiary_number = ""
-        if group is not None:
-            for m in group.members:
-                if m.name == result.payout.beneficiary:
-                    beneficiary_number = m.whatsapp
-                    break
-        whatsapp_notifier.ajo_payout(
-            artifact_id=order.artifact_id,
-            number=beneficiary_number,
-            beneficiary=result.payout.beneficiary,
-            amount=result.payout.amount,
-            next_beneficiary=result.next_beneficiary,
-        )
-        return
-    for member in result.unpaid:
-        whatsapp_notifier.ajo_nudge(
-            artifact_id=order.artifact_id,
-            number=member.whatsapp,
-            member=member.name,
-            paid_count=result.paid_count,
-            member_count=result.member_count,
-            beneficiary=result.next_beneficiary,
-            who_paid=result.member,
-        )
+    if result is not None:
+        _ajo_notify(order.artifact_id, result)
 
 
 def _on_verified(order: Order) -> None:

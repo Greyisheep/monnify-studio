@@ -337,6 +337,15 @@ export async function putAjoMembers(
   return putJson<AjoStateDto>(`/preview/${artifactId}/ajo/members`, { members });
 }
 
+/** DEMO ONLY (#173): advance the pool without a real payment so the rotation
+ *  and WhatsApp nudges can be shown end to end. Never touches money_in. */
+export async function simulateAjoContribution(
+  artifactId: string,
+  member = "",
+): Promise<AjoStateDto & { simulated?: { member: string; amount: string } }> {
+  return postJson(`/preview/${artifactId}/ajo/simulate-contribution`, { member });
+}
+
 export async function fetchStudioProfile(): Promise<StudioProfile | null> {
   return getOptional<StudioProfile>("/studio/profile");
 }
