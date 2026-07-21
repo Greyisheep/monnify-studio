@@ -22,6 +22,7 @@ import {
 import "@xyflow/react/dist/style.css";
 
 import type { ConnectionFeedback } from "@/hooks/useStudioGraph";
+import { readDragNodeType } from "@/lib/studioDnd";
 import type { StudioNodeData } from "@/types";
 import { StudioNode } from "./StudioNode";
 import { StudioZoomControls } from "./StudioZoomControls";
@@ -44,6 +45,8 @@ export interface WorkflowCanvasProps {
   onConnect: (connection: Connection) => void;
   onSelectionChange: OnSelectionChangeFunc;
   onGraphDirty: () => void;
+  /** Palette → canvas drop (flow coords = intended top-left). */
+  onDropNode?: (typeKey: string, flow: { x: number; y: number }) => void;
 }
 
 function FitViewOnLayout({ layoutNonce }: { layoutNonce: number }) {
@@ -75,7 +78,9 @@ export function WorkflowCanvas({
   onConnect,
   onSelectionChange,
   onGraphDirty,
+  onDropNode,
 }: WorkflowCanvasProps) {
+  const { screenToFlowPosition } = useReactFlow();
   const connectionStroke =
     connectionFeedback === "valid"
       ? "var(--accent)"
@@ -114,6 +119,22 @@ export function WorkflowCanvas({
         }}
         onConnect={(connection) => void onConnect(connection)}
         onSelectionChange={onSelectionChange}
+        onDragOver={(event) => {
+          if (!onDropNode) return;
+          event.preventDefault();
+          event.dataTransfer.dropEffect = "copy";
+        }}
+        onDrop={(event) => {
+          if (!onDropNode) return;
+          event.preventDefault();
+          const typeKey = readDragNodeType(event.dataTransfer);
+          if (!typeKey) return;
+          const flow = screenToFlowPosition({
+            x: event.clientX,
+            y: event.clientY,
+          });
+          onDropNode(typeKey, { x: flow.x - 90, y: flow.y - 30 });
+        }}
         nodeTypes={nodeTypes}
         fitView
         minZoom={0.3}

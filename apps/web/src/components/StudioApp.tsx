@@ -1011,6 +1011,7 @@ function CanvasInner() {
             onConnect={graph.onConnect}
             onSelectionChange={graph.onSelectionChange}
             onGraphDirty={() => session.setDirty(true)}
+            onDropNode={(typeKey, flow) => graph.addNode(typeKey, flow)}
           />
         </div>
       </main>

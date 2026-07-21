@@ -418,19 +418,82 @@ body.is-resizing-sidebar iframe {
   display: flex;
   align-items: center;
   gap: 8px;
-  min-height: 32px;
-  padding: 4px 12px;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  background: transparent;
+  min-height: 36px;
+  padding: 8px 12px;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  background: #fff;
   color: #404040;
   font: inherit;
   font-size: 14px;
   font-weight: 500;
   line-height: 20px;
   text-align: left;
-  cursor: pointer;
+  cursor: grab;
 }
+
+.studio-sidebar__item:active {
+  cursor: grabbing;
+}
+
+.studio-sidebar__grip {
+  display: inline-flex;
+  flex-shrink: 0;
+  width: 12px;
+  opacity: 0.85;
+}
+
+.studio-sidebar__icon-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 4px;
+  background: #f5f2ed;
+  border: 1px solid #d9d9d9;
+  flex-shrink: 0;
+}
+
+.studio-dnd-tip {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 4px 8px 10px;
+}
+
+.studio-dnd-tip__hand {
+  display: inline-flex;
+  margin-left: 4px;
+}
+
+.studio-dnd-tip__bubble {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: #000;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+}
+
+.studio-dnd-tip__close {
+  border: 0;
+  background: transparent;
+  color: #fff;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+}
+
+.studio-canvas.is-dnd-target .react-flow__pane {
+  cursor: copy;
+}
+
 
 .studio-sidebar__item:hover,
 .studio-sidebar__item:focus-visible {
