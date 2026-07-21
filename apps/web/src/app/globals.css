@@ -4100,3 +4100,13 @@ body.is-resizing-sidebar iframe {
   display: flex;
   gap: 0.35rem;
 }
+
+.biz-ajo__sim {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.biz-ajo__sim-note {
+  font-size: 11px;
+  color: #a3a3a3;
+}

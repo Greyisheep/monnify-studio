@@ -107,3 +107,32 @@ def test_no_group_means_no_cycle_side_effects():
     assert result["status"] == "verified"
     assert ajo_store.group(artifact_id) is None
     assert client.get(f"/preview/{artifact_id}/ajo").json()["members"] == []
+
+
+def test_simulate_advances_cycle_without_touching_money():
+    """Demo simulation drives rotation + nudges but never affects money_in (#173)."""
+    artifact_id = _ajo_artifact()
+    client.put(
+        f"/preview/{artifact_id}/ajo/members",
+        json={"members": [{"name": "Ada"}, {"name": "Bola"}]},
+    )
+    # Simulate the next unpaid member twice: completes the pot, rotates.
+    first = client.post(
+        f"/preview/{artifact_id}/ajo/simulate-contribution", json={}
+    ).json()
+    assert first["simulated"]["member"] == "Ada"
+    assert first["round"] == 1
+    second = client.post(
+        f"/preview/{artifact_id}/ajo/simulate-contribution", json={}
+    ).json()
+    assert second["round"] == 2  # rotated
+    assert len(second["payouts"]) == 1
+    # Money in stays zero: no Monnify order was ever verified by the simulation.
+    totals = client.get(f"/preview/{artifact_id}/totals?period=all").json()
+    assert totals["money_in"] == "0.00"
+
+
+def test_simulate_requires_members():
+    artifact_id = _ajo_artifact()
+    res = client.post(f"/preview/{artifact_id}/ajo/simulate-contribution", json={})
+    assert res.status_code == 400
