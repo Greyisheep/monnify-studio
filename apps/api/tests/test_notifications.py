@@ -30,7 +30,7 @@ class FakeEvo:
         return {}
 
 
-class FakeSMTP:
+class FakeZepto:
     def __init__(self, configured: bool = True) -> None:
         self._configured = configured
         self.sent: list[tuple[str, str, str]] = []
@@ -51,8 +51,8 @@ def fake_evo(monkeypatch):
 
 
 @pytest.fixture
-def fake_smtp(monkeypatch):
-    fake = FakeSMTP()
+def fake_zepto(monkeypatch):
+    fake = FakeZepto()
     monkeypatch.setattr(notif.email_notifier, "client", fake)
     return fake
 
@@ -139,7 +139,7 @@ def test_whatsapp_node_is_on_the_canvas():
 
 
 def test_unconfigured_email_notifier_records_but_does_not_deliver():
-    n = EmailNotifier(client=FakeSMTP(configured=False))
+    n = EmailNotifier(client=FakeZepto(configured=False))
     ok = n.invoice_ready(
         artifact_id="art_e1", to="chidi@example.com", business="Ada",
         amount=Decimal("5000"), url="http://x/i",
@@ -150,7 +150,7 @@ def test_unconfigured_email_notifier_records_but_does_not_deliver():
 
 
 def test_configured_email_notifier_sends():
-    fake = FakeSMTP()
+    fake = FakeZepto()
     n = EmailNotifier(client=fake)
     ok = n.payment_thank_you(
         artifact_id="art_e2", to="chidi@example.com", business="Ada", amount=Decimal("5000")
@@ -160,7 +160,7 @@ def test_configured_email_notifier_sends():
     assert to == "chidi@example.com" and "Ada" in subject and "5,000.00" in html
 
 
-def test_shop_invoice_messages_the_buyer_by_email(fake_smtp):
+def test_shop_invoice_messages_the_buyer_by_email(fake_zepto):
     artifact_id = _shop_artifact()
     res = client.post(
         f"/preview/{artifact_id}/shop/invoice",
@@ -168,15 +168,15 @@ def test_shop_invoice_messages_the_buyer_by_email(fake_smtp):
               "selections": [{"id": "logo", "qty": 1}]},
     )
     assert res.status_code == 200
-    assert fake_smtp.sent
-    to, subject, html = fake_smtp.sent[0]
+    assert fake_zepto.sent
+    to, subject, html = fake_zepto.sent[0]
     assert to == "chidi@example.com"
     assert res.json()["invoice_reference"] in html and "Kunle Designs" in html
     notes = client.get(f"/preview/{artifact_id}/notifications").json()
     assert any("Invoice sent to buyer by email" in n["text"] for n in notes)
 
 
-def test_thank_you_by_email_fires_when_payment_is_verified(fake_smtp):
+def test_thank_you_by_email_fires_when_payment_is_verified(fake_zepto):
     artifact_id = _shop_artifact()
     inv = orders_service.create(
         reference="INV-EM1", artifact_id=artifact_id, product="Logo",
@@ -190,10 +190,10 @@ def test_thank_you_by_email_fires_when_payment_is_verified(fake_smtp):
         orders_service.verify(inv.reference)
     finally:
         orders_service.verifier = original
-    assert fake_smtp.sent and "received your payment" in fake_smtp.sent[-1][2]
+    assert fake_zepto.sent and "received your payment" in fake_zepto.sent[-1][2]
 
 
-def test_buyer_can_give_both_whatsapp_and_email(fake_evo, fake_smtp):
+def test_buyer_can_give_both_whatsapp_and_email(fake_evo, fake_zepto):
     artifact_id = _shop_artifact()
     res = client.post(
         f"/preview/{artifact_id}/shop/invoice",
@@ -202,4 +202,4 @@ def test_buyer_can_give_both_whatsapp_and_email(fake_evo, fake_smtp):
               "selections": [{"id": "logo", "qty": 1}]},
     )
     assert res.status_code == 200
-    assert fake_evo.sent and fake_smtp.sent
+    assert fake_evo.sent and fake_zepto.sent

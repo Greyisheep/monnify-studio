@@ -18,7 +18,7 @@ from threading import Lock
 
 from pydantic import BaseModel, Field
 
-from .integrations.email import SMTPEmailClient
+from .integrations.email import ZeptoMailClient
 from .integrations.whatsapp import EvolutionClient, normalize_ng
 from .observability import get_logger
 
@@ -105,8 +105,8 @@ whatsapp_notifier = WhatsAppNotifier()
 
 
 class EmailNotifier:
-    def __init__(self, client: SMTPEmailClient | None = None) -> None:
-        self.client = client or SMTPEmailClient()
+    def __init__(self, client: ZeptoMailClient | None = None) -> None:
+        self.client = client or ZeptoMailClient()
 
     @property
     def enabled(self) -> bool:
