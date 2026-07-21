@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import re
 from datetime import datetime, timedelta, timezone
 
 from decimal import Decimal
@@ -38,6 +39,7 @@ from monnify_studio.artifacts import (
     render_invoice_page,
     render_storefront,
 )
+from monnify_studio.codegen import generate_python
 from monnify_studio.credentials import (
     CredentialStatus,
     MonnifyCredentials,
@@ -1081,6 +1083,33 @@ def workflow_dashboard(workflow_id: str, period: str = "all") -> DashboardData:
         totals=artifact_totals(aid, period),
         invoices=orders_service.for_artifact(aid),
         activity=artifact_activity(aid),
+    )
+
+
+class GeneratedCode(BaseModel):
+    language: str
+    filename: str
+    code: str
+
+
+@app.get("/workflows/{workflow_id}/code", response_model=GeneratedCode)
+def workflow_code(workflow_id: str, lang: str = "python") -> GeneratedCode:
+    """Copy REAL code for your flow (#146, dev item 6).
+
+    Deterministic Jinja-free generation - no LLM in the codegen path (D3): the
+    same flow always returns the same module. `lang` is python-only today; the
+    parameter exists so more targets can land without an API break.
+    """
+    workflow = store.get(workflow_id)
+    if workflow is None:
+        raise HTTPException(status_code=404, detail=f"unknown workflow: {workflow_id}")
+    if lang != "python":
+        raise HTTPException(status_code=400, detail="only lang=python is supported today")
+    slug = re.sub(r"[^a-z0-9]+", "_", workflow.name.lower()).strip("_") or "flow"
+    return GeneratedCode(
+        language="python",
+        filename=f"{slug}.py",
+        code=generate_python(workflow),
     )
 
 
