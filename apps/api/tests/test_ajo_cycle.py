@@ -130,6 +130,8 @@ def test_simulate_advances_cycle_without_touching_money():
     # Money in stays zero: no Monnify order was ever verified by the simulation.
     totals = client.get(f"/preview/{artifact_id}/totals?period=all").json()
     assert totals["money_in"] == "0.00"
+    # Simulated payout must NOT hit the money book either.
+    assert totals["money_out"] == "0.00"
 
 
 def test_simulate_requires_members():

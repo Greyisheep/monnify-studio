@@ -742,42 +742,44 @@ export function BusinessDashboard({
         </div>
 
         <section className="biz-activity" aria-label="Activity" data-tour="biz-activity">
-          <header className="biz-activity__head">
-            <div>
-              <h2>Activity</h2>
-              <p>Recent payments and payouts</p>
-            </div>
-            <button
-              type="button"
-              className="biz-activity__all"
-              onClick={() => {
-                setNotifyOpen(true);
-                setOpenMenu(null);
-              }}
-            >
-              View all activites
-            </button>
-          </header>
-          {activityPreview.length === 0 ? (
-            <p className="biz-activity__empty">No activity yet — payments appear here when money moves.</p>
-          ) : (
-            <ul className="biz-activity__list">
-              {activityPreview.map((item) => (
-                <li key={item.id}>
-                  <span
-                    className={`biz-activity__mark is-${item.kind}`}
-                    aria-hidden
-                  >
-                    {item.kind === "outflow" ? "↗" : "↙"}
-                  </span>
-                  <div>
-                    <p>{item.text}</p>
-                    <time>{item.when}</time>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
+          <div className="biz-activity__card">
+            <header className="biz-activity__head">
+              <div>
+                <h2>Activity</h2>
+                <p>Recent payments and payouts</p>
+              </div>
+              <button
+                type="button"
+                className="biz-activity__all"
+                onClick={() => {
+                  setNotifyOpen(true);
+                  setOpenMenu(null);
+                }}
+              >
+                View all activites
+              </button>
+            </header>
+            {activityPreview.length === 0 ? (
+              <p className="biz-activity__empty">No activity yet — payments appear here when money moves.</p>
+            ) : (
+              <ul className="biz-activity__list">
+                {activityPreview.map((item) => (
+                  <li key={item.id}>
+                    <span
+                      className={`biz-activity__mark is-${item.kind}`}
+                      aria-hidden
+                    >
+                      {item.kind === "outflow" ? "↗" : "↙"}
+                    </span>
+                    <div>
+                      <p>{item.text}</p>
+                      <time>{item.when}</time>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </section>
 
         <section className="biz-table-card" aria-label="Recent transaction" data-tour="biz-transactions">

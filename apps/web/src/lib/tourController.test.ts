@@ -34,8 +34,10 @@ describe("tourController (#103)", () => {
     ).toBe(false);
   });
 
-  it("business ready gate requires caller to pass products/data __AC1", () => {
-    // StudioApp sets ready=false until profile.products.length > 0
+  it("business ready gate requires caller to signal the dashboard is showing __AC1", () => {
+    // StudioApp sets ready=false until the owner is actually on the business
+    // dashboard shell (showBusinessDashboard) with a non-"other" goal — not
+    // gated on profile.products.length, so Invoice/Ajo also get the tour.
     expect(
       shouldActivateTour({ path: "business", ready: false, dismissed: false }),
     ).toBe(false);

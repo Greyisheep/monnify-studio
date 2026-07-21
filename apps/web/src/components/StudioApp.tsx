@@ -641,10 +641,15 @@ function CanvasInner() {
         : profile?.path === "developer" && profile.step === "done"
           ? ("developer" as const)
           : null;
-  // Business tour matches Figma filled dashboard: wait until the owner has
-  // products (shop/data) so highlighted regions match the designed surface.
+  // Business tour matches Figma filled dashboard: wait until the owner is
+  // actually on the dashboard shell it highlights. Gate on the dashboard
+  // itself (not products.length) so Invoice/Ajo — which never populate
+  // products — still get the tour; "Something else" (goal "other") never
+  // reaches the dashboard shell, so blank setups are naturally excluded.
   const businessTourReady =
-    tourPath === "business" && (profile?.products?.length ?? 0) > 0;
+    tourPath === "business" &&
+    showBusinessDashboard &&
+    profile?.goal !== "other";
   const developerTourReady = tourPath === "developer";
   const tour = useOnboardingTour({
     path: tourPath,

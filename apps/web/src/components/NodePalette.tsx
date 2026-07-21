@@ -15,6 +15,14 @@ import {
 } from "react";
 
 import {
+  applyStoredOrder,
+  insertionIndexFor,
+  loadPaletteOrder,
+  moveWithinList,
+  savePaletteOrder,
+  type PaletteOrder,
+} from "@/lib/paletteOrder";
+import {
   isDragDropTipDismissed,
   persistDragDropTipDismissed,
   writeDragNodeType,
@@ -144,9 +152,18 @@ export function NodePalette({
   onSetupIntent,
   onResizeStart,
 }: NodePaletteProps) {
-  const groups = groupCatalog(catalog);
   const draggedRef = useRef(false);
   const [showTip, setShowTip] = useState(false);
+  const [order, setOrder] = useState<PaletteOrder>(() => loadPaletteOrder());
+  const [dragRow, setDragRow] = useState<{ category: string; fromIndex: number } | null>(
+    null,
+  );
+  const [dropAt, setDropAt] = useState<{ category: string; index: number } | null>(null);
+
+  const groups = groupCatalog(catalog).map(
+    ([category, items]) =>
+      [category, applyStoredOrder(items, order[category], (item) => item.type)] as const,
+  );
 
   useEffect(() => {
     if (collapsed || leftTab !== "api") {
@@ -169,10 +186,52 @@ export function NodePalette({
     setShowTip(false);
   }
 
-  function onRowDragStart(event: ReactDragEvent, typeKey: string) {
+  function onRowDragStart(
+    event: ReactDragEvent,
+    typeKey: string,
+    category: string,
+    fromIndex: number,
+  ) {
     draggedRef.current = true;
     writeDragNodeType(event.dataTransfer, typeKey);
+    setDragRow({ category, fromIndex });
     dismissTip();
+  }
+
+  function onRowDragEnd() {
+    window.setTimeout(() => {
+      draggedRef.current = false;
+    }, 0);
+    setDragRow(null);
+    setDropAt(null);
+  }
+
+  function onRowDragOver(event: ReactDragEvent, category: string, hoverIndex: number) {
+    if (!dragRow || dragRow.category !== category) return;
+    event.preventDefault();
+    const rect = event.currentTarget.getBoundingClientRect();
+    const fraction = rect.height > 0 ? (event.clientY - rect.top) / rect.height : 0;
+    setDropAt({ category, index: insertionIndexFor(hoverIndex, fraction) });
+  }
+
+  function onRowDrop(
+    event: ReactDragEvent,
+    category: string,
+    items: readonly NodeMeta[],
+  ) {
+    if (!dragRow || dragRow.category !== category || !dropAt || dropAt.category !== category) {
+      return;
+    }
+    event.preventDefault();
+    const reordered = moveWithinList(items, dragRow.fromIndex, dropAt.index);
+    const nextOrder: PaletteOrder = {
+      ...order,
+      [category]: reordered.map((item) => item.type),
+    };
+    setOrder(nextOrder);
+    savePaletteOrder(nextOrder);
+    setDragRow(null);
+    setDropAt(null);
   }
 
   function onRowClick(typeKey: string) {
@@ -255,44 +314,6 @@ export function NodePalette({
             {groups.length === 0 && (
               <p className="studio-sidebar__empty">Catalog loading…</p>
             )}
-            {showTip ? (
-              <div className="studio-dnd-tip" role="status">
-                <span className="studio-dnd-tip__hand" aria-hidden>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                    <path
-                      d="M8 13V6.5a1.5 1.5 0 0 1 3 0V11"
-                      stroke="#0A0A0A"
-                      strokeWidth="1.6"
-                      strokeLinecap="round"
-                    />
-                    <path
-                      d="M11 11V5.5a1.5 1.5 0 0 1 3 0V11"
-                      stroke="#0A0A0A"
-                      strokeWidth="1.6"
-                      strokeLinecap="round"
-                    />
-                    <path
-                      d="M14 11V7.5a1.5 1.5 0 0 1 3 0V14c0 3.5-2 6-5.5 6S6 17 6 14v-3.5a1.5 1.5 0 0 1 3 0V13"
-                      stroke="#0A0A0A"
-                      strokeWidth="1.6"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </span>
-                <div className="studio-dnd-tip__bubble">
-                  <span>Drag &amp; drop</span>
-                  <button
-                    type="button"
-                    className="studio-dnd-tip__close"
-                    aria-label="Dismiss tip"
-                    onClick={dismissTip}
-                  >
-                    ×
-                  </button>
-                </div>
-              </div>
-            ) : null}
             {groups.map(([category, items]) => (
               <section key={category} className="studio-sidebar__group">
                 <h3>{category}</h3>
@@ -301,11 +322,67 @@ export function NodePalette({
                     const featured = isFeatured(item);
                     const tipAnchor =
                       showTip && category === groups[0]?.[0] && itemIndex === 0;
+                    const isDragSource =
+                      dragRow?.category === category && dragRow.fromIndex === itemIndex;
+                    const dropBefore = dropAt?.category === category && dropAt.index === itemIndex;
+                    const dropAfter =
+                      itemIndex === items.length - 1 &&
+                      dropAt?.category === category &&
+                      dropAt.index === items.length;
+                    const rowClassName = [
+                      "studio-sidebar__row",
+                      tipAnchor ? "is-dnd-tip-anchor" : "",
+                      isDragSource ? "is-drag-source" : "",
+                      dropBefore ? "is-drop-target-before" : "",
+                      dropAfter ? "is-drop-target-after" : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" ");
                     return (
                       <li
                         key={item.type}
-                        className={tipAnchor ? "is-dnd-tip-anchor" : undefined}
+                        className={rowClassName}
+                        onDragOver={(event) => onRowDragOver(event, category, itemIndex)}
+                        onDrop={(event) => onRowDrop(event, category, items)}
                       >
+                        {tipAnchor ? (
+                          <div className="studio-dnd-tip" role="status">
+                            <span className="studio-dnd-tip__hand" aria-hidden>
+                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                                <path
+                                  d="M8 13V6.5a1.5 1.5 0 0 1 3 0V11"
+                                  stroke="#0A0A0A"
+                                  strokeWidth="1.6"
+                                  strokeLinecap="round"
+                                />
+                                <path
+                                  d="M11 11V5.5a1.5 1.5 0 0 1 3 0V11"
+                                  stroke="#0A0A0A"
+                                  strokeWidth="1.6"
+                                  strokeLinecap="round"
+                                />
+                                <path
+                                  d="M14 11V7.5a1.5 1.5 0 0 1 3 0V14c0 3.5-2 6-5.5 6S6 17 6 14v-3.5a1.5 1.5 0 0 1 3 0V13"
+                                  stroke="#0A0A0A"
+                                  strokeWidth="1.6"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                              </svg>
+                            </span>
+                            <div className="studio-dnd-tip__bubble">
+                              <span>Drag &amp; drop</span>
+                              <button
+                                type="button"
+                                className="studio-dnd-tip__close"
+                                aria-label="Dismiss tip"
+                                onClick={dismissTip}
+                              >
+                                ×
+                              </button>
+                            </div>
+                          </div>
+                        ) : null}
                         <button
                           type="button"
                           draggable
@@ -314,12 +391,10 @@ export function NodePalette({
                               ? "studio-sidebar__item studio-sidebar__item--featured"
                               : "studio-sidebar__item"
                           }
-                          onDragStart={(event) => onRowDragStart(event, item.type)}
-                          onDragEnd={() => {
-                            window.setTimeout(() => {
-                              draggedRef.current = false;
-                            }, 0);
-                          }}
+                          onDragStart={(event) =>
+                            onRowDragStart(event, item.type, category, itemIndex)
+                          }
+                          onDragEnd={onRowDragEnd}
                           onClick={() => onRowClick(item.type)}
                         >
                           <GripIcon />

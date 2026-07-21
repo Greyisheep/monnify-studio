@@ -71,6 +71,7 @@ from monnify_studio.executor import (
     ExecutionRun,
     MockAdapter,
     RunStatus,
+    SandboxAdapter,
     execution_store,
     run_workflow,
 )
@@ -181,6 +182,14 @@ class NodeMeta(BaseModel):
     category: str
     title: str
     description: str = ""
+    # Grounding shipped to the UI (#176): where the call goes, its editable
+    # request body, and the doc line so a dev/Moni edits from Monnify's real
+    # request shape, not guesswork.
+    when_to_use: str = ""
+    doc_url: str = ""
+    method: str = ""
+    path: str = ""
+    request_template: dict = Field(default_factory=dict)
     inputs: list[PortMeta] = Field(default_factory=list)
     outputs: list[PortMeta] = Field(default_factory=list)
 
@@ -239,6 +248,11 @@ def _meta_from_def(defn) -> NodeMeta:
         category=defn.category.value,
         title=defn.title,
         description=defn.description,
+        when_to_use=getattr(defn, "when_to_use", ""),
+        doc_url=getattr(defn, "doc_url", ""),
+        method=getattr(defn, "method", ""),
+        path=getattr(defn, "path", ""),
+        request_template=getattr(defn, "request_template", {}) or {},
         inputs=[
             PortMeta(
                 name=p.name, type=p.type.value, required=p.required, description=p.description
@@ -1033,7 +1047,9 @@ def ajo_simulate_contribution(artifact_id: str, body: AjoSimulateRequest) -> dic
             raise HTTPException(status_code=400, detail="everyone has paid this round")
         member = unpaid[0].name
     amount = money(artifact.config.price_ngn)
-    result = ajo_store.record_contribution(artifact_id, member, amount)
+    result = ajo_store.record_contribution(
+        artifact_id, member, amount, simulated=True
+    )
     if result is not None:
         _ajo_notify(artifact_id, result)
     log.info("ajo.simulated_contribution", artifact_id=artifact_id, member=member)
@@ -1510,20 +1526,28 @@ def start_execution(body: StartExecutionRequest) -> StartExecutionResponse:
     MockAdapter is the default so #28 can consume a complete stream without
     sandbox credentials (D11).
     """
-    if not settings.allow_production_execution and body.adapter == "monnify":
-        raise HTTPException(
-            status_code=403,
-            detail="production/sandbox adapter disabled (ALLOW_PRODUCTION_EXECUTION=false)",
-        )
-    if body.adapter != "mock":
+    if body.adapter not in ("mock", "monnify"):
         raise HTTPException(status_code=400, detail=f"unknown adapter: {body.adapter}")
 
     with correlation(request_id=new_id("exec")):
-        run = run_workflow(body.workflow, adapter=MockAdapter())
+        if body.adapter == "monnify":
+            # Run against the REAL sandbox (#9): a 200 is not correctness, so let
+            # the canvas show provider truth. Credential-aware per workflow (D19).
+            resolved = credential_store.settings_for(body.workflow.id)
+            try:
+                resolved.assert_sandbox()  # sandbox-pinned; never prod in the challenge
+                resolved.assert_monnify_credentials()
+            except RuntimeError as exc:
+                raise HTTPException(status_code=422, detail=str(exc)) from None
+            with SandboxAdapter(resolved) as adapter:
+                run = run_workflow(body.workflow, adapter=adapter)
+        else:
+            run = run_workflow(body.workflow, adapter=MockAdapter())
         events = execution_store.list_events(run.id)
         log.info(
             "api.execution.started",
             run_id=run.id,
+            adapter=body.adapter,
             status=run.status.value,
             events=len(events),
         )

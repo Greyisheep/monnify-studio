@@ -28,8 +28,14 @@
   --cat-application: #404040;
   --surface-warm: #f5f2ed;
   --surface-danger-soft: #fce8e6;
+  --surface-danger-border: #fee2e2;
   --surface-warn-soft: #fff1df;
+  --teal-50: #f0fdfa;
+  --teal-100: #ccfbf1;
+  --neutral-50: #fafafa;
+  --neutral-100: #f0f0f0;
   --shadow-sm: 0 1px 2px -1px rgba(0, 0, 0, 0.1), 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
   --sidebar-width: 240px;
@@ -396,7 +402,7 @@ body.is-resizing-sidebar iframe {
 }
 
 .studio-sidebar__group h3 {
-  margin: 0;
+  margin: 0 0 4px;
   padding: 4px 12px;
   font-size: 12px;
   font-weight: 600;
@@ -410,7 +416,7 @@ body.is-resizing-sidebar iframe {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0;
+  gap: 4px;
 }
 
 .studio-sidebar__item {
@@ -454,17 +460,23 @@ body.is-resizing-sidebar iframe {
   flex-shrink: 0;
 }
 
+/* Anchored to the row it teaches about (Figma `112:4308`'s "Tool tip" sits
+   just past the first row's grip), not floating above the whole list. */
 .studio-dnd-tip {
+  position: absolute;
+  top: 100%;
+  left: 14px;
+  z-index: 1;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
   gap: 6px;
-  margin: 4px 8px 10px;
+  margin-top: 6px;
+  pointer-events: none;
 }
 
 .studio-dnd-tip__hand {
   display: inline-flex;
-  margin-left: 4px;
 }
 
 .studio-dnd-tip__bubble {
@@ -478,6 +490,7 @@ body.is-resizing-sidebar iframe {
   font-size: 12px;
   font-weight: 400;
   line-height: 16px;
+  pointer-events: auto;
 }
 
 .studio-dnd-tip__close {
@@ -492,6 +505,36 @@ body.is-resizing-sidebar iframe {
 
 .studio-canvas.is-dnd-target .react-flow__pane {
   cursor: copy;
+}
+
+/* Catalog row reorder (Figma `112:4924`): dim the row being dragged, and
+   show a hairline insertion point where it will land within its group. */
+.studio-sidebar__row {
+  position: relative;
+}
+
+.studio-sidebar__row.is-drag-source {
+  opacity: 0.2;
+}
+
+.studio-sidebar__row.is-drop-target-before::before,
+.studio-sidebar__row.is-drop-target-after::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  border-radius: 2px;
+  background: #1d4ed8;
+  pointer-events: none;
+}
+
+.studio-sidebar__row.is-drop-target-before::before {
+  top: -1px;
+}
+
+.studio-sidebar__row.is-drop-target-after::after {
+  bottom: -1px;
 }
 
 
@@ -921,19 +964,41 @@ body.is-resizing-sidebar iframe {
   top: 0.75rem;
   left: 50%;
   transform: translateX(-50%);
-  padding: 0.4rem 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: max-content;
+  max-width: calc(100% - 24px);
+  padding: 4px 10px;
+  border: 1px solid var(--neutral-100);
   border-radius: 999px;
-  background: var(--ink);
-  color: var(--panel);
-  font-size: 0.8rem;
+  background: var(--neutral-50);
+  color: var(--ink-mid);
+  font-size: 12px;
+  line-height: 16px;
+  white-space: nowrap;
+  box-shadow: var(--shadow-xs);
+}
+
+.studio-banner::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: currentColor;
 }
 
 .studio-banner--error {
-  background: var(--danger);
+  border-color: var(--surface-danger-border);
+  background: var(--surface-danger-soft);
+  color: var(--danger);
 }
 
 .studio-banner--ok {
-  background: var(--accent);
+  border-color: var(--teal-100);
+  background: var(--teal-50);
+  color: var(--accent);
 }
 
 .ghost-btn,
@@ -2193,8 +2258,9 @@ body.is-resizing-sidebar iframe {
 }
 
 .studio-modal__card--templates {
-  width: min(875px, calc(100vw - 32px));
-  padding: 40px;
+  width: min(900px, calc(100vw - 32px));
+  max-height: none;
+  padding: 40px 40px 16px;
   border-radius: 16px;
   border: 1px solid #e5e5e5;
   background: #fff;
@@ -2202,9 +2268,9 @@ body.is-resizing-sidebar iframe {
 }
 
 .studio-onboard__card--templates {
-  width: min(875px, 100%);
+  width: min(900px, 100%);
   gap: 40px;
-  padding: 40px;
+  padding: 40px 40px 16px;
   background: #fff;
   border: 1px solid #e5e5e5;
   border-radius: 16px;
@@ -2281,15 +2347,15 @@ body.is-resizing-sidebar iframe {
 }
 
 /*
- * Figma template thumbs (103:3306 blank, 103:3312 payments, 103:3317 invoice, 103:3322 payroll).
- * Full rounded frame exports (378×316), fill #F5F2ED, h-150, r-8. Art is the Figma node raster.
+ * Figma template thumbs (#144:4306 / #155:5019): h-150, r-8, #F5F2ED blank.
+ * Selected: 1px #013D41 stroke + rgba(0,0,0,0.2) dim; Select = mini outline (#155:5020).
  */
 .studio-template-picker__thumb {
   position: relative;
   display: block;
   width: 100%;
   height: 150px;
-  border: 0;
+  border: 1px solid #e5e5e5;
   border-radius: 8px;
   background: #f5f2ed;
   overflow: hidden;
@@ -2298,10 +2364,8 @@ body.is-resizing-sidebar iframe {
 }
 
 .studio-template-picker__thumb.is-selected {
-  box-shadow:
-    0 0 0 2px #013d41,
-    0 1px 2px -1px rgba(0, 0, 0, 0.1),
-    0 1px 3px 0 rgba(0, 0, 0, 0.1);
+  border-color: #013d41;
+  box-shadow: none;
 }
 
 .studio-template-picker__thumb.is-selected::after {
@@ -2309,7 +2373,7 @@ body.is-resizing-sidebar iframe {
   position: absolute;
   inset: 0;
   z-index: 0;
-  background: rgba(232, 232, 232, 0.55);
+  background: rgba(0, 0, 0, 0.2);
   pointer-events: none;
 }
 
@@ -2338,17 +2402,17 @@ body.is-resizing-sidebar iframe {
   top: 50%;
   transform: translate(-50%, -50%);
   z-index: 2;
-  border: 0;
-  border-radius: 999px;
-  padding: 8px 14px;
+  border: 1px solid #d4d4d4;
+  border-radius: 8px;
+  padding: 3px 8px;
   background: #fff;
   color: #013d41;
   font: inherit;
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 500;
   line-height: 16px;
   white-space: nowrap;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   cursor: pointer;
 }
 
@@ -2381,7 +2445,8 @@ body.is-resizing-sidebar iframe {
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 12px;
+  gap: 8px;
+  padding: 0;
 }
 
 .studio-template-picker__back {
@@ -2916,6 +2981,11 @@ body.is-resizing-sidebar iframe {
   padding: 2px;
 }
 
+.biz-sidebar__collapse:hover {
+  background: #f0f0f0;
+  color: #171717;
+}
+
 .biz-sidebar__nav {
   display: flex;
   flex-direction: column;
@@ -2945,6 +3015,12 @@ body.is-resizing-sidebar iframe {
 
 .biz-sidebar__new {
   margin-bottom: 0;
+}
+
+.biz-sidebar__new:hover,
+.biz-sidebar__link:hover:not(.is-active) {
+  background: #f0f0f0;
+  color: #171717;
 }
 
 .biz-sidebar__link.is-active {
@@ -3007,6 +3083,10 @@ body.is-resizing-sidebar iframe {
   border-radius: 6px;
 }
 
+.biz-sidebar__logout:hover {
+  background: #fef2f2;
+}
+
 .biz-main {
   display: flex;
   flex-direction: column;
@@ -3062,6 +3142,11 @@ body.is-resizing-sidebar iframe {
   padding: 0;
 }
 
+.biz-icon-btn:hover {
+  background: #f5f5f5;
+  border-color: #a3a3a3;
+}
+
 .biz-icon-btn.has-dot::after {
   content: "";
   position: absolute;
@@ -3087,6 +3172,11 @@ body.is-resizing-sidebar iframe {
   font-weight: 500 !important;
   line-height: 16px !important;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.biz-export:hover {
+  background: #f5f5f5 !important;
+  border-color: #a3a3a3 !important;
 }
 
 .biz-overview {
@@ -3218,12 +3308,22 @@ body.is-resizing-sidebar iframe {
   opacity: 0.5;
 }
 
+.biz-seg button:hover:not(.is-active) {
+  opacity: 0.8;
+  border-color: #a3a3a3;
+}
+
 .biz-seg button.is-active {
   background: #171717;
   border-color: #171717;
   color: #fafafa;
   opacity: 1;
   box-shadow: none;
+}
+
+.biz-seg button.is-active:hover {
+  background: #262626;
+  border-color: #262626;
 }
 
 .biz-search {
@@ -3281,8 +3381,15 @@ body.is-resizing-sidebar iframe {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
-.biz-filter > button.is-open {
+.biz-filter > button:hover {
+  background: #f5f5f5 !important;
+  border-color: #a3a3a3 !important;
+}
+
+.biz-filter > button.is-open,
+.biz-filter > button.is-open:hover {
   border-color: #0a0a0a !important;
+  background: #fff !important;
 }
 
 .biz-menu {
@@ -3329,6 +3436,10 @@ body.is-resizing-sidebar iframe {
 
 .biz-menu__list li:last-child button {
   border-bottom: 0;
+}
+
+.biz-menu__list button:hover {
+  background: #f5f5f5;
 }
 
 .biz-check {
@@ -3456,6 +3567,10 @@ body.is-resizing-sidebar iframe {
   white-space: nowrap;
 }
 
+.biz-notify__action:hover {
+  color: #0a4a3c;
+}
+
 .biz-notify__read {
   color: #a3a3a3;
   font-size: 12px;
@@ -3470,6 +3585,10 @@ body.is-resizing-sidebar iframe {
   font: inherit;
   font-weight: 500;
   cursor: pointer;
+}
+
+.biz-notify__all:hover {
+  background: #f5f5f5;
 }
 
 .biz-table-wrap {
@@ -3634,7 +3753,7 @@ body.is-resizing-sidebar iframe {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin: 0 0 12px;
+  margin: 0;
 }
 .biz-product-tabs button {
   height: 32px;
@@ -3649,15 +3768,23 @@ body.is-resizing-sidebar iframe {
   cursor: pointer;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
+.biz-product-tabs button:hover:not(.is-active) {
+  background: #f5f5f5;
+  border-color: #a3a3a3;
+}
 .biz-product-tabs button.is-active {
   background: #0a0a0a;
   border-color: #0a0a0a;
   color: #fafafa;
   box-shadow: none;
 }
+.biz-product-tabs button.is-active:hover {
+  background: #262626;
+  border-color: #262626;
+}
 
 .biz-product-panel {
-  margin: 0 0 16px;
+  margin: 0;
   padding: 0;
   background: #fff;
   border: 0.8px solid #e5e5e5;
@@ -3697,6 +3824,10 @@ body.is-resizing-sidebar iframe {
   font-weight: 500;
   cursor: pointer;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+.biz-product-panel__cta:hover {
+  background: #f5f5f5;
+  border-color: #a3a3a3;
 }
 .biz-product-panel__hint {
   margin: 0;
@@ -3795,8 +3926,14 @@ body.is-resizing-sidebar iframe {
   align-self: flex-start;
 }
 
+/* Outer strip matches Figma's flat, hairline-divided section (padding 20,
+   border-bottom) — the rounded card lives inside it, inset like every other
+   section (Overview, Tools, Table), so left/right edges stay aligned. */
 .biz-activity {
-  margin: 0 0 16px;
+  padding: 20px;
+  border-bottom: 0.8px solid #e5e5e5;
+}
+.biz-activity__card {
   background: #fff;
   border: 0.8px solid #e5e5e5;
   border-radius: 20px;
@@ -3834,6 +3971,10 @@ body.is-resizing-sidebar iframe {
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
+}
+.biz-activity__all:hover {
+  background: #f5f5f5;
+  border-color: #a3a3a3;
 }
 .biz-activity__empty {
   margin: 0;
@@ -3962,10 +4103,17 @@ body.is-resizing-sidebar iframe {
   color: #0a0a0a;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
+.biz-shoplink__copy:hover:not(:disabled) {
+  background: #f5f5f5;
+  border-color: #a3a3a3;
+}
 .biz-shoplink__share {
   border: 0;
   background: #0a0a0a;
   color: #fafafa;
+}
+.biz-shoplink__share:hover:not(:disabled) {
+  background: #262626;
 }
 
 /* Business template picker: placeholder tile for cards without Figma art yet
@@ -3976,8 +4124,10 @@ body.is-resizing-sidebar iframe {
   justify-content: center;
   width: 100%;
   height: 100%;
-  font-size: 40px;
+  font-size: 24px;
+  font-weight: 400;
   line-height: 1;
+  color: #0a0a0a;
 }
 
 /* Preview-before-share nudge (#160): Preview button pulses + tooltips on first
@@ -3998,6 +4148,9 @@ body.is-resizing-sidebar iframe {
   font-weight: 600;
   text-decoration: none;
   cursor: pointer;
+}
+.biz-shoplink__preview:hover {
+  background: var(--accent-soft);
 }
 .biz-shoplink__preview.is-nudge {
   animation: biz-preview-pulse 1.6s ease-in-out infinite;
@@ -4169,6 +4322,10 @@ body.is-resizing-sidebar iframe {
   cursor: pointer;
 }
 
+.studio-tour__skip-link:hover {
+  color: #525252;
+}
+
 .studio-tour__media {
   padding: 8px;
   border-bottom: 0.8px solid #e5e5e5;
@@ -4234,10 +4391,19 @@ body.is-resizing-sidebar iframe {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
+.studio-tour__btn--outline:hover {
+  background: #f5f5f5;
+  border-color: #a3a3a3;
+}
+
 .studio-tour__btn--primary {
   background: #171717;
   border: 0;
   color: #fafafa;
+}
+
+.studio-tour__btn--primary:hover {
+  background: #333;
 }
 
 /* Developer Hover Card */
@@ -4300,5 +4466,7 @@ body.is-resizing-sidebar iframe {
 .biz-tools {
   display: flex;
   flex-direction: column;
-  gap: inherit;
+  gap: 20px;
+  padding: 20px;
+  border-bottom: 0.8px solid #e5e5e5;
 }
