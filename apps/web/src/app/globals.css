@@ -2701,7 +2701,7 @@ body.is-resizing-sidebar iframe {
   position: relative;
   min-width: 200px;
   max-width: 240px;
-  padding: 10px 12px 12px;
+  padding: 8px 12px;
   border-radius: 12px;
   border: 1px solid var(--line);
   background: var(--panel);
@@ -2765,11 +2765,24 @@ body.is-resizing-sidebar iframe {
   background: var(--cat-application);
 }
 
+.studio-node__content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
 .studio-node__header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 6px;
-  margin-bottom: 8px;
+}
+
+.studio-node__header-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
 }
 
 .studio-node__icon-chip {
@@ -2785,24 +2798,38 @@ body.is-resizing-sidebar iframe {
 }
 
 .studio-node__icon-glyph {
-  width: 10px;
-  height: 10px;
-  border-radius: 3px;
-  background: var(--cat-application);
+  width: 16px;
+  height: 16px;
+  opacity: 0.75;
 }
 
 .studio-node__provider {
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  padding: 3px 8px;
-  border-radius: 999px;
-  border: 1px solid var(--line);
-  font-size: 0.68rem;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 0.8px solid #d4d4d4;
+  box-shadow: var(--shadow-xs);
+  font-size: 0.72rem;
   font-weight: 500;
-  color: var(--ink-mid);
+  color: #0a0a0a;
+}
+
+.studio-node__provider-logo {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 12px;
+  border-radius: 6px;
+  overflow: hidden;
 }
 
 .studio-node__menu {
@@ -2871,11 +2898,24 @@ body.is-resizing-sidebar iframe {
   line-height: 1.25;
 }
 
+.studio-node__subtitle {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.studio-node__title-sub {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+  line-height: 1.3;
+}
+
 .studio-node__type {
   display: block;
-  margin-top: 2px;
   font-family: var(--font-mono);
-  font-size: 0.66rem;
+  font-size: 0.72rem;
+  line-height: 1.3;
   color: var(--ink-soft);
   overflow-wrap: anywhere;
 }
@@ -2885,7 +2925,7 @@ body.is-resizing-sidebar iframe {
   flex-wrap: wrap;
   align-items: center;
   gap: 0.25rem;
-  margin: 0.5rem 0 0;
+  margin: 0.65rem 0 0;
   padding: 0.25rem 0.35rem;
   border-radius: 0.35rem;
   background: color-mix(in srgb, var(--accent) 8%, #fff);

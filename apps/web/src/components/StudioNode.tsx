@@ -1,13 +1,16 @@
 /**
- * Canvas node chrome — "Hover Card" (Figma 210:6660/210:6379/210:6396).
- * Provider pill + icon chip + ellipsis menu + title/endpoint subtitle;
- * expands on selection into "Edit triggers" fields; green border when
- * joined to another node via a valid connection.
+ * Canvas node chrome — "Hover Card" (Figma 210:6660/210:6379/210:6396,
+ * cross-checked against jj9fKZ…/112:5282 for exact header/subtitle layout).
+ * Provider pill (outline button, Monnify logo) + icon chip + ellipsis menu +
+ * bold title + 2-line subtitle (catalog title + mono endpoint id); expands
+ * on selection into "Edit triggers" fields; green border when joined to
+ * another node via a valid connection.
  * Run I/O pills (#151). Why? explain affordance lives in RightSidebar (#76).
  * Provenance: #4, #44, #76, #151, D14, runs/canvas-node-hover-card-2026-07-21.
  */
 "use client";
 
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import {
   Handle,
@@ -103,45 +106,66 @@ export function StudioNode({ id, data, selected }: NodeProps<StudioFlowNode>) {
     >
       <Handle type="target" position={Position.Left} className="studio-handle" />
 
-      <div className="studio-node__header">
-        <span className="studio-node__icon-chip" aria-hidden>
-          <span className="studio-node__icon-glyph" />
-        </span>
-        <span className="studio-node__provider">Monnify</span>
-        <div className="studio-node__menu" ref={menuRef}>
-          <button
-            type="button"
-            className="studio-node__menu-trigger"
-            aria-label="Node actions"
-            aria-haspopup="menu"
-            aria-expanded={menuOpen}
-            onClick={(event) => {
-              event.stopPropagation();
-              setMenuOpen((open) => !open);
-            }}
-          >
-            <MenuIcon />
-          </button>
-          {menuOpen ? (
-            <div className="studio-node__menu-list" role="menu">
-              <button type="button" role="menuitem" onClick={handleDuplicate}>
-                Duplicate
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                className="is-danger"
-                onClick={handleDelete}
-              >
-                Delete
-              </button>
-            </div>
+      <div className="studio-node__content">
+        <div className="studio-node__header">
+          <div className="studio-node__header-left">
+            <span className="studio-node__provider">
+              <span className="studio-node__provider-logo" aria-hidden>
+                <Image src="/figma/monnify-logo.svg" alt="" width={12} height={7} unoptimized />
+              </span>
+              Monnify
+            </span>
+            <span className="studio-node__icon-chip" aria-hidden>
+              <Image
+                src="/figma/icon-catalog-node.svg"
+                alt=""
+                width={16}
+                height={16}
+                unoptimized
+                className="studio-node__icon-glyph"
+              />
+            </span>
+          </div>
+          <div className="studio-node__menu" ref={menuRef}>
+            <button
+              type="button"
+              className="studio-node__menu-trigger"
+              aria-label="Node actions"
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              onClick={(event) => {
+                event.stopPropagation();
+                setMenuOpen((open) => !open);
+              }}
+            >
+              <MenuIcon />
+            </button>
+            {menuOpen ? (
+              <div className="studio-node__menu-list" role="menu">
+                <button type="button" role="menuitem" onClick={handleDuplicate}>
+                  Duplicate
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="is-danger"
+                  onClick={handleDelete}
+                >
+                  Delete
+                </button>
+              </div>
+            ) : null}
+          </div>
+        </div>
+
+        <strong className="studio-node__label">{data.label}</strong>
+        <div className="studio-node__subtitle">
+          {data.title ? (
+            <span className="studio-node__title-sub">{data.title}</span>
           ) : null}
+          <span className="studio-node__type">{data.nodeType}</span>
         </div>
       </div>
-
-      <strong className="studio-node__label">{data.label}</strong>
-      <span className="studio-node__type">{data.nodeType}</span>
 
       {runIo ? (
         <p
