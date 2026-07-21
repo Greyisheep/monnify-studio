@@ -1843,6 +1843,38 @@ body.is-resizing-sidebar iframe {
   font-weight: 600;
 }
 
+.studio-remediation-moment {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-top: 0.65rem;
+  padding: 0.65rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 25%, var(--line));
+  border-radius: 0.5rem;
+  background: color-mix(in srgb, var(--accent) 4%, var(--paper));
+  font-size: 0.75rem;
+}
+
+.studio-remediation-moment ol {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.studio-remediation-moment li {
+  display: grid;
+  grid-template-columns: 6.5rem minmax(0, 1fr);
+  gap: 0.4rem;
+}
+
+.studio-remediation-moment span {
+  color: var(--ink-soft);
+  font-weight: 600;
+}
+
 .studio-chat__thinking {
   display: flex;
   align-items: center;
@@ -2260,7 +2292,7 @@ body.is-resizing-sidebar iframe {
 .studio-modal__card--templates {
   width: min(900px, calc(100vw - 32px));
   max-height: none;
-  padding: 40px 40px 16px;
+  padding: 40px 24px 16px;
   border-radius: 16px;
   border: 1px solid #e5e5e5;
   background: #fff;
@@ -2270,7 +2302,7 @@ body.is-resizing-sidebar iframe {
 .studio-onboard__card--templates {
   width: min(900px, 100%);
   gap: 40px;
-  padding: 40px 40px 16px;
+  padding: 40px 24px 16px;
   background: #fff;
   border: 1px solid #e5e5e5;
   border-radius: 16px;
@@ -2420,9 +2452,41 @@ body.is-resizing-sidebar iframe {
   background: #fafafa;
 }
 
+/* Cards need a click to reveal Select, then a second click to confirm - hint
+   that on hover/focus so it doesn't feel unresponsive (Isreal's feedback). */
+.studio-template-picker__hint {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+  padding: 3px 8px;
+  border-radius: 8px;
+  background: rgba(10, 10, 10, 0.75);
+  color: #fafafa;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+}
+
+.studio-template-picker__card:hover .studio-template-picker__hint,
+.studio-template-picker__card:focus-visible .studio-template-picker__hint {
+  opacity: 1;
+}
+
 .studio-template-picker__use:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.studio-template-picker__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .studio-template-picker__card strong {
@@ -2560,6 +2624,143 @@ body.is-resizing-sidebar iframe {
   margin: 0;
   font-size: 0.75rem;
   color: var(--accent);
+}
+
+.studio-run-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+}
+
+.studio-run-settings__head h2,
+.studio-run-settings__head p {
+  margin: 0;
+}
+
+.studio-run-settings__head p {
+  margin-top: 4px;
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.studio-run-settings__mode {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.studio-run-settings__mode legend {
+  margin-bottom: 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.studio-run-settings__mode label {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.studio-run-settings__mode span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.studio-run-settings__mode small {
+  color: var(--ink-soft);
+  font-size: 11px;
+  line-height: 14px;
+}
+
+.studio-request__context,
+.studio-request__fields,
+.studio-request__guardrail {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.studio-request__context p,
+.studio-request__guardrail p {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.studio-request__fields label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+
+.studio-request__fields input {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px 8px;
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+}
+
+.studio-request__guardrail {
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fafafa;
+}
+
+.studio-request__guardrail h3 {
+  margin: 0;
+  font-size: 12px;
+}
+
+.studio-request__guardrail ul {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding-left: 16px;
+  font-size: 12px;
+}
+
+.studio-code-block__outputs {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.studio-code-block__outputs h4 {
+  margin: 0;
+  font-size: 13px;
+}
+
+.studio-code-block__output {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: 6px;
+}
+
+.studio-code-block__output input {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px 8px;
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
 }
 
 .studio-artifact__error {
@@ -2967,6 +3168,32 @@ body.is-resizing-sidebar iframe {
 .studio-node__io.is-failed {
   background: color-mix(in srgb, #b42318 8%, #fff);
   border-color: color-mix(in srgb, #b42318 35%, var(--line));
+}
+
+.studio-node__io.is-running,
+.studio-node__io.is-waiting {
+  background: color-mix(in srgb, #2563eb 8%, #fff);
+  border-color: color-mix(in srgb, #2563eb 35%, var(--line));
+}
+
+.studio-node.is-run-running .studio-node__icon-chip {
+  animation: studio-node-running 1.2s ease-in-out infinite;
+}
+
+.studio-node.is-run-waiting .studio-node__icon-chip {
+  color: #9a6700;
+}
+
+.studio-node__io-status {
+  color: #1d4ed8;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+@keyframes studio-node-running {
+  50% {
+    transform: scale(1.06);
+  }
 }
 
 .studio-node__io-in,
@@ -4302,18 +4529,13 @@ body.is-resizing-sidebar iframe {
   background: #262626;
 }
 
-/* Business template picker: placeholder tile for cards without Figma art yet
-   (ajo, "Something else") - a plain emoji glyph on the same warm fill (#134). */
+/* "Something else" card: centered 24x24 plus glyph on warm fill (#155:4980). */
 .studio-template-picker__placeholder {
   display: flex;
   align-items: center;
   justify-content: center;
   width: 100%;
   height: 100%;
-  font-size: 24px;
-  font-weight: 400;
-  line-height: 1;
-  color: #0a0a0a;
 }
 
 /* Preview-before-share nudge (#160): Preview button pulses + tooltips on first
@@ -4426,40 +4648,36 @@ body.is-resizing-sidebar iframe {
 .studio-tour {
   position: fixed;
   inset: 0;
-  z-index: 80;
   pointer-events: none;
 }
 
 .studio-tour__veil {
-  position: absolute;
-  z-index: 0;
-  margin: 0;
-  padding: 0;
-  border: 0;
+  position: fixed;
+  inset: 0;
+  z-index: 80;
   background: rgba(0, 0, 0, 0.16);
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(1.5px);
+  -webkit-backdrop-filter: blur(1.5px);
   pointer-events: auto;
   cursor: default;
 }
 
-.studio-tour__veil--full {
-  inset: 0;
-}
-
-.studio-tour__hole {
-  position: absolute;
-  z-index: 1;
-  border-radius: 0.65rem;
-  outline: 2px solid #3f6212;
-  box-shadow: 0 0 0 3px rgba(63, 98, 18, 0.2);
+/*
+ * The highlighted dashboard section is a separate visual layer between the
+ * full-screen veil and the tour card. It intentionally remains non-interactive
+ * while the modal tour is active.
+ */
+.is-tour-spotlight {
+  position: relative;
+  z-index: 81;
   pointer-events: none;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 /* Dashboard stack: white panel + external CTA (Figma gap 12px, width 222) */
 .studio-tour__stack {
   position: absolute;
-  z-index: 2;
+  z-index: 82;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -4595,7 +4813,7 @@ body.is-resizing-sidebar iframe {
 /* Developer Hover Card */
 .studio-tour__card {
   position: absolute;
-  z-index: 2;
+  z-index: 82;
   padding: 0.65rem 0.75rem 0.75rem;
   border-radius: 1rem;
   border: 1px solid var(--line);

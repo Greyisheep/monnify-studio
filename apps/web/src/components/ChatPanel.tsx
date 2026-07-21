@@ -14,7 +14,7 @@ import {
 } from "react";
 
 import { parseChatBlocks, stripCanvasSuffix } from "@/lib/chatMessage";
-import type { IntentResult, MoniAskResult } from "@/types";
+import type { IntentResult, MoniAskResult, RemediationStep } from "@/types";
 
 export interface ChatMessage {
   id: string;
@@ -29,6 +29,10 @@ export interface ChatMessage {
     confidence: number;
   };
   flowChoice?: { message: string };
+  remediation?: {
+    findingsCaught: string[];
+    steps: RemediationStep[];
+  };
 }
 
 export interface ChatPanelProps {
@@ -91,6 +95,32 @@ function ChatMessageBody({
         <p className="studio-chat__badge">Loaded on the canvas, edit freely.</p>
       ) : null}
     </div>
+  );
+}
+
+function RemediationMoment({
+  findingsCaught,
+  steps,
+}: {
+  findingsCaught: string[];
+  steps: RemediationStep[];
+}) {
+  return (
+    <section className="studio-remediation-moment" aria-label="Moni safety review">
+      <strong>Moni safety review</strong>
+      <ol>
+        <li><span>Proposed</span> Flow draft created</li>
+        <li>
+          <span>Checker caught</span>{" "}
+          {findingsCaught.length ? findingsCaught.join(", ") : "no issues"}
+        </li>
+        <li>
+          <span>Fixed</span>{" "}
+          {steps.length ? steps.map((step) => step.action).join("; ") : "No changes needed"}
+        </li>
+        <li><span>Clean</span> Ready to edit on the canvas</li>
+      </ol>
+    </section>
   );
 }
 
@@ -158,20 +188,6 @@ export function ChatPanel({
         return;
       }
 
-      const safetyStory =
-        result.kind === "refine"
-          ? result.findingsCaught.length
-            ? `\n\nMoni proposed → checker caught ${result.findingsCaught.join(", ")} → fixed${
-                result.steps.length
-                  ? ` (${result.steps.map((step) => step.action).join("; ")})`
-                  : ""
-              } → clean.`
-            : `\n\nMoni proposed → checker checked${
-                result.steps.length
-                  ? ` (${result.steps.map((step) => step.action).join("; ")})`
-                  : ""
-              } → clean.`
-          : "";
       const suffix =
         result.kind === "compose" || result.kind === "refine"
           ? " Loaded on the canvas, edit freely."
@@ -179,8 +195,12 @@ export function ChatPanel({
       patchAssistant(assistantId, {
         streaming: false,
         statusText: undefined,
-        text: `${result.explanation}${safetyStory}${suffix}`,
+        text: `${result.explanation}${suffix}`,
         loadedOnCanvas: result.kind === "compose" || result.kind === "refine",
+        remediation:
+          result.kind === "refine"
+            ? { findingsCaught: result.findingsCaught, steps: result.steps }
+            : undefined,
       });
     } catch (error) {
       patchAssistant(assistantId, {
@@ -296,6 +316,9 @@ export function ChatPanel({
                     text={message.text}
                     loadedOnCanvas={message.loadedOnCanvas}
                   />
+                  {message.remediation ? (
+                    <RemediationMoment {...message.remediation} />
+                  ) : null}
                   {message.intent ? (
                     <button
                       type="button"

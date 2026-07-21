@@ -114,7 +114,13 @@ export function TemplatePicker({
                   />
                 ) : (
                   <span className="studio-template-picker__placeholder" aria-hidden>
-                    +
+                    <Image
+                      src="/figma/templates/template-picker-plus-icon.svg"
+                      alt=""
+                      width={24}
+                      height={24}
+                      unoptimized
+                    />
                   </span>
                 )}
                 {isSelected ? (
@@ -131,11 +137,17 @@ export function TemplatePicker({
                       ? TEMPLATE_PICKER_SELECT_BUSY_LABEL
                       : TEMPLATE_PICKER_SELECT_LABEL}
                   </button>
-                ) : null}
+                ) : (
+                  <span className="studio-template-picker__hint" aria-hidden>
+                    Click to select
+                  </span>
+                )}
               </div>
-              <strong>{option.title}</strong>
-              <span className="studio-template-picker__desc">
-                {option.description}
+              <span className="studio-template-picker__field">
+                <strong>{option.title}</strong>
+                <span className="studio-template-picker__desc">
+                  {option.description}
+                </span>
               </span>
             </div>
           );

@@ -34,26 +34,50 @@ export function summarizeRecord(
     .join(", ");
 }
 
-/** Latest completed/failed event per node_id from a Run stream. */
+/** Latest execution state per node_id from a Run stream. */
 export function latestRunIoByNode(
   events: ExecutionEvent[],
 ): Record<
   string,
-  { inputsSummary: string; outputsSummary: string; failed?: boolean }
+  {
+    inputsSummary: string;
+    outputsSummary: string;
+    status: "running" | "waiting" | "completed" | "failed";
+    failed?: boolean;
+  }
 > {
   const map: Record<
     string,
-    { inputsSummary: string; outputsSummary: string; failed?: boolean }
+    {
+      inputsSummary: string;
+      outputsSummary: string;
+      status: "running" | "waiting" | "completed" | "failed";
+      failed?: boolean;
+    }
   > = {};
   for (const event of events) {
     if (!event.node_id) continue;
-    if (event.type !== "node.completed" && event.type !== "node.failed") {
+    if (
+      event.type !== "node.started" &&
+      event.type !== "node.waiting" &&
+      event.type !== "node.completed" &&
+      event.type !== "node.failed"
+    ) {
       continue;
     }
+    const status =
+      event.type === "node.started"
+        ? "running"
+        : event.type === "node.waiting"
+          ? "waiting"
+          : event.type === "node.failed"
+            ? "failed"
+            : "completed";
     map[event.node_id] = {
       inputsSummary: summarizeRecord(event.inputs ?? undefined),
       outputsSummary: summarizeRecord(event.outputs ?? undefined),
-      failed: event.type === "node.failed",
+      status,
+      failed: status === "failed",
     };
   }
   return map;
