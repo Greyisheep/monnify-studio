@@ -44,4 +44,35 @@ describe("runIo summaries (#151)", () => {
     expect(map.n1?.failed).toBe(true);
     expect(map.n1?.inputsSummary).toContain("amount");
   });
+
+  it("retains active node states until a later terminal event", () => {
+    const events = [
+      {
+        id: "1",
+        run_id: "r",
+        seq: 1,
+        type: "node.started",
+        ts: "",
+        node_id: "n1",
+        message: "",
+        friendly_text: "",
+        outputs: {},
+      },
+      {
+        id: "2",
+        run_id: "r",
+        seq: 2,
+        type: "node.waiting",
+        ts: "",
+        node_id: "n2",
+        message: "",
+        friendly_text: "",
+        outputs: {},
+      },
+    ] as ExecutionEvent[];
+
+    const map = latestRunIoByNode(events);
+    expect(map.n1?.status).toBe("running");
+    expect(map.n2?.status).toBe("waiting");
+  });
 });
