@@ -1484,8 +1484,9 @@ body.is-resizing-sidebar iframe {
   height: 40px;
   border: 1px solid #e5e5e5;
   border-radius: 8px;
-  background: #013d41;
-  color: #fff;
+  /* Figma (149:4428): a light image placeholder, not a solid dark chip. */
+  background: #f5f5f4;
+  color: #78716c;
   display: grid;
   place-items: center;
   overflow: hidden;
