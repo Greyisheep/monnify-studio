@@ -7,6 +7,8 @@ Run from apps/api:
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import hmac
 import json
 import os
 import re
@@ -1263,6 +1265,56 @@ def verify_order(artifact_id: str, reference: str) -> Order:
             raise HTTPException(
                 status_code=502, detail=f"Monnify sandbox error: {exc}"
             ) from None
+
+
+@app.post("/webhooks/monnify")
+async def monnify_webhook(request: Request) -> dict:
+    """Receive Monnify's transaction webhook the standard way (#178).
+
+    The cheat sheet's #1 pro-tip: handle webhooks, don't poll. So we do - but
+    we practice what our own analyzer preaches (MON: verify the signature, stay
+    idempotent). Two guarantees hold here:
+
+      1. Authenticity: the request is rejected unless `monnify-signature` matches
+         an HMAC-SHA512 of the RAW body keyed by our secret. An unsigned or
+         forged call gets 401 and never touches an order.
+      2. The webhook nudges; it never asserts. Even a valid signature does not
+         set an order paid - we re-derive from provider truth via the same
+         verify() trust boundary as every other path (#53). A duplicate delivery
+         is therefore harmless (verify() is terminal at VERIFIED).
+    """
+    raw = await request.body()
+    # The dashboard webhook is signed with our platform secret (#178).
+    secret = credential_store.settings_for(None).monnify_secret_key
+    signature = request.headers.get("monnify-signature", "")
+    computed = hmac.new(secret.encode(), raw, hashlib.sha512).hexdigest()
+    if not secret or not hmac.compare_digest(signature, computed):
+        raise HTTPException(status_code=401, detail="invalid webhook signature")
+
+    try:
+        payload = json.loads(raw or b"{}")
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="webhook body is not JSON") from None
+    event_data = payload.get("eventData", payload) or {}
+    payment_reference = event_data.get("paymentReference", "")
+
+    with correlation(request_id=new_id("webhook")):
+        order = orders_service.by_payment_reference(payment_reference)
+        if order is None:
+            # Ack unknown references with 200 so Monnify does not retry forever.
+            log.info("webhook.unmatched", payment_reference=payment_reference)
+            return {"received": True, "matched": False}
+        try:
+            updated = orders_service.verify(order.reference)  # re-query, never trust the payload
+        except MonnifyError as exc:
+            raise HTTPException(status_code=502, detail=f"Monnify sandbox error: {exc}") from None
+        log.info(
+            "webhook.verified",
+            reference=order.reference,
+            payment_reference=payment_reference,
+            status=updated.status.value,
+        )
+        return {"received": True, "reference": order.reference, "status": updated.status.value}
 
 
 @app.post("/executions", response_model=StartExecutionResponse)

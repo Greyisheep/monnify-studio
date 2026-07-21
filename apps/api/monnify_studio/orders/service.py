@@ -146,6 +146,18 @@ class OrdersService:
     def get(self, reference: str) -> Order | None:
         return self._orders.get(reference)
 
+    def by_payment_reference(self, payment_reference: str) -> Order | None:
+        """Find an order by the reference a Monnify webhook carries (#178).
+
+        The provider event names paymentReference, not our order id, so the
+        webhook receiver resolves back to the order it should re-verify."""
+        if not payment_reference:
+            return None
+        for order in self._orders.values():
+            if order.payment_reference == payment_reference:
+                return order
+        return None
+
     def _query(self, order: Order) -> dict[str, Any]:
         """Ask the verifier for provider truth, passing the workflow id to
         credential-aware verifiers while still supporting single-arg fakes."""
