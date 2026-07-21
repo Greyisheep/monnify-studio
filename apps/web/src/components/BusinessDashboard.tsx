@@ -1,5 +1,7 @@
 /**
- * Business owner home after onboarding products (Figma Dashboard #71:6944 / #71:7424).
+ * Business owner home after onboarding products.
+ * Figma (editable copy i7ZczWj6i8W2oYmSSKcRdK): Dashboard - Empty #71:6944,
+ * Dashboard - filled #71:7424 — Overview → product tabs → Activity → table.
  * Icons from Figma node exports under /figma/dashboard/.
  */
 "use client";
@@ -8,6 +10,14 @@ import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { ShopProduct } from "@/types";
+
+type ProductTab = "sell" | "invoice" | "ajo";
+
+const PRODUCT_TABS: { id: ProductTab; label: string }[] = [
+  { id: "sell", label: "Sell Online" },
+  { id: "invoice", label: "Invoice" },
+  { id: "ajo", label: "Saving Group (Ajo)" },
+];
 
 function BizIcon({
   name,
@@ -75,6 +85,8 @@ export interface BusinessDashboardProps {
   ownerName?: string;
   ownerEmail?: string;
   activeNav?: BusinessNav;
+  /** Initial product tab from onboarding goal (sell / invoice / ajo). */
+  initialProductTab?: ProductTab;
   transactions?: DashboardTxn[];
   notifications?: BizNotification[];
   /** Verified-only money book from the backend (#135); overrides the computed
@@ -299,6 +311,7 @@ export function BusinessDashboard({
   ownerName = "Business owner",
   ownerEmail = "you@business.ng",
   activeNav = "dashboard",
+  initialProductTab = "sell",
   transactions,
   notifications: notificationsProp,
   totals,
@@ -309,6 +322,7 @@ export function BusinessDashboard({
 }: BusinessDashboardProps) {
   const [copied, setCopied] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const [productTab, setProductTab] = useState<ProductTab>(initialProductTab);
   const [direction, setDirection] = useState<"inflow" | "outflow">("inflow");
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | TxnStatus>("all");
@@ -317,6 +331,7 @@ export function BusinessDashboard({
   const [openMenu, setOpenMenu] = useState<"status" | "type" | "date" | null>(null);
   const [notifyOpen, setNotifyOpen] = useState(false);
   const [notes, setNotes] = useState<BizNotification[]>(notificationsProp ?? []);
+  const activityPreview = notes.slice(0, 4);
 
   useEffect(() => {
     setNotes(notificationsProp ?? []);
@@ -520,40 +535,150 @@ export function BusinessDashboard({
           </div>
         </section>
 
-        {shopUrl ? (
-          <section className="biz-shoplink" aria-label="Your shop link">
-            <div className="biz-shoplink__text">
-              <span>Your shop link</span>
-              <code>{shopUrl.replace(/^https?:\/\//, "")}</code>
-            </div>
-            <div className="biz-shoplink__actions">
-              <button
-                type="button"
-                className="biz-shoplink__copy"
-                onClick={() => {
-                  void navigator.clipboard.writeText(shopUrl).then(() => {
-                    setCopied(true);
-                    window.setTimeout(() => setCopied(false), 1400);
-                  });
-                }}
-              >
-                {copied ? "Copied" : "Copy Link"}
-              </button>
-              <a
-                className="biz-shoplink__share"
-                href={`https://wa.me/?text=${encodeURIComponent(
-                  `Order from my shop and pay securely: ${shopUrl}`,
-                )}`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Share on WhatsApp
-              </a>
-            </div>
-          </section>
-        ) : null}
+        <div
+          className="biz-product-tabs"
+          role="tablist"
+          aria-label="Products"
+        >
+          {PRODUCT_TABS.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={productTab === tab.id}
+              className={productTab === tab.id ? "is-active" : ""}
+              onClick={() => setProductTab(tab.id)}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
 
-        <section className="biz-table-card" aria-label="Payments">
+        <section className="biz-product-panel" aria-label={PRODUCT_TABS.find((t) => t.id === productTab)?.label}>
+          {productTab === "sell" && (
+            <>
+              <header className="biz-product-panel__head">
+                <h2>Sell Online</h2>
+                <p>Share your shop link so customers can pay you directly</p>
+              </header>
+              <div className="biz-shoplink">
+                <div className="biz-shoplink__text">
+                  <code>
+                    {shopUrl
+                      ? shopUrl.replace(/^https?:\/\//, "")
+                      : "pay.monnify.studio/your-shop"}
+                  </code>
+                </div>
+                <div className="biz-shoplink__actions">
+                  <button
+                    type="button"
+                    className="biz-shoplink__copy"
+                    disabled={!shopUrl}
+                    onClick={() => {
+                      if (!shopUrl) return;
+                      void navigator.clipboard.writeText(shopUrl).then(() => {
+                        setCopied(true);
+                        window.setTimeout(() => setCopied(false), 1400);
+                      });
+                    }}
+                  >
+                    {copied ? "Copied" : "Copy Link"}
+                  </button>
+                  {shopUrl ? (
+                    <a
+                      className="biz-shoplink__share"
+                      href={`https://wa.me/?text=${encodeURIComponent(
+                        `Order from my shop and pay securely: ${shopUrl}`,
+                      )}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Share on Whatsapp
+                    </a>
+                  ) : (
+                    <button type="button" className="biz-shoplink__share" disabled>
+                      Share on Whatsapp
+                    </button>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+          {productTab === "invoice" && (
+            <>
+              <header className="biz-product-panel__head">
+                <div>
+                  <h2>Invoice</h2>
+                  <p>Create invoices to share with customers</p>
+                </div>
+                <button type="button" className="biz-product-panel__cta" onClick={onNew}>
+                  Create Invoice
+                </button>
+              </header>
+              <p className="biz-product-panel__hint">
+                Invoices you send show up in Recent transaction once a customer pays.
+              </p>
+            </>
+          )}
+          {productTab === "ajo" && (
+            <>
+              <header className="biz-product-panel__head">
+                <div>
+                  <h2>Saving Group (Ajo)</h2>
+                  <p>Member contribution ledger</p>
+                </div>
+                <button type="button" className="biz-product-panel__cta" onClick={onNew}>
+                  Add New Member
+                </button>
+              </header>
+              <p className="biz-product-panel__hint">
+                Start an Ajo from New to add members and track contributions here.
+              </p>
+            </>
+          )}
+        </section>
+
+        <section className="biz-activity" aria-label="Activity">
+          <header className="biz-activity__head">
+            <div>
+              <h2>Activity</h2>
+              <p>Recent payments and payouts</p>
+            </div>
+            <button
+              type="button"
+              className="biz-activity__all"
+              onClick={() => {
+                setNotifyOpen(true);
+                setOpenMenu(null);
+              }}
+            >
+              View all activites
+            </button>
+          </header>
+          {activityPreview.length === 0 ? (
+            <p className="biz-activity__empty">No activity yet — payments appear here when money moves.</p>
+          ) : (
+            <ul className="biz-activity__list">
+              {activityPreview.map((item) => (
+                <li key={item.id}>
+                  <span
+                    className={`biz-activity__mark is-${item.kind}`}
+                    aria-hidden
+                  >
+                    {item.kind === "outflow" ? "↗" : "↙"}
+                  </span>
+                  <div>
+                    <p>{item.text}</p>
+                    <time>{item.when}</time>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section className="biz-table-card" aria-label="Recent transaction">
+          <div className="biz-table-card__title">Recent transaction</div>
           <div className="biz-table-card__header">
             <div className="biz-table-card__controls">
               <div className="biz-seg" role="tablist" aria-label="Direction">

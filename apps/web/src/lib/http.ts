@@ -9,9 +9,23 @@ import axios, {
   type AxiosRequestConfig,
 } from "axios";
 
-export const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL?.trim() ||
-  (typeof window === "undefined" ? "http://127.0.0.1:8010" : "/studio-backend");
+/** Browser must hit /studio-backend (Next rewrite) so the session cookie stays first-party. */
+function resolveApiBase(): string {
+  const env = process.env.NEXT_PUBLIC_API_URL?.trim();
+  if (typeof window !== "undefined") {
+    if (
+      !env ||
+      env.includes("127.0.0.1:8010") ||
+      env.includes("localhost:8010")
+    ) {
+      return "/studio-backend";
+    }
+    return env;
+  }
+  return env || process.env.STUDIO_API_ORIGIN || "http://127.0.0.1:8010";
+}
+
+export const API_BASE = resolveApiBase();
 
 /** Typed API failure with FastAPI `detail` when present. */
 export class ApiError extends Error {
