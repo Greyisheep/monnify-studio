@@ -34,6 +34,13 @@ class NodeTypeDef(BaseModel):
     # reasons from Monnify's documented features, not from training memory.
     when_to_use: str = ""
     doc_url: str = ""
+    # The request the node sends, grounded in Monnify's own OpenAPI spec (#176):
+    # `method`/`path` is the endpoint, `request_template` is the editable body
+    # (example values). It rides into node.config, so a dev sees and edits the
+    # real request; the analyzer still verifies the graph around it.
+    method: str = ""
+    path: str = ""
+    request_template: dict = Field(default_factory=dict)
     default_tags: list[CapabilityTag] = Field(default_factory=list)
     inputs: list[PortSpec] = Field(default_factory=list)
     outputs: list[PortSpec] = Field(default_factory=list)

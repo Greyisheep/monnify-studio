@@ -168,3 +168,141 @@ MONNIFY_NODE_TYPES: list[NodeTypeDef] = [
         inputs=[PortSpec(name="transaction_reference", type=D.TRANSACTION_REFERENCE)],
     ),
 ]
+
+
+# Request templates grounded in Monnify's OpenAPI spec (#176, #25). Each is the
+# editable request body a dev sees on the block - example values come straight
+# from the spec at https://developers.monnify.com/collection/monnify-collection.yml.
+# The body rides into node.config (execution + codegen already merge it); the
+# analyzer still verifies the graph, so editing the request never bypasses the
+# 200-is-not-correct guardrail.
+_REQUEST_TEMPLATES: dict[str, dict] = {
+    "monnify.initialize_transaction": {
+        "method": "POST",
+        "path": "/api/v1/merchant/transactions/init-transaction",
+        "body": {
+            "amount": 100.00,
+            "customerName": "John Doe",
+            "customerEmail": "customer@example.com",
+            "paymentReference": "<unique-reference>",
+            "paymentDescription": "Order payment",
+            "currencyCode": "NGN",
+            "contractCode": "<your-contract-code>",
+            "redirectUrl": "https://your-app.com/payment/return",
+            "paymentMethods": ["CARD", "ACCOUNT_TRANSFER"],
+        },
+    },
+    "monnify.verify_transaction": {
+        "method": "GET",
+        "path": "/api/v2/merchant/transactions/query",
+        "body": {"paymentReference": "<the-payment-reference>"},
+    },
+    "monnify.create_reserved_account": {
+        "method": "POST",
+        "path": "/api/v2/bank-transfer/reserved-accounts",
+        "body": {
+            "accountReference": "<unique-account-reference>",
+            "accountName": "Customer Wallet",
+            "currencyCode": "NGN",
+            "contractCode": "<your-contract-code>",
+            "customerEmail": "customer@example.com",
+            "customerName": "John Doe",
+            "getAllAvailableBanks": True,
+        },
+    },
+    "monnify.create_invoice": {
+        "method": "POST",
+        "path": "/api/v1/invoice/create",
+        "body": {
+            "amount": 5000.00,
+            "currencyCode": "NGN",
+            "invoiceReference": "<unique-invoice-reference>",
+            "customerName": "John Snow",
+            "customerEmail": "customer@example.com",
+            "contractCode": "<your-contract-code>",
+            "description": "Invoice for services",
+            "expiryDate": "2026-12-31 23:59:59",
+            "redirectUrl": "https://your-app.com/invoice/return",
+        },
+    },
+    "monnify.initiate_transfer": {
+        "method": "POST",
+        "path": "/api/v2/disbursements/single",
+        "body": {
+            "amount": 200.00,
+            "reference": "<unique-reference>",
+            "narration": "Payout",
+            "destinationBankCode": "50515",
+            "destinationAccountNumber": "2085886393",
+            "destinationAccountName": "Ciroma Chukwuka Adekunle",
+            "currency": "NGN",
+            "sourceAccountNumber": "<your-wallet-account-number>",
+        },
+    },
+    "monnify.bulk_transfer": {
+        "method": "POST",
+        "path": "/api/v2/disbursements/batch",
+        "body": {
+            "title": "Payroll July",
+            "batchReference": "<unique-batch-reference>",
+            "narration": "Salary payout",
+            "sourceAccountNumber": "<your-wallet-account-number>",
+            "onValidationFailure": "CONTINUE",
+            "notificationInterval": 10,
+            "transactionList": [
+                {
+                    "amount": 1300.00,
+                    "reference": "<unique-item-reference>",
+                    "narration": "Salary",
+                    "destinationBankCode": "50515",
+                    "destinationAccountNumber": "2085886393",
+                    "currency": "NGN",
+                }
+            ],
+        },
+    },
+    "monnify.query_transfer_status": {
+        "method": "GET",
+        "path": "/api/v2/disbursements/single/summary",
+        "body": {"reference": "<the-transfer-reference>"},
+    },
+    "monnify.validate_bank_account": {
+        "method": "GET",
+        "path": "/api/v2/disbursements/account/validate",
+        "body": {"accountNumber": "2085886393", "bankCode": "50515"},
+    },
+    "monnify.transaction_split": {
+        "method": "POST",
+        "path": "/api/v1/merchant/transactions/init-transaction",
+        "body": {
+            "incomeSplitConfig": [
+                {
+                    "subAccountCode": "MFY_SUB_762212281785",
+                    "feePercentage": 10.50,
+                    "splitPercentage": 30.00,
+                    "feeBearer": False,
+                }
+            ]
+        },
+    },
+    "monnify.initiate_refund": {
+        "method": "POST",
+        "path": "/api/v1/refunds/initiate-refund",
+        "body": {
+            "transactionReference": "<the-transaction-reference>",
+            "refundReference": "<unique-refund-reference>",
+            "refundAmount": 100.00,
+            "refundReason": "Order cancelled",
+            "customerNote": "Refund for your order",
+            "destinationAccountNumber": "3270005594",
+            "destinationAccountBankCode": "050",
+        },
+    },
+}
+
+for _defn in MONNIFY_NODE_TYPES:
+    _tpl = _REQUEST_TEMPLATES.get(_defn.type)
+    if _tpl is not None:
+        _defn.method = _tpl["method"]
+        _defn.path = _tpl["path"]
+        _defn.request_template = _tpl["body"]
