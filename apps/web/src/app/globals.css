@@ -1702,6 +1702,21 @@ body.is-resizing-sidebar iframe {
   margin: 0;
 }
 
+.studio-chat__sources {
+  margin: 0.55rem 0 0;
+  padding-left: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.78rem;
+}
+
+.studio-chat__sources a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .studio-chat__badge {
   margin: 0;
   display: inline-flex;
@@ -2576,6 +2591,24 @@ body.is-resizing-sidebar iframe {
   font-size: 0.72rem;
   color: var(--ink-soft);
   line-height: 1.35;
+}
+
+.studio-node__why {
+  align-self: flex-start;
+  margin-top: 0.35rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--accent);
+  font-size: 0.68rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.studio-node__why:hover {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--line));
+  background: color-mix(in srgb, var(--accent) 8%, var(--panel));
 }
 
 .studio-handle {

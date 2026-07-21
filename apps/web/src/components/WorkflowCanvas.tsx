@@ -4,7 +4,7 @@
  */
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import {
   Background,
   BackgroundVariant,
@@ -26,8 +26,6 @@ import type { StudioNodeData } from "@/types";
 import { StudioNode } from "./StudioNode";
 import { StudioZoomControls } from "./StudioZoomControls";
 
-const nodeTypes: NodeTypes = { studio: StudioNode };
-
 export interface WorkflowCanvasProps {
   nodes: Node<StudioNodeData>[];
   edges: Edge[];
@@ -44,6 +42,7 @@ export interface WorkflowCanvasProps {
   onConnect: (connection: Connection) => void;
   onSelectionChange: OnSelectionChangeFunc;
   onGraphDirty: () => void;
+  onWhyNode?: (nodeType: string, label: string) => void;
 }
 
 function FitViewOnLayout({ layoutNonce }: { layoutNonce: number }) {
@@ -75,7 +74,14 @@ export function WorkflowCanvas({
   onConnect,
   onSelectionChange,
   onGraphDirty,
+  onWhyNode,
 }: WorkflowCanvasProps) {
+  const nodeTypes = useMemo<NodeTypes>(
+    () => ({
+      studio: (props) => <StudioNode {...props} onWhy={onWhyNode} />,
+    }),
+    [onWhyNode],
+  );
   const connectionStroke =
     connectionFeedback === "valid"
       ? "var(--accent)"

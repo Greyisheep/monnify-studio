@@ -18,7 +18,13 @@ const CATEGORY_CLASS: Record<string, string> = {
   application: "cat-application",
 };
 
-export function StudioNode({ data, selected }: NodeProps<StudioFlowNode>) {
+export function StudioNode({
+  data,
+  selected,
+  onWhy,
+}: NodeProps<StudioFlowNode> & {
+  onWhy?: (nodeType: string, label: string) => void;
+}) {
   const categoryClass = CATEGORY_CLASS[data.category] ?? "cat-application";
 
   return (
@@ -32,7 +38,20 @@ export function StudioNode({ data, selected }: NodeProps<StudioFlowNode>) {
         <div className="studio-node__detail">
           <span>{data.title || data.label}</span>
           <span className="studio-node__type">{data.nodeType}</span>
-          <span>Open panel for ports and config</span>
+          {onWhy ? (
+            <button
+              type="button"
+              className="studio-node__why"
+              onClick={(event) => {
+                event.stopPropagation();
+                onWhy(data.nodeType, data.label || data.title || data.nodeType);
+              }}
+            >
+              Why?
+            </button>
+          ) : (
+            <span>Open panel for ports and config</span>
+          )}
         </div>
       )}
       <Handle type="source" position={Position.Right} className="studio-handle" />

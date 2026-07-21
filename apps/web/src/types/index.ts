@@ -13,6 +13,9 @@ export type { StudioNodeData } from "./canvas";
 export type {
   AnalysisReport,
   ComposeResult,
+  ExplainRequest,
+  ExplainResult,
+  ExplainSource,
   Finding,
   GraphDiff,
   IntentResult,

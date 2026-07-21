@@ -8,6 +8,8 @@ import type {
   ArtifactConfigInput,
   ComposeResult,
   CredentialStatus,
+  ExplainRequest,
+  ExplainResult,
   ExecutionEvent,
   ExecutionRun,
   GenerateArtifactResult,
@@ -238,6 +240,13 @@ export async function composeWorkflow(message: string): Promise<ComposeResult> {
 
 export async function classifyIntent(message: string): Promise<IntentResult> {
   return postJson<IntentResult>("/assistant/intent", { message });
+}
+
+/** Ask Moni "why" about a node or finding (#76, D20). */
+export async function explainAssistant(
+  body: ExplainRequest,
+): Promise<ExplainResult> {
+  return postJson<ExplainResult>("/assistant/explain", body);
 }
 
 export async function createFromTemplate(

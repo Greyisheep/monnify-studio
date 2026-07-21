@@ -73,3 +73,22 @@ export interface IntentResult {
   clarifying_question: string;
   provider: string;
 }
+
+/** POST /assistant/explain (monnify_studio.ai.explain). Provenance: #75, #76, D20. */
+export interface ExplainSource {
+  title: string;
+  url: string;
+}
+
+export interface ExplainRequest {
+  question: string;
+  node_type?: string | null;
+  workflow_id?: string | null;
+  provider?: string | null;
+}
+
+export interface ExplainResult {
+  answer: string;
+  sources: ExplainSource[];
+  provider: string;
+}

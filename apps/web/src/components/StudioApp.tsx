@@ -4,7 +4,7 @@
  */
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ReactFlowProvider,
   useEdgesState,
@@ -14,6 +14,7 @@ import {
 } from "@xyflow/react";
 
 import type {
+  Finding,
   StudioNodeData,
 } from "@/types";
 import { useExecutionTrace } from "@/hooks/useExecutionTrace";
@@ -43,11 +44,13 @@ import { NodePalette } from "./NodePalette";
 import { OnboardingChrome } from "./OnboardingChrome";
 import { PathGate } from "./PathGate";
 import { ProductsStep } from "./ProductsStep";
+import { ReviewPanel } from "./ReviewPanel";
 import { RightSidebar } from "./RightSidebar";
 import { StudioFloatingChrome } from "./StudioFloatingChrome";
 import { StudioIconRail } from "./StudioIconRail";
 import { TemplatePicker } from "./TemplatePicker";
 import { WorkflowCanvas } from "./WorkflowCanvas";
+import type { ChatPanelHandle } from "./ChatPanel";
 import type {
   BusinessGoal,
   ShopProduct,
@@ -68,8 +71,10 @@ function CanvasInner() {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<StudioNodeData>>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [leftTab, setLeftTab] = useState<"api" | "chat">("api");
+  const [previewMode, setPreviewMode] = useState<"summary" | "review">("summary");
   /** Both sidebars hidden — Figma Maincollapsed (21:1732). */
   const [panelsCollapsed, setPanelsCollapsed] = useState(false);
+  const chatRef = useRef<ChatPanelHandle>(null);
   const [rightTab, setRightTab] = useState<"preview" | "code">("preview");
   const [profile, setProfile] = useState<StudioProfile | null>(null);
   const [profileReady, setProfileReady] = useState(false);
@@ -199,6 +204,7 @@ function CanvasInner() {
   useEffect(() => {
     if (session.selectedFindingIndex != null) {
       setRightTab("preview");
+      setPreviewMode("review");
     }
   }, [session.selectedFindingIndex]);
 
@@ -210,6 +216,44 @@ function CanvasInner() {
 
   function focusPreview() {
     setRightTab("preview");
+  }
+
+  function nodeTypeForFinding(finding: Finding): string | null {
+    const nodeId = finding.node_ids[0] ?? finding.path[0];
+    if (!nodeId || !currentIr) return null;
+    return currentIr.nodes.find((node) => node.id === nodeId)?.type ?? null;
+  }
+
+  function askWhy(
+    question: string,
+    nodeType: string | null,
+    userLabel = "Why?",
+  ) {
+    setLeftTab("chat");
+    void chatRef.current?.askWhy(
+      {
+        question,
+        node_type: nodeType,
+        workflow_id: session.workflow?.id ?? null,
+      },
+      userLabel,
+    );
+  }
+
+  function handleWhyNode(nodeType: string, label: string) {
+    askWhy(
+      `Why is ${label} (${nodeType}) used in this flow?`,
+      nodeType,
+      `Why ${label}?`,
+    );
+  }
+
+  function handleWhyFinding(finding: Finding) {
+    askWhy(
+      `Why does [${finding.rule_id}] ${finding.title}? ${finding.message}`,
+      nodeTypeForFinding(finding),
+      `Why [${finding.rule_id}]?`,
+    );
   }
 
   function seedFromProducts(products: ShopProduct[]) {
@@ -592,6 +636,8 @@ function CanvasInner() {
               onToggleCollapsed={() => setPanelsCollapsed(true)}
               onAdd={(typeKey) => graph.addNode(typeKey)}
               onAsk={session.askMoni}
+              onExplain={session.explainWhy}
+              chatRef={chatRef}
               onSetupIntent={async (templateId, config) => {
                 await session.setupFromIntent(templateId, config);
                 focusPreview();
@@ -622,11 +668,44 @@ function CanvasInner() {
                 emptyHint="Compose or open a workflow to see its code."
               />
             ) : (
-              <InspectDocumentPanel
-                formatLabel="Markdown"
-                content={previewMarkdown}
-                emptyHint="Preview will show a markdown summary of the flow."
-              />
+              <>
+                <div className="studio-segment">
+                  <button
+                    type="button"
+                    className={previewMode === "summary" ? "is-active" : ""}
+                    onClick={() => setPreviewMode("summary")}
+                  >
+                    Summary
+                  </button>
+                  <button
+                    type="button"
+                    className={previewMode === "review" ? "is-active" : ""}
+                    onClick={() => setPreviewMode("review")}
+                  >
+                    Review
+                  </button>
+                </div>
+                {previewMode === "review" ? (
+                  <ReviewPanel
+                    workflowName={session.workflow?.name ?? ""}
+                    report={session.report}
+                    loading={session.loading}
+                    busy={session.busy}
+                    selectedFindingIndex={session.selectedFindingIndex}
+                    onSelectFinding={session.setSelectedFindingIndex}
+                    onApplyFix={(ruleId) =>
+                      currentIr && void session.applyFix(currentIr, ruleId)
+                    }
+                    onWhy={handleWhyFinding}
+                  />
+                ) : (
+                  <InspectDocumentPanel
+                    formatLabel="Markdown"
+                    content={previewMarkdown}
+                    emptyHint="Preview will show a markdown summary of the flow."
+                  />
+                )}
+              </>
             )}
           </RightSidebar>
         </div>
@@ -680,6 +759,7 @@ function CanvasInner() {
             onConnect={graph.onConnect}
             onSelectionChange={graph.onSelectionChange}
             onGraphDirty={() => session.setDirty(true)}
+            onWhyNode={handleWhyNode}
           />
         </div>
       </main>

@@ -12,6 +12,7 @@ import {
   classifyIntent,
   composeWorkflow,
   createFromTemplate,
+  explainAssistant,
   fetchAnalysis,
   fetchCatalog,
   fetchWorkflow,
@@ -34,6 +35,8 @@ import {
 import type {
   AnalysisReport,
   ArtifactConfigInput,
+  ExplainRequest,
+  ExplainResult,
   GenerateArtifactResult,
   IntentResult,
   MoniAskResult,
@@ -442,6 +445,27 @@ export function useStudioSession({ setNodes, setEdges }: UseStudioSessionOptions
     [applyPayload, catalog, refreshWorkflows],
   );
 
+  const explainWhy = useCallback(
+    async (body: ExplainRequest): Promise<ExplainResult> => {
+      setBusy(true);
+      setTypeError(null);
+      try {
+        return await explainAssistant({
+          ...body,
+          workflow_id: body.workflow_id ?? activeWorkflowId,
+        });
+      } catch (error) {
+        const text =
+          error instanceof Error ? error.message : "Explain request failed";
+        setTypeError(text);
+        throw error;
+      } finally {
+        setBusy(false);
+      }
+    },
+    [activeWorkflowId],
+  );
+
   return {
     heroId,
     setHeroId,
@@ -475,6 +499,7 @@ export function useStudioSession({ setNodes, setEdges }: UseStudioSessionOptions
     applyFix,
     runAnalyze,
     askMoni,
+    explainWhy,
     setupFromIntent,
   };
 }

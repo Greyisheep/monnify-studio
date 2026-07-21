@@ -1,12 +1,14 @@
 /**
  * Moni Chat tab — Figma Whiteboard/Chat/New (118:3740 / 118:3733).
- * Provenance: #15, #55, #110, D16, D18.
+ * Provenance: #15, #55, #76, #110, D16, D18, D20.
  */
 "use client";
 
 import Image from "next/image";
 import {
+  forwardRef,
   useEffect,
+  useImperativeHandle,
   useRef,
   useState,
   type FormEvent,
@@ -14,7 +16,7 @@ import {
 } from "react";
 
 import { parseChatBlocks, stripCanvasSuffix } from "@/lib/chatMessage";
-import type { IntentResult, MoniAskResult } from "@/types";
+import type { ExplainRequest, ExplainResult, IntentResult, MoniAskResult } from "@/types";
 
 export interface ChatMessage {
   id: string;
@@ -23,6 +25,7 @@ export interface ChatMessage {
   streaming?: boolean;
   statusText?: string;
   loadedOnCanvas?: boolean;
+  sources?: ExplainResult["sources"];
   intent?: {
     templateId: string;
     config: IntentResult["config"];
@@ -36,10 +39,15 @@ export interface ChatPanelProps {
     message: string,
     onStatus?: (text: string) => void,
   ) => Promise<MoniAskResult>;
+  onExplain: (body: ExplainRequest) => Promise<ExplainResult>;
   onSetupIntent: (
     templateId: string,
     config: IntentResult["config"],
   ) => Promise<void>;
+}
+
+export interface ChatPanelHandle {
+  askWhy: (body: ExplainRequest, userLabel?: string) => Promise<void>;
 }
 
 const STARTER: ChatMessage[] = [
@@ -60,9 +68,11 @@ const PROMPTS = [
 function ChatMessageBody({
   text,
   loadedOnCanvas,
+  sources,
 }: {
   text: string;
   loadedOnCanvas?: boolean;
+  sources?: ExplainResult["sources"];
 }) {
   const { body, loaded } = stripCanvasSuffix(text);
   const blocks = parseChatBlocks(body);
@@ -81,6 +91,17 @@ function ChatMessageBody({
           <p key={index}>{block.text}</p>
         ),
       )}
+      {sources && sources.length > 0 ? (
+        <ul className="studio-chat__sources">
+          {sources.map((source) => (
+            <li key={source.url}>
+              <a href={source.url} target="_blank" rel="noreferrer">
+                {source.title}
+              </a>
+            </li>
+          ))}
+        </ul>
+      ) : null}
       {showLoaded ? (
         <p className="studio-chat__badge">Loaded on the canvas, edit freely.</p>
       ) : null}
@@ -88,230 +109,277 @@ function ChatMessageBody({
   );
 }
 
-export function ChatPanel({ busy, onAsk, onSetupIntent }: ChatPanelProps) {
-  const [messages, setMessages] = useState<ChatMessage[]>(STARTER);
-  const [draft, setDraft] = useState("");
-  const tailRef = useRef<HTMLDivElement>(null);
-  const showSuggestions =
-    messages.length <= 1 && !messages.some((m) => m.role === "user");
+export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(
+  function ChatPanel({ busy, onAsk, onExplain, onSetupIntent }, ref) {
+    const [messages, setMessages] = useState<ChatMessage[]>(STARTER);
+    const [draft, setDraft] = useState("");
+    const tailRef = useRef<HTMLDivElement>(null);
+    const showSuggestions =
+      messages.length <= 1 && !messages.some((m) => m.role === "user");
 
-  useEffect(() => {
-    tailRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [messages, busy]);
+    useEffect(() => {
+      tailRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    }, [messages, busy]);
 
-  function patchAssistant(id: string, patch: Partial<ChatMessage>) {
-    setMessages((current) =>
-      current.map((message) =>
-        message.id === id ? { ...message, ...patch } : message,
-      ),
+    function patchAssistant(id: string, patch: Partial<ChatMessage>) {
+      setMessages((current) =>
+        current.map((message) =>
+          message.id === id ? { ...message, ...patch } : message,
+        ),
+      );
+    }
+
+    useImperativeHandle(
+      ref,
+      () => ({
+        askWhy: async (body, userLabel = "Why?") => {
+          const assistantId = `assistant-${Date.now()}`;
+          setMessages((current) => [
+            ...current,
+            {
+              id: `user-${Date.now()}`,
+              role: "user",
+              text: userLabel,
+            },
+            {
+              id: assistantId,
+              role: "assistant",
+              text: "",
+              streaming: true,
+              statusText: "Looking up docs…",
+            },
+          ]);
+
+          try {
+            const result = await onExplain(body);
+            patchAssistant(assistantId, {
+              streaming: false,
+              statusText: undefined,
+              text: result.answer,
+              sources: result.sources,
+            });
+          } catch (error) {
+            patchAssistant(assistantId, {
+              streaming: false,
+              statusText: undefined,
+              text:
+                error instanceof Error
+                  ? error.message
+                  : "Could not reach Moni. Is the API running?",
+            });
+          }
+        },
+      }),
+      [onExplain],
     );
-  }
 
-  async function submit(text: string) {
-    const trimmed = text.trim();
-    if (!trimmed || busy) return;
+    async function submit(text: string) {
+      const trimmed = text.trim();
+      if (!trimmed || busy) return;
 
-    const userMessage: ChatMessage = {
-      id: `user-${Date.now()}`,
-      role: "user",
-      text: trimmed,
-    };
-    const assistantId = `assistant-${Date.now()}`;
-    setMessages((current) => [
-      ...current,
-      userMessage,
-      {
-        id: assistantId,
-        role: "assistant",
-        text: "",
-        streaming: true,
-        statusText: "Working…",
-      },
-    ]);
-    setDraft("");
+      const userMessage: ChatMessage = {
+        id: `user-${Date.now()}`,
+        role: "user",
+        text: trimmed,
+      };
+      const assistantId = `assistant-${Date.now()}`;
+      setMessages((current) => [
+        ...current,
+        userMessage,
+        {
+          id: assistantId,
+          role: "assistant",
+          text: "",
+          streaming: true,
+          statusText: "Working…",
+        },
+      ]);
+      setDraft("");
 
-    try {
-      const result = await onAsk(trimmed, (status) => {
-        patchAssistant(assistantId, { statusText: status });
-      });
+      try {
+        const result = await onAsk(trimmed, (status) => {
+          patchAssistant(assistantId, { statusText: status });
+        });
 
-      if (result.kind === "intent") {
+        if (result.kind === "intent") {
+          patchAssistant(assistantId, {
+            streaming: false,
+            statusText: undefined,
+            text: result.explanation,
+            intent: {
+              templateId: result.templateId,
+              config: result.config,
+              confidence: result.confidence,
+            },
+          });
+          return;
+        }
+
+        const suffix =
+          result.kind === "compose" ? " Loaded on the canvas, edit freely." : "";
         patchAssistant(assistantId, {
           streaming: false,
           statusText: undefined,
-          text: result.explanation,
-          intent: {
-            templateId: result.templateId,
-            config: result.config,
-            confidence: result.confidence,
-          },
+          text: `${result.explanation}${suffix}`,
+          loadedOnCanvas: result.kind === "compose",
         });
-        return;
+      } catch (error) {
+        patchAssistant(assistantId, {
+          streaming: false,
+          statusText: undefined,
+          text:
+            error instanceof Error
+              ? error.message
+              : "Could not reach Moni. Is the API running?",
+        });
       }
-
-      const suffix =
-        result.kind === "compose" ? " Loaded on the canvas, edit freely." : "";
-      patchAssistant(assistantId, {
-        streaming: false,
-        statusText: undefined,
-        text: `${result.explanation}${suffix}`,
-        loadedOnCanvas: result.kind === "compose",
-      });
-    } catch (error) {
-      patchAssistant(assistantId, {
-        streaming: false,
-        statusText: undefined,
-        text:
-          error instanceof Error
-            ? error.message
-            : "Could not reach Moni. Is the API running?",
-      });
     }
-  }
 
-  async function setup(message: ChatMessage) {
-    if (!message.intent || busy) return;
-    try {
-      await onSetupIntent(message.intent.templateId, message.intent.config);
-      setMessages((current) => [
-        ...current,
-        {
-          id: `assistant-${Date.now()}`,
-          role: "assistant",
-          text: `Set up “${message.intent!.templateId}” on the canvas. Check Preview for the flow summary.`,
-          loadedOnCanvas: true,
-        },
-      ]);
-    } catch (error) {
-      setMessages((current) => [
-        ...current,
-        {
-          id: `assistant-${Date.now()}`,
-          role: "assistant",
-          text: error instanceof Error ? error.message : "Set up failed",
-        },
-      ]);
+    async function setup(message: ChatMessage) {
+      if (!message.intent || busy) return;
+      try {
+        await onSetupIntent(message.intent.templateId, message.intent.config);
+        setMessages((current) => [
+          ...current,
+          {
+            id: `assistant-${Date.now()}`,
+            role: "assistant",
+            text: `Set up “${message.intent!.templateId}” on the canvas. Check Preview for the flow summary.`,
+            loadedOnCanvas: true,
+          },
+        ]);
+      } catch (error) {
+        setMessages((current) => [
+          ...current,
+          {
+            id: `assistant-${Date.now()}`,
+            role: "assistant",
+            text: error instanceof Error ? error.message : "Set up failed",
+          },
+        ]);
+      }
     }
-  }
 
-  function onSubmit(event: FormEvent) {
-    event.preventDefault();
-    void submit(draft);
-  }
-
-  function onComposerKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
-    if (event.key === "Enter" && !event.shiftKey) {
+    function onSubmit(event: FormEvent) {
       event.preventDefault();
       void submit(draft);
     }
-  }
 
-  return (
-    <div className="studio-chat" aria-label="Moni chat">
-      <div className="studio-chat__messages">
-        {messages.map((message) => (
-          <div
-            key={message.id}
-            className={`studio-chat__row studio-chat__row--${message.role}${
-              message.id === "welcome" ? " is-welcome" : ""
-            }`}
-          >
-            {message.role === "assistant" && message.id !== "welcome" ? (
-              <span className="studio-chat__avatar" aria-hidden>
-                M
-              </span>
-            ) : null}
+    function onComposerKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+      if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault();
+        void submit(draft);
+      }
+    }
+
+    return (
+      <div className="studio-chat" aria-label="Moni chat">
+        <div className="studio-chat__messages">
+          {messages.map((message) => (
             <div
-              className={`studio-chat__bubble studio-chat__bubble--${message.role}${
-                message.streaming ? " is-streaming" : ""
-              }${message.id === "welcome" ? " is-welcome" : ""}`}
+              key={message.id}
+              className={`studio-chat__row studio-chat__row--${message.role}${
+                message.id === "welcome" ? " is-welcome" : ""
+              }`}
             >
-              {message.streaming ? (
-                <div className="studio-chat__thinking">
-                  <span className="studio-chat__thinking-label">
-                    {message.statusText ?? "Working…"}
-                  </span>
-                  <span className="studio-chat__dots" aria-hidden>
-                    <span />
-                    <span />
-                    <span />
-                  </span>
-                </div>
-              ) : (
-                <>
-                  <ChatMessageBody
-                    text={message.text}
-                    loadedOnCanvas={message.loadedOnCanvas}
-                  />
-                  {message.intent ? (
-                    <button
-                      type="button"
-                      className="studio-btn studio-btn--primary studio-chat__setup"
-                      disabled={busy}
-                      onClick={() => void setup(message)}
-                    >
-                      Set this up
-                    </button>
-                  ) : null}
-                </>
-              )}
+              {message.role === "assistant" && message.id !== "welcome" ? (
+                <span className="studio-chat__avatar" aria-hidden>
+                  M
+                </span>
+              ) : null}
+              <div
+                className={`studio-chat__bubble studio-chat__bubble--${message.role}${
+                  message.streaming ? " is-streaming" : ""
+                }${message.id === "welcome" ? " is-welcome" : ""}`}
+              >
+                {message.streaming ? (
+                  <div className="studio-chat__thinking">
+                    <span className="studio-chat__thinking-label">
+                      {message.statusText ?? "Working…"}
+                    </span>
+                    <span className="studio-chat__dots" aria-hidden>
+                      <span />
+                      <span />
+                      <span />
+                    </span>
+                  </div>
+                ) : (
+                  <>
+                    <ChatMessageBody
+                      text={message.text}
+                      loadedOnCanvas={message.loadedOnCanvas}
+                      sources={message.sources}
+                    />
+                    {message.intent ? (
+                      <button
+                        type="button"
+                        className="studio-btn studio-btn--primary studio-chat__setup"
+                        disabled={busy}
+                        onClick={() => void setup(message)}
+                      >
+                        Set this up
+                      </button>
+                    ) : null}
+                  </>
+                )}
+              </div>
+            </div>
+          ))}
+          <div ref={tailRef} className="studio-chat__tail" />
+        </div>
+
+        {showSuggestions ? (
+          <div className="studio-chat__suggestions">
+            <p className="studio-chat__suggestions-label">Suggestions</p>
+            <div className="studio-chat__chips" role="group" aria-label="Suggestions">
+              {PROMPTS.map((prompt) => (
+                <button
+                  key={prompt}
+                  type="button"
+                  className="studio-chat__chip"
+                  disabled={busy}
+                  onClick={() => void submit(prompt)}
+                >
+                  {prompt}
+                </button>
+              ))}
             </div>
           </div>
-        ))}
-        <div ref={tailRef} className="studio-chat__tail" />
-      </div>
+        ) : null}
 
-      {showSuggestions ? (
-        <div className="studio-chat__suggestions">
-          <p className="studio-chat__suggestions-label">Suggestions</p>
-          <div className="studio-chat__chips" role="group" aria-label="Suggestions">
-            {PROMPTS.map((prompt) => (
+        <form className="studio-chat__composer" onSubmit={onSubmit}>
+          <div className="studio-chat__input">
+            <textarea
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              onKeyDown={onComposerKeyDown}
+              placeholder="Describe what you want to set up."
+              aria-label="Describe what you want to set up"
+              disabled={busy}
+              rows={3}
+            />
+            <div className="studio-chat__input-bar">
+              <span className="studio-chat__attach" aria-hidden>
+                <Image
+                  src="/figma/icon-plus.svg"
+                  alt=""
+                  width={14}
+                  height={14}
+                  unoptimized
+                />
+              </span>
               <button
-                key={prompt}
-                type="button"
-                className="studio-chat__chip"
-                disabled={busy}
-                onClick={() => void submit(prompt)}
+                type="submit"
+                className="studio-chat__send"
+                disabled={!draft.trim() || busy}
+                aria-label={busy ? "Sending" : "Send"}
               >
-                {prompt}
+                {busy ? "…" : "↑"}
               </button>
-            ))}
+            </div>
           </div>
-        </div>
-      ) : null}
-
-      <form className="studio-chat__composer" onSubmit={onSubmit}>
-        <div className="studio-chat__input">
-          <textarea
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            onKeyDown={onComposerKeyDown}
-            placeholder="Describe what you want to set up."
-            aria-label="Describe what you want to set up"
-            disabled={busy}
-            rows={3}
-          />
-          <div className="studio-chat__input-bar">
-            <span className="studio-chat__attach" aria-hidden>
-              <Image
-                src="/figma/icon-plus.svg"
-                alt=""
-                width={14}
-                height={14}
-                unoptimized
-              />
-            </span>
-            <button
-              type="submit"
-              className="studio-chat__send"
-              disabled={!draft.trim() || busy}
-              aria-label={busy ? "Sending" : "Send"}
-            >
-              {busy ? "…" : "↑"}
-            </button>
-          </div>
-        </div>
-      </form>
-    </div>
-  );
-}
+        </form>
+      </div>
+    );
+  },
+);

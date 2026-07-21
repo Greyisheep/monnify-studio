@@ -6,10 +6,10 @@
 "use client";
 
 import Image from "next/image";
-import type { PointerEvent as ReactPointerEvent } from "react";
+import type { PointerEvent as ReactPointerEvent, Ref } from "react";
 
-import type { IntentResult, MoniAskResult, NodeMeta } from "@/types";
-import { ChatPanel } from "./ChatPanel";
+import type { ExplainRequest, ExplainResult, IntentResult, MoniAskResult, NodeMeta } from "@/types";
+import { ChatPanel, type ChatPanelHandle } from "./ChatPanel";
 
 export interface NodePaletteProps {
   catalog: Record<string, NodeMeta>;
@@ -29,6 +29,8 @@ export interface NodePaletteProps {
     templateId: string,
     config: IntentResult["config"],
   ) => Promise<void>;
+  onExplain: (body: ExplainRequest) => Promise<ExplainResult>;
+  chatRef?: Ref<ChatPanelHandle>;
   onResizeStart?: (event: ReactPointerEvent) => void;
 }
 
@@ -109,6 +111,8 @@ export function NodePalette({
   onAdd,
   onAsk,
   onSetupIntent,
+  onExplain,
+  chatRef,
   onResizeStart,
 }: NodePaletteProps) {
   const groups = groupCatalog(catalog);
@@ -176,7 +180,13 @@ export function NodePalette({
         className={`studio-sidebar__scroll${leftTab === "chat" ? " is-chat" : ""}`}
       >
         {leftTab === "chat" ? (
-          <ChatPanel busy={busy} onAsk={onAsk} onSetupIntent={onSetupIntent} />
+          <ChatPanel
+            ref={chatRef}
+            busy={busy}
+            onAsk={onAsk}
+            onExplain={onExplain}
+            onSetupIntent={onSetupIntent}
+          />
         ) : (
           <>
             {groups.length === 0 && (

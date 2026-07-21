@@ -1,6 +1,6 @@
 /**
  * Architecture Review panel: findings list, severity filter, Apply Fix.
- * Provenance: #27, #44.
+ * Provenance: #27, #44, #76.
  */
 "use client";
 
@@ -17,16 +17,16 @@ export interface ReviewPanelProps {
   selectedFindingIndex: number | null;
   onSelectFinding: (index: number | null) => void;
   onApplyFix: (ruleId: string) => void;
+  onWhy: (finding: Finding) => void;
   onClose?: () => void;
 }
 
 export interface FindingCardProps {
   finding: Finding;
   selected: boolean;
-  explained: boolean;
   busy: boolean;
   onSelect: () => void;
-  onToggleExplain: () => void;
+  onWhy: () => void;
   onApplyFix: () => void;
 }
 
@@ -40,9 +40,9 @@ export function ReviewPanel({
   selectedFindingIndex,
   onSelectFinding,
   onApplyFix,
+  onWhy,
   onClose,
 }: ReviewPanelProps) {
-  const [expandedExplain, setExpandedExplain] = useState<number | null>(null);
   const [severityFilter, setSeverityFilter] = useState<SeverityFilter>(null);
 
   const indexedFindings = useMemo(() => {
@@ -60,7 +60,6 @@ export function ReviewPanel({
   function toggleSeverity(severity: Severity) {
     setSeverityFilter((current) => (current === severity ? null : severity));
     onSelectFinding(null);
-    setExpandedExplain(null);
   }
 
   return (
@@ -116,18 +115,13 @@ export function ReviewPanel({
             key={findingKey(finding, findingIndex)}
             finding={finding}
             selected={selectedFindingIndex === findingIndex}
-            explained={expandedExplain === findingIndex}
             busy={busy}
             onSelect={() =>
               onSelectFinding(
                 selectedFindingIndex === findingIndex ? null : findingIndex,
               )
             }
-            onToggleExplain={() =>
-              setExpandedExplain((currentIndex) =>
-                currentIndex === findingIndex ? null : findingIndex,
-              )
-            }
+            onWhy={() => onWhy(finding)}
             onApplyFix={() => onApplyFix(finding.rule_id)}
           />
         ))}
@@ -139,10 +133,9 @@ export function ReviewPanel({
 function FindingCard({
   finding,
   selected,
-  explained,
   busy,
   onSelect,
-  onToggleExplain,
+  onWhy,
   onApplyFix,
 }: FindingCardProps) {
   return (
@@ -161,8 +154,8 @@ function FindingCard({
       </button>
       <p className="finding-fix">{finding.remediation}</p>
       <div className="finding-actions">
-        <button type="button" onClick={onToggleExplain}>
-          Explain
+        <button type="button" disabled={busy} onClick={onWhy}>
+          Why?
         </button>
         {finding.doc_url && (
           <a href={finding.doc_url} target="_blank" rel="noreferrer">
@@ -178,7 +171,6 @@ function FindingCard({
           Apply Fix
         </button>
       </div>
-      {explained && <p className="finding-explain">{finding.explanation}</p>}
     </li>
   );
 }
