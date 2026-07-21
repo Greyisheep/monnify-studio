@@ -169,7 +169,15 @@ export function StudioNode({ id, data, selected }: NodeProps<StudioFlowNode>) {
     void deleteElements({ nodes: [{ id }] });
   }
 
-  const configEntries = data.config ? Object.entries(data.config) : [];
+  // Prefer the node type's declared input schema (always present for a real
+  // catalog node) so the card actually expands with fields on click, the way
+  // the Figma mock always shows "Edit triggers" rows - falling back to raw
+  // saved config keys only for node types with no declared inputs.
+  const config = data.config ?? {};
+  const configEntries: [string, unknown][] =
+    data.inputs && data.inputs.length > 0
+      ? data.inputs.map((port) => [port.name, config[port.name]])
+      : Object.entries(config);
 
   return (
     <div
@@ -257,6 +265,7 @@ export function StudioNode({ id, data, selected }: NodeProps<StudioFlowNode>) {
                 <input
                   className="studio-node__field-input"
                   value={fieldValue(value)}
+                  placeholder="Not set"
                   readOnly
                   onClick={(event) => event.stopPropagation()}
                 />

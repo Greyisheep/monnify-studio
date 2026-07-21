@@ -211,16 +211,19 @@ function CanvasInner() {
     return highlighted.map((node) => {
       const io = runIo[node.id];
       const config = configById.get(node.id);
+      const meta =
+        session.catalog[node.data.nodeType] ?? session.nodeTypesMeta[node.data.nodeType];
       return {
         ...node,
         data: {
           ...node.data,
           runIo: io ?? null,
           config: config && Object.keys(config).length > 0 ? config : undefined,
+          inputs: meta?.inputs,
         },
       };
     });
-  }, [nodes, highlightIds, trace.events, currentIr]);
+  }, [nodes, highlightIds, trace.events, currentIr, session.catalog, session.nodeTypesMeta]);
   const displayEdges = useMemo(
     () => withEdgeHighlights(edges, selectedFinding),
     [edges, selectedFinding],
