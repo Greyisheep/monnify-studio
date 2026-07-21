@@ -28,8 +28,14 @@
   --cat-application: #404040;
   --surface-warm: #f5f2ed;
   --surface-danger-soft: #fce8e6;
+  --surface-danger-border: #fee2e2;
   --surface-warn-soft: #fff1df;
+  --teal-50: #f0fdfa;
+  --teal-100: #ccfbf1;
+  --neutral-50: #fafafa;
+  --neutral-100: #f0f0f0;
   --shadow-sm: 0 1px 2px -1px rgba(0, 0, 0, 0.1), 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
   --sidebar-width: 240px;
@@ -958,19 +964,41 @@ body.is-resizing-sidebar iframe {
   top: 0.75rem;
   left: 50%;
   transform: translateX(-50%);
-  padding: 0.4rem 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: max-content;
+  max-width: calc(100% - 24px);
+  padding: 4px 10px;
+  border: 1px solid var(--neutral-100);
   border-radius: 999px;
-  background: var(--ink);
-  color: var(--panel);
-  font-size: 0.8rem;
+  background: var(--neutral-50);
+  color: var(--ink-mid);
+  font-size: 12px;
+  line-height: 16px;
+  white-space: nowrap;
+  box-shadow: var(--shadow-xs);
+}
+
+.studio-banner::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: currentColor;
 }
 
 .studio-banner--error {
-  background: var(--danger);
+  border-color: var(--surface-danger-border);
+  background: var(--surface-danger-soft);
+  color: var(--danger);
 }
 
 .studio-banner--ok {
-  background: var(--accent);
+  border-color: var(--teal-100);
+  background: var(--teal-50);
+  color: var(--accent);
 }
 
 .ghost-btn,
