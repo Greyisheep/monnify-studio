@@ -132,6 +132,52 @@ export function ConfigPanel({
             Type
             <input value={node.type} readOnly />
           </label>
+          {node.type === "custom.code" ? (
+            <>
+              <label>
+                Your code
+                <textarea
+                  className="studio-code-block-editor"
+                  value={String(node.config?.code ?? "")}
+                  spellCheck={false}
+                  rows={12}
+                  placeholder={"# Runs between Monnify steps in generated Python\n"}
+                  onChange={(event: ChangeEvent<HTMLTextAreaElement>) =>
+                    onChange({
+                      ...node,
+                      config: { ...node.config, code: event.target.value },
+                    })
+                  }
+                />
+              </label>
+              <label>
+                Declared outputs (JSON object)
+                <textarea
+                  className="json-editor"
+                  rows={4}
+                  spellCheck={false}
+                  value={JSON.stringify(node.config?.outputs ?? {}, null, 2)}
+                  onChange={(event: ChangeEvent<HTMLTextAreaElement>) => {
+                    try {
+                      const parsed = JSON.parse(event.target.value) as unknown;
+                      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+                        onChange({
+                          ...node,
+                          config: {
+                            ...node.config,
+                            outputs: parsed as Record<string, unknown>,
+                          },
+                        });
+                        setJsonError(null);
+                      }
+                    } catch {
+                      setJsonError("Outputs must be a JSON object");
+                    }
+                  }}
+                />
+              </label>
+            </>
+          ) : null}
           {meta?.description && <p className="muted">{meta.description}</p>}
           {(meta?.inputs?.length ?? 0) > 0 && (
             <div className="port-list">

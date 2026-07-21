@@ -406,8 +406,18 @@ export function useStudioSession({ setNodes, setEdges }: UseStudioSessionOptions
       setBusy(true);
       setTypeError(null);
       try {
-        onStatus?.("Checking a revision against your Flow…");
+        onStatus?.("Moni proposed a revision…");
+        // Brief beat so the thesis is visible while the verify loop runs (#110).
+        await new Promise((r) => setTimeout(r, 280));
+        onStatus?.("Checker reviewing the Flow…");
         const refined = await refineWorkflow(activeWorkflowId, message);
+        if (refined.findings_caught.length) {
+          onStatus?.(
+            `Checker caught ${refined.findings_caught.join(", ")} — fixing…`,
+          );
+          await new Promise((r) => setTimeout(r, 220));
+        }
+        onStatus?.("All checks passed — loading on the canvas…");
         applyPayload(
           refined.workflow,
           { ...catalog, ...refined.node_types },
@@ -416,11 +426,12 @@ export function useStudioSession({ setNodes, setEdges }: UseStudioSessionOptions
         );
         setSource("api");
         setDiffNote(
-          `Moni updated “${refined.workflow.name}” (${refined.provider})${
-            refined.findings_caught.length
-              ? ` · caught ${refined.findings_caught.join(", ")}`
-              : ""
-          }`,
+          refined.explanation ||
+            `Moni updated “${refined.workflow.name}” (${refined.provider})${
+              refined.findings_caught.length
+                ? ` · caught ${refined.findings_caught.join(", ")}`
+                : ""
+            }`,
         );
         await refreshWorkflows();
         return {
@@ -433,19 +444,15 @@ export function useStudioSession({ setNodes, setEdges }: UseStudioSessionOptions
           steps: refined.steps,
         };
       } catch (error: unknown) {
+        if (error instanceof ApiError && error.status === 422) {
+          return {
+            kind: "refusal",
+            explanation: error.message,
+            workflowName: null,
+          };
+        }
         const text =
           error instanceof Error ? error.message : "Moni could not change this Flow.";
-        if (text.startsWith("422 /assistant/refine:")) {
-          const detail = text.slice("422 /assistant/refine:".length).trim();
-          let reason = detail;
-          try {
-            const parsed = JSON.parse(detail) as { detail?: string };
-            if (typeof parsed.detail === "string") reason = parsed.detail;
-          } catch {
-            // FastAPI may return plain text detail.
-          }
-          return { kind: "refusal", explanation: reason, workflowName: null };
-        }
         setTypeError(text);
         throw error;
       } finally {
@@ -461,6 +468,7 @@ export function useStudioSession({ setNodes, setEdges }: UseStudioSessionOptions
       config: IntentResult["config"] = {},
     ): Promise<{
       workflowName: string;
+      workflowId: string;
       artifact: GenerateArtifactResult | null;
       seed: ArtifactConfigInput;
     }> => {
@@ -494,6 +502,7 @@ export function useStudioSession({ setNodes, setEdges }: UseStudioSessionOptions
 
         return {
           workflowName: payload.workflow.name,
+          workflowId: payload.workflow.id,
           artifact,
           seed,
         };

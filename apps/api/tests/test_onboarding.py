@@ -152,6 +152,30 @@ def test_session_cookie_is_lax_and_insecure_in_development():
         main_mod.settings.studio_env = original
 
 
+def test_profile_persists_workflow_id_for_dashboard_reload():
+    """#169: business Dashboard rehydrates via profile.workflow_id after reload."""
+    client.get("/studio/profile")
+    put = client.put(
+        "/studio/profile",
+        json={
+            "path": "business",
+            "step": "dashboard",
+            "goal": "sell",
+            "workflow_id": "wf_shop_1",
+        },
+    )
+    assert put.status_code == 200
+    assert put.json()["workflow_id"] == "wf_shop_1"
+
+    second = client.get("/studio/profile")
+    assert second.status_code == 200
+    assert second.json()["workflow_id"] == "wf_shop_1"
+
+    cleared = client.put("/studio/profile", json={"workflow_id": None})
+    assert cleared.status_code == 200
+    assert cleared.json()["workflow_id"] is None
+
+
 def test_session_cookie_is_none_and_secure_outside_development():
     """Production is genuinely cross-origin (web and api are separate Cloud
     Run services): SameSite=Lax is never attached to a cross-site fetch, which

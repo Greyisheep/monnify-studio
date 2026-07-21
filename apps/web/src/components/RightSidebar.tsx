@@ -63,6 +63,7 @@ export function RightSidebar({
           <button
             type="button"
             className="studio-btn studio-btn--ghost studio-btn--run"
+            data-tour="dev-run"
             disabled={busy || running || !canAct}
             onClick={onRun}
           >
@@ -73,7 +74,7 @@ export function RightSidebar({
               height={12}
               unoptimized
             />
-            {running ? "Running…" : "Run"}
+            {running ? "Running…" : "Practice run"}
           </button>
           <button
             type="button"

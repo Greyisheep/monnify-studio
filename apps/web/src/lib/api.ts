@@ -10,6 +10,7 @@ import type {
   CredentialStatus,
   ExecutionEvent,
   ExecutionRun,
+  ExplainResult,
   GenerateArtifactResult,
   GeneratedCode,
   IntentResult,
@@ -240,6 +241,15 @@ export async function streamExecutionEvents(
 
 export async function composeWorkflow(message: string): Promise<ComposeResult> {
   return postJson<ComposeResult>("/assistant/compose", { message });
+}
+
+/** Doc-grounded Why? answers (#76 / D20). */
+export async function explainAssistant(body: {
+  question: string;
+  node_type?: string | null;
+  workflow_id?: string | null;
+}): Promise<ExplainResult> {
+  return postJson<ExplainResult>("/assistant/explain", body);
 }
 
 /** Revise an existing canvas flow without changing its workflow id (#154). */
