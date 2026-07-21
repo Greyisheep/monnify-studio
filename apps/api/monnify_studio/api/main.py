@@ -181,6 +181,14 @@ class NodeMeta(BaseModel):
     category: str
     title: str
     description: str = ""
+    # Grounding shipped to the UI (#176): where the call goes, its editable
+    # request body, and the doc line so a dev/Moni edits from Monnify's real
+    # request shape, not guesswork.
+    when_to_use: str = ""
+    doc_url: str = ""
+    method: str = ""
+    path: str = ""
+    request_template: dict = Field(default_factory=dict)
     inputs: list[PortMeta] = Field(default_factory=list)
     outputs: list[PortMeta] = Field(default_factory=list)
 
@@ -239,6 +247,11 @@ def _meta_from_def(defn) -> NodeMeta:
         category=defn.category.value,
         title=defn.title,
         description=defn.description,
+        when_to_use=getattr(defn, "when_to_use", ""),
+        doc_url=getattr(defn, "doc_url", ""),
+        method=getattr(defn, "method", ""),
+        path=getattr(defn, "path", ""),
+        request_template=getattr(defn, "request_template", {}) or {},
         inputs=[
             PortMeta(
                 name=p.name, type=p.type.value, required=p.required, description=p.description
