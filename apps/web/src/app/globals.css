@@ -454,12 +454,19 @@ body.is-resizing-sidebar iframe {
   flex-shrink: 0;
 }
 
+/* Anchored to the row it teaches about (Figma `112:4308`'s "Tool tip" sits
+   just past the first row's grip), not floating above the whole list. */
 .studio-dnd-tip {
+  position: absolute;
+  top: 100%;
+  left: 14px;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 6px;
-  margin: 4px 8px 10px;
+  margin-top: 6px;
+  pointer-events: none;
 }
 
 .studio-dnd-tip__hand {
@@ -478,6 +485,7 @@ body.is-resizing-sidebar iframe {
   font-size: 12px;
   font-weight: 400;
   line-height: 16px;
+  pointer-events: auto;
 }
 
 .studio-dnd-tip__close {
@@ -492,6 +500,36 @@ body.is-resizing-sidebar iframe {
 
 .studio-canvas.is-dnd-target .react-flow__pane {
   cursor: copy;
+}
+
+/* Catalog row reorder (Figma `112:4924`): dim the row being dragged, and
+   show a hairline insertion point where it will land within its group. */
+.studio-sidebar__row {
+  position: relative;
+}
+
+.studio-sidebar__row.is-drag-source {
+  opacity: 0.2;
+}
+
+.studio-sidebar__row.is-drop-target-before::before,
+.studio-sidebar__row.is-drop-target-after::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  border-radius: 2px;
+  background: #1d4ed8;
+  pointer-events: none;
+}
+
+.studio-sidebar__row.is-drop-target-before::before {
+  top: -1px;
+}
+
+.studio-sidebar__row.is-drop-target-after::after {
+  bottom: -1px;
 }
 
 
