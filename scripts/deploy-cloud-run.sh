@@ -46,6 +46,7 @@ trap 'rm -f "$ENV_FILE"' EXIT
 # below which match case-insensitively either way.
 for key in CLAUDE_API_KEY ANTHROPIC_API_KEY OPENAI_API_KEY GOOGLE_API_KEY \
            MONNIFY_API_KEY MONNIFY_SECRET_KEY MONNIFY_CONTRACT_CODE \
+           MONNIFY_WALLET_ACCOUNT \
            EVOLUTION_API_URL EVOLUTION_API_KEY EVOLUTION_INSTANCE \
            ZEPTOMAIL_API_KEY ZEPTOMAIL_SENDER ZEPTOMAIL_REPLY_TO; do
   value="${!key:-}"
@@ -57,6 +58,11 @@ for key in CLAUDE_API_KEY ANTHROPIC_API_KEY OPENAI_API_KEY GOOGLE_API_KEY \
     echo "   forwarding ${key} (value hidden)"
   fi
 done
+
+# AI provider default (#15): plain config, not a secret. Anthropic's card kept
+# failing, so default to a funded provider; the failover chain still covers the
+# rest. Overridable via the AI_PROVIDER env in CI.
+echo "AI_PROVIDER: \"${AI_PROVIDER:-openai}\"" >> "$ENV_FILE"
 
 echo "==> Deploying $API_SERVICE"
 gcloud run deploy "$API_SERVICE" \
