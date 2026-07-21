@@ -25,6 +25,7 @@ log = get_logger("monnify")
 _AUTH_PATH = "/api/v1/auth/login"
 _INIT_PATH = "/api/v1/merchant/transactions/init-transaction"
 _QUERY_PATH = "/api/v2/merchant/transactions/query"
+_TRANSFER_PATH = "/api/v2/disbursements/single"
 
 
 class MonnifyError(RuntimeError):
@@ -104,6 +105,54 @@ class MonnifySandboxClient:
             )
             return result
 
+
+    def initiate_transfer(
+        self,
+        *,
+        amount: Decimal,
+        reference: str,
+        source_account_number: str,
+        destination_account_number: str,
+        destination_bank_code: str,
+        destination_account_name: str,
+        narration: str = "Monnify Studio sandbox disbursement",
+    ) -> dict[str, Any]:
+        """Send a single real sandbox transfer (#9, disbursement leg).
+
+        The generated payout leg is only ever as true as this call: a run shows
+        the provider's own answer (queued/failed/OTP-required), never a fake
+        success. `source_account_number` is our disbursement wallet.
+        """
+        if self._token is None:
+            self.authenticate()
+        payload: dict[str, Any] = {
+            "amount": float(amount),  # wire format is a number; value is already exact
+            "reference": reference,
+            "narration": narration,
+            "destinationBankCode": destination_bank_code,
+            "destinationAccountNumber": destination_account_number,
+            "destinationAccountName": destination_account_name,  # sandbox requires it (D01)
+            "currency": "NGN",
+            "sourceAccountNumber": source_account_number,
+        }
+        with traced("monnify.initiate_transfer", amount=str(amount), reference=reference):
+            resp = self._http.post(
+                _TRANSFER_PATH,
+                headers={"Authorization": f"Bearer {self._token}"},
+                json=payload,
+            )
+            body = _ok(resp)["responseBody"]
+            result = {
+                "transfer_reference": body.get("reference", reference),
+                "status": body.get("status", "UNKNOWN"),
+                "amount": str(body.get("amount") or amount),
+            }
+            log.info(
+                "monnify.transfer.initiated",
+                reference=result["transfer_reference"],
+                status=result["status"],
+            )
+            return result
 
     def query_transaction(self, *, payment_reference: str) -> dict[str, Any]:
         """Authoritative transaction state by payment reference (#53).
