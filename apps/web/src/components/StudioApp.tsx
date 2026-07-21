@@ -91,6 +91,7 @@ function CanvasInner() {
     notifications: BizNotification[];
     shopUrl: string | null;
     shareLabel: string;
+    artifactId: string | null;
   } | null>(null);
   const [templatesOpen, setTemplatesOpen] = useState(false);
 
@@ -618,6 +619,7 @@ function CanvasInner() {
           // Goal-aware share link (#160): shop for sellers, contribution for ajo.
           shopUrl: d.share_path ? absoluteApiUrl(d.share_path) : null,
           shareLabel: d.share_label || "Your shop link",
+          artifactId: d.artifact_id,
         });
       });
     };
@@ -638,6 +640,7 @@ function CanvasInner() {
           transactions={bizData?.transactions}
           notifications={bizData?.notifications}
           shopUrl={bizData?.shopUrl ?? null}
+          artifactId={bizData?.artifactId ?? null}
           shareLabel={bizData?.shareLabel}
           initialProductTab={
             profile?.goal === "invoice"
