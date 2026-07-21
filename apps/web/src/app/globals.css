@@ -1882,6 +1882,14 @@ body.is-resizing-sidebar iframe {
   padding: 0 4px;
 }
 
+.studio-doc__head-start {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
 .studio-doc__format {
   font-size: 14px;
   font-weight: 500;
@@ -1924,14 +1932,15 @@ body.is-resizing-sidebar iframe {
   cursor: not-allowed;
 }
 
-.studio-doc__subtitle {
-  margin: -8px 0 0;
-  padding: 0 4px;
+.studio-doc__filename {
   font-size: 12px;
   font-weight: 500;
   line-height: 16px;
   color: #737373;
   font-family: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .studio-doc__copy {

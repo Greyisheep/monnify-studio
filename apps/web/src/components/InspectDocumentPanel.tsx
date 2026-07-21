@@ -21,7 +21,7 @@ export interface InspectDocumentPanelProps {
   formats?: InspectFormatOption[];
   activeFormat?: string;
   onFormatChange?: (id: string) => void;
-  /** Extra line under the head (e.g. generated Python filename). */
+  /** Shown in the header row (e.g. generated Python filename). */
   subtitle?: string | null;
   busy?: boolean;
 }
@@ -84,7 +84,12 @@ export function InspectDocumentPanel({
   return (
     <div className="studio-doc">
       <div className="studio-doc__head">
-        {headLeft}
+        <div className="studio-doc__head-start">
+          {headLeft}
+          {subtitle ? (
+            <span className="studio-doc__filename">{subtitle}</span>
+          ) : null}
+        </div>
         <button
           type="button"
           className="studio-doc__copy"
@@ -116,7 +121,6 @@ export function InspectDocumentPanel({
           {copied ? "Copied" : "Copy"}
         </button>
       </div>
-      {subtitle ? <p className="studio-doc__subtitle">{subtitle}</p> : null}
       <div className="studio-doc__body">
         {busy && !text ? (
           <p className="studio-doc__empty">Generating…</p>

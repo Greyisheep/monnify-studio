@@ -147,9 +147,11 @@ export async function saveWorkflow(workflow: Workflow): Promise<WorkflowPayload>
 export async function fetchWorkflowCode(
   workflowId: string,
   lang: string = "python",
+  signal?: AbortSignal,
 ): Promise<GeneratedCode> {
   return getJson<GeneratedCode>(`/workflows/${workflowId}/code`, {
     params: { lang },
+    signal,
   });
 }
 

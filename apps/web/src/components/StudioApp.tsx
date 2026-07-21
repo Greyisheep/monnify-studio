@@ -266,7 +266,7 @@ function CanvasInner() {
     return "";
   }, [currentIr, selectedIrNode]);
 
-  // Python Code tab: sync store then fetch generated module when Flow changes (#152).
+  // Python Code tab: debounced save + codegen when Flow changes (#152).
   useEffect(() => {
     if (rightTab !== "code" || codeFormat !== "python") return;
     if (!currentIr?.id) {
@@ -276,34 +276,42 @@ function CanvasInner() {
       return;
     }
 
-    let cancelled = false;
+    const controller = new AbortController();
+    const debounceMs = 400;
     setPythonBusy(true);
     setPythonError(null);
 
-    void (async () => {
-      try {
-        await saveWorkflow(currentIr);
-        if (cancelled) return;
-        const generated = await fetchWorkflowCode(currentIr.id, "python");
-        if (cancelled) return;
-        setPythonSource(generated.code);
-        setPythonFilename(generated.filename);
-      } catch (error) {
-        if (cancelled) return;
-        setPythonSource("");
-        setPythonFilename(null);
-        setPythonError(
-          error instanceof Error
-            ? error.message
-            : "Could not generate Python for this Flow.",
-        );
-      } finally {
-        if (!cancelled) setPythonBusy(false);
-      }
-    })();
+    const debounceTimer = window.setTimeout(() => {
+      void (async () => {
+        try {
+          await saveWorkflow(currentIr);
+          if (controller.signal.aborted) return;
+          const generated = await fetchWorkflowCode(
+            currentIr.id,
+            "python",
+            controller.signal,
+          );
+          if (controller.signal.aborted) return;
+          setPythonSource(generated.code);
+          setPythonFilename(generated.filename);
+        } catch (error) {
+          if (controller.signal.aborted) return;
+          setPythonSource("");
+          setPythonFilename(null);
+          setPythonError(
+            error instanceof Error
+              ? error.message
+              : "Could not generate Python for this Flow.",
+          );
+        } finally {
+          if (!controller.signal.aborted) setPythonBusy(false);
+        }
+      })();
+    }, debounceMs);
 
     return () => {
-      cancelled = true;
+      controller.abort();
+      window.clearTimeout(debounceTimer);
     };
   }, [rightTab, codeFormat, currentIr]);
 
@@ -666,11 +674,7 @@ function CanvasInner() {
           >
             {rightTab === "code" ? (
               <InspectDocumentPanel
-                formatLabel={
-                  codeFormat === "python"
-                    ? (pythonFilename ?? "Python")
-                    : "JSON"
-                }
+                formatLabel="JSON"
                 formats={[
                   { id: "json", label: "JSON" },
                   { id: "python", label: "Python" },
