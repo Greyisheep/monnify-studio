@@ -94,7 +94,7 @@ export const DEVELOPER_TOUR_STEPS: TourStep[] = [
   {
     id: "run",
     target: "dev-run",
-    title: "Practice run",
+    title: "Run",
     body: "Run with practice money first. No real cash moves until you connect Monnify.",
     chrome: "hover",
   },

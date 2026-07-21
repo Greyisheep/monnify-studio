@@ -74,7 +74,7 @@ export function RightSidebar({
               height={12}
               unoptimized
             />
-            {running ? "Running…" : "Practice run"}
+            {running ? "Running…" : "Run"}
           </button>
           <button
             type="button"
