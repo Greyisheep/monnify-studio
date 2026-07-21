@@ -1,12 +1,21 @@
 /**
  * One template picker for the whole app (business setup, dashboard New, rail +).
- * Figma copy i7ZczWj6i8W2oYmSSKcRdK — Template selection #144:4304 / #155:4959:
+ * Figma jj9fKZamdwfNDVD5rGQI9G — Template selection #144:4304 / #155:4959:
  * "What do you want to do?" + four cards + Select + Back.
  */
 "use client";
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
+import {
+  TEMPLATE_PICKER_BACK_LABEL,
+  TEMPLATE_PICKER_OPTIONS,
+  TEMPLATE_PICKER_SELECT_BUSY_LABEL,
+  TEMPLATE_PICKER_SELECT_LABEL,
+  TEMPLATE_PICKER_SUBTITLE,
+  TEMPLATE_PICKER_TITLE,
+  type TemplatePickerOption,
+} from "@/lib/templatePickerOptions";
 
 export interface TemplatePickerProps {
   open: boolean;
@@ -23,45 +32,6 @@ export interface TemplatePickerProps {
   onOther?: () => void;
   onBack?: () => void;
 }
-
-type PickerOption = {
-  id: string;
-  title: string;
-  description: string;
-  image: string | null;
-  kind: "template" | "other";
-};
-
-const OPTIONS: PickerOption[] = [
-  {
-    id: "sell-online",
-    title: "Sell goods & services",
-    description: "Setup a payment link and a dashboard for your orders",
-    image: "/figma/templates/template-sell-goods.png",
-    kind: "template",
-  },
-  {
-    id: "ajo",
-    title: "Start a savings group (Ajo)",
-    description: "Collect member contributions and track the rotating pool",
-    image: "/figma/templates/template-ajo.png",
-    kind: "template",
-  },
-  {
-    id: "invoice",
-    title: "Send an invoice",
-    description: "Create invoices to share to customers",
-    image: "/figma/templates/template-send-invoice.png",
-    kind: "template",
-  },
-  {
-    id: "__other__",
-    title: "Something else",
-    description: "Describe what you want and let Moni build it",
-    image: null,
-    kind: "other",
-  },
-];
 
 export function TemplatePicker({
   open,
@@ -81,7 +51,7 @@ export function TemplatePicker({
 
   if (!open) return null;
 
-  function confirm(option: PickerOption) {
+  function confirm(option: TemplatePickerOption) {
     if (busy) return;
     if (option.kind === "other") {
       (onOther ?? onBlank)?.();
@@ -99,8 +69,8 @@ export function TemplatePicker({
   const body = (
     <div className="studio-template-picker">
       <header className="studio-template-picker__header is-centered">
-        <h2>What do you want to do?</h2>
-        <p>Pick a vetted product template. Safety nodes come built in.</p>
+        <h2>{TEMPLATE_PICKER_TITLE}</h2>
+        <p>{TEMPLATE_PICKER_SUBTITLE}</p>
       </header>
 
       <div
@@ -108,7 +78,7 @@ export function TemplatePicker({
         role="radiogroup"
         aria-label="Templates"
       >
-        {OPTIONS.map((option) => {
+        {TEMPLATE_PICKER_OPTIONS.map((option) => {
           const isSelected = selected === option.id;
           const isPlusThumb = option.kind === "other";
           return (
@@ -157,7 +127,9 @@ export function TemplatePicker({
                       confirm(option);
                     }}
                   >
-                    {busy ? "Opening…" : "Select"}
+                    {busy
+                      ? TEMPLATE_PICKER_SELECT_BUSY_LABEL
+                      : TEMPLATE_PICKER_SELECT_LABEL}
                   </button>
                 ) : null}
               </div>
@@ -177,7 +149,7 @@ export function TemplatePicker({
           disabled={busy}
           onClick={handleBack}
         >
-          Back
+          {TEMPLATE_PICKER_BACK_LABEL}
         </button>
       </div>
     </div>
@@ -188,7 +160,7 @@ export function TemplatePicker({
       <div
         className="studio-onboard__card studio-onboard__card--templates"
         role="region"
-        aria-label="What do you want to do?"
+        aria-label={TEMPLATE_PICKER_TITLE}
       >
         {body}
       </div>
@@ -199,7 +171,7 @@ export function TemplatePicker({
     <div
       className="studio-modal"
       role="dialog"
-      aria-label="What do you want to do?"
+      aria-label={TEMPLATE_PICKER_TITLE}
     >
       <div className="studio-modal__card studio-modal__card--templates">
         {body}
