@@ -1,10 +1,10 @@
 /**
- * Horizontal zoom pill matching Figma Main / Maincollapsed (21:1670, 21:1732).
- * Icons: Lucide Minus / Plus.
+ * Horizontal zoom control matching Figma Main button group (21:1670).
+ * Icons: exact Figma exports.
  */
 "use client";
 
-import { Minus, Plus } from "lucide-react";
+import Image from "next/image";
 import { useReactFlow, useStore } from "@xyflow/react";
 
 export function StudioZoomControls() {
@@ -20,20 +20,30 @@ export function StudioZoomControls() {
         onClick={() => void zoomOut({ duration: 160 })}
         aria-label="Zoom out"
       >
-        <Minus aria-hidden size={14} strokeWidth={1.5} />
+        <Image
+          src="/figma/icon-zoom-minus.svg"
+          alt=""
+          width={16}
+          height={16}
+          unoptimized
+        />
       </button>
-      <span className="studio-zoom__divider" aria-hidden />
       <span className="studio-zoom__label" aria-live="polite">
         {pct}%
       </span>
-      <span className="studio-zoom__divider" aria-hidden />
       <button
         type="button"
         className="studio-zoom__btn"
         onClick={() => void zoomIn({ duration: 160 })}
         aria-label="Zoom in"
       >
-        <Plus aria-hidden size={14} strokeWidth={1.5} />
+        <Image
+          src="/figma/icon-zoom-plus.svg"
+          alt=""
+          width={16}
+          height={16}
+          unoptimized
+        />
       </button>
     </div>
   );

@@ -1,6 +1,7 @@
 /**
  * Template picker matching Figma 103:3264 (default) / 104:3372 (selected).
  * Selected thumb: teal border + grey fill + "Use Template" pill.
+ * No Cancel/Close/Back chrome — Figma cards only.
  * Provenance: #55, #51, #103, Figma Monnify-challenge.
  */
 "use client";
@@ -33,13 +34,15 @@ const OPTIONS: PickerOption[] = [
     id: "__blank__",
     title: "Blank Canvas",
     description: "Start your workflow from a blank canvas",
-    image: "",
+    /* Figma 103:3306 — warm fill + centered plus */
+    image: "/figma/templates/template-blank.png",
     kind: "blank",
   },
   {
     id: "sell-online",
     title: "Get Verified Payments",
     description: "Setup a payment link and a dashboard for your orders",
+    /* Figma 103:3312 */
     image: "/figma/templates/template-payments.png",
     kind: "template",
   },
@@ -47,6 +50,7 @@ const OPTIONS: PickerOption[] = [
     id: "invoice",
     title: "Invoice a customer",
     description: "Create invoices to share to customers",
+    /* Figma 103:3317 */
     image: "/figma/templates/template-invoice.png",
     kind: "template",
   },
@@ -54,6 +58,7 @@ const OPTIONS: PickerOption[] = [
     id: "payroll",
     title: "Pay salaries",
     description: "Verify staff accounts before payouts",
+    /* Figma 103:3322 */
     image: "/figma/templates/template-payroll.png",
     kind: "template",
   },
@@ -65,7 +70,6 @@ export function TemplatePicker({
   embedded = false,
   onPick,
   onBlank,
-  onBack,
 }: TemplatePickerProps) {
   const [selected, setSelected] = useState<string | null>(null);
 
@@ -125,19 +129,13 @@ export function TemplatePicker({
                   option.kind === "blank" ? " is-blank" : ""
                 }`}
               >
-                {option.kind === "blank" ? (
-                  <span className="studio-template-picker__plus" aria-hidden>
-                    +
-                  </span>
-                ) : (
-                  <Image
-                    src={option.image}
-                    alt=""
-                    width={200}
-                    height={200}
-                    unoptimized
-                  />
-                )}
+                <Image
+                  src={option.image}
+                  alt=""
+                  width={378}
+                  height={316}
+                  unoptimized
+                />
                 {isSelected ? (
                   <button
                     type="button"
@@ -160,19 +158,6 @@ export function TemplatePicker({
           );
         })}
       </div>
-
-      {embedded && onBack ? (
-        <div className="studio-template-picker__actions">
-          <button
-            type="button"
-            className="studio-onboard__back"
-            disabled={busy}
-            onClick={onBack}
-          >
-            Back
-          </button>
-        </div>
-      ) : null}
     </div>
   );
 

@@ -1,11 +1,11 @@
 /**
  * Left API catalog sidebar matched to Figma Main (21:1670).
  * Panel icon collapses into Maincollapsed floating chrome (21:1732).
- * Icons: Lucide PanelLeft, Share2, FileText.
+ * Icons: exact Figma exports.
  */
 "use client";
 
-import { FileText, PanelLeft, Share2 } from "lucide-react";
+import Image from "next/image";
 import type { PointerEvent as ReactPointerEvent } from "react";
 
 import type { IntentResult, MoniAskResult, NodeMeta } from "@/types";
@@ -140,10 +140,12 @@ export function NodePalette({
           title="Collapse panels"
           aria-label="Collapse panels"
         >
-          <PanelLeft
-            aria-hidden
-            size={16}
-            strokeWidth={1.5}
+          <Image
+            src="/figma/icon-panel-collapse.svg"
+            alt=""
+            width={16}
+            height={16}
+            unoptimized
             className="studio-sidebar__icon"
           />
         </button>
@@ -198,10 +200,12 @@ export function NodePalette({
                           onClick={() => onAdd(item.type)}
                         >
                           {!featured ? (
-                            <Share2
-                              aria-hidden
-                              size={16}
-                              strokeWidth={1.5}
+                            <Image
+                              src="/figma/icon-catalog-node.svg"
+                              alt=""
+                              width={16}
+                              height={16}
+                              unoptimized
                               className="studio-sidebar__icon"
                             />
                           ) : null}
@@ -210,9 +214,24 @@ export function NodePalette({
                           </span>
                           {featured ? (
                             <span className="studio-sidebar__item-badge" aria-hidden>
-                              <FileText size={16} strokeWidth={1.5} />
+                              <Image
+                                src="/figma/icon-invoice-badge.svg"
+                                alt=""
+                                width={23}
+                                height={24}
+                                unoptimized
+                              />
                             </span>
-                          ) : null}
+                          ) : (
+                            <Image
+                              src="/figma/icon-chevron-right.svg"
+                              alt=""
+                              width={16}
+                              height={16}
+                              unoptimized
+                              className="studio-sidebar__chevron"
+                            />
+                          )}
                         </button>
                       </li>
                     );

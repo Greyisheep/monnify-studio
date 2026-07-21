@@ -31,6 +31,7 @@ import {
   BusinessDashboard,
   type BusinessNav,
 } from "./BusinessDashboard";
+import { InspectDocumentPanel } from "./InspectDocumentPanel";
 import { NodePalette } from "./NodePalette";
 import { OnboardingChrome } from "./OnboardingChrome";
 import { PathGate } from "./PathGate";
@@ -201,6 +202,47 @@ function CanvasInner() {
     if (!products[0]) return;
     focusPreview();
   }
+
+  const previewMarkdown = useMemo(() => {
+    const name = session.workflow?.name ?? "Untitled workflow";
+    const findings = session.report?.findings?.length ?? 0;
+    const nodeCount = currentIr?.nodes.length ?? nodes.length;
+    const lines = [
+      `# ${name}`,
+      "",
+      "Studio preview — composed flow summary.",
+      "",
+      "## Graph",
+      `- Nodes: ${nodeCount}`,
+      `- Edges: ${currentIr?.edges.length ?? edges.length}`,
+      findings
+        ? `- Findings: ${findings}`
+        : "- Findings: none yet (run analyze after compose)",
+      "",
+      "## Next",
+      "- Edit nodes on the canvas",
+      "- Open Code for the workflow JSON",
+      "- Run to stream an execution trace",
+    ];
+    return lines.join("\n");
+  }, [
+    currentIr?.edges.length,
+    currentIr?.nodes.length,
+    edges.length,
+    nodes.length,
+    session.report?.findings?.length,
+    session.workflow?.name,
+  ]);
+
+  const codeDocument = useMemo(() => {
+    if (selectedIrNode) {
+      return JSON.stringify(selectedIrNode, null, 2);
+    }
+    if (currentIr) {
+      return JSON.stringify(currentIr, null, 2);
+    }
+    return "";
+  }, [currentIr, selectedIrNode]);
 
   async function onPathContinue(path: StudioPath) {
     setProfileBusy(true);
@@ -430,41 +472,73 @@ function CanvasInner() {
         </OnboardingChrome>
       )}
       {!panelsCollapsed ? (
-        <StudioIconRail
-          active="workflow"
-          onNew={() => setTemplatesOpen(true)}
-          onDashboard={() => {
-            if (profile?.path !== "business") return;
-            setBusinessNav("dashboard");
-          }}
-        />
-      ) : null}
-      {!panelsCollapsed ? (
-        <NodePalette
-          catalog={{ ...session.nodeTypesMeta, ...session.catalog }}
-          workflowName={session.workflow?.name ?? "Workflow 1"}
-          teamLabel={
-            session.source === "api"
-              ? "Your team"
-              : session.source === "fixture"
-                ? "Local fixtures"
-                : session.ready
+        <div className="studio-panels" aria-hidden={false}>
+          <div className="studio-panels__left">
+            <StudioIconRail
+              active="workflow"
+              onNew={() => setTemplatesOpen(true)}
+              onDashboard={() => {
+                if (profile?.path !== "business") return;
+                setBusinessNav("dashboard");
+              }}
+            />
+            <NodePalette
+              catalog={{ ...session.nodeTypesMeta, ...session.catalog }}
+              workflowName={session.workflow?.name ?? "Workflow 1"}
+              teamLabel={
+                session.source === "api"
                   ? "Your team"
-                  : "Connecting…"
-          }
-          leftTab={leftTab}
-          collapsed={false}
-          busy={session.busy}
-          onLeftTabChange={setLeftTab}
-          onToggleCollapsed={() => setPanelsCollapsed(true)}
-          onAdd={(typeKey) => graph.addNode(typeKey)}
-          onAsk={session.askMoni}
-          onSetupIntent={async (templateId, config) => {
-            await session.setupFromIntent(templateId, config);
-            focusPreview();
-          }}
-          onResizeStart={(event) => sidebars.beginResize("left", event)}
-        />
+                  : session.source === "fixture"
+                    ? "Local fixtures"
+                    : session.ready
+                      ? "Your team"
+                      : "Connecting…"
+              }
+              leftTab={leftTab}
+              collapsed={false}
+              busy={session.busy}
+              onLeftTabChange={setLeftTab}
+              onToggleCollapsed={() => setPanelsCollapsed(true)}
+              onAdd={(typeKey) => graph.addNode(typeKey)}
+              onAsk={session.askMoni}
+              onSetupIntent={async (templateId, config) => {
+                await session.setupFromIntent(templateId, config);
+                focusPreview();
+              }}
+              onResizeStart={(event) => sidebars.beginResize("left", event)}
+            />
+          </div>
+          <RightSidebar
+            rightTab={rightTab}
+            onRightTabChange={setRightTab}
+            running={trace.running}
+            canAct={!!currentIr}
+            busy={session.busy}
+            onRun={() => {
+              if (!currentIr) return;
+              setRightTab("preview");
+              void trace.runWorkflow(currentIr);
+            }}
+            onDeploy={() => undefined}
+            deployDisabled
+            deployTitle="Coming soon"
+            onResizeStart={(event) => sidebars.beginResize("right", event)}
+          >
+            {rightTab === "code" ? (
+              <InspectDocumentPanel
+                formatLabel="JSON"
+                content={codeDocument}
+                emptyHint="Compose or open a workflow to see its code."
+              />
+            ) : (
+              <InspectDocumentPanel
+                formatLabel="Markdown"
+                content={previewMarkdown}
+                emptyHint="Preview will show a markdown summary of the flow."
+              />
+            )}
+          </RightSidebar>
+        </div>
       ) : null}
 
       <main className="studio-main">
@@ -518,27 +592,6 @@ function CanvasInner() {
           />
         </div>
       </main>
-
-      {!panelsCollapsed ? (
-        <RightSidebar
-          rightTab={rightTab}
-          onRightTabChange={setRightTab}
-          running={trace.running}
-          canAct={!!currentIr}
-          busy={session.busy}
-          onRun={() => {
-            if (!currentIr) return;
-            setRightTab("preview");
-            void trace.runWorkflow(currentIr);
-          }}
-          onDeploy={() => undefined}
-          deployDisabled
-          deployTitle="Coming soon"
-          onResizeStart={(event) => sidebars.beginResize("right", event)}
-        >
-          {null}
-        </RightSidebar>
-      ) : null}
 
       <TemplatePicker
         open={templatesOpen && !showOnboarding}

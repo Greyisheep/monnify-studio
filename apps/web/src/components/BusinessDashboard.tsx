@@ -1,25 +1,46 @@
 /**
  * Business owner home after onboarding products (Figma Dashboard #71:6944 / #71:7424).
- * Status / Type / Date filters + Notification panel + sidebar menu from Figma.
+ * Icons from Figma node exports under /figma/dashboard/.
  */
 "use client";
 
 import Image from "next/image";
-import {
-  Bell,
-  ChevronDown,
-  LayoutGrid,
-  ListFilter,
-  LogOut,
-  PanelLeft,
-  Plus,
-  Search,
-  Upload,
-  Workflow,
-} from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { ShopProduct } from "@/types";
+
+function BizIcon({
+  name,
+  size = 16,
+  className,
+}: {
+  name:
+    | "collapse"
+    | "new"
+    | "dashboard"
+    | "workflow"
+    | "logout"
+    | "bell"
+    | "filter"
+    | "chevron"
+    | "search"
+    | "clock"
+    | "empty";
+  size?: number;
+  className?: string;
+}) {
+  return (
+    <Image
+      className={className}
+      src={`/figma/dashboard/icon-${name}.svg`}
+      alt=""
+      width={size}
+      height={size}
+      unoptimized
+      aria-hidden
+    />
+  );
+}
 
 export type BusinessNav = "dashboard" | "workflow";
 
@@ -88,6 +109,27 @@ function money(n: number) {
   })}`;
 }
 
+/** Figma Overview: integer #171717, fractional digits #d4d4d4 */
+function MoneyAmount({
+  value,
+  className = "biz-money",
+}: {
+  value: number;
+  className?: string;
+}) {
+  const formatted = money(value);
+  const dot = formatted.lastIndexOf(".");
+  if (dot < 0) {
+    return <strong className={className}>{formatted}</strong>;
+  }
+  return (
+    <strong className={className}>
+      {formatted.slice(0, dot + 1)}
+      <span className="biz-money__frac">{formatted.slice(dot + 1)}</span>
+    </strong>
+  );
+}
+
 function statusClass(status: TxnStatus) {
   if (status === "Successful") return "is-ok";
   if (status === "Pending") return "is-pending";
@@ -146,11 +188,7 @@ function FilterMenu({
   return (
     <div className="biz-menu" role="menu" aria-label={title} ref={ref}>
       <div className="biz-menu__head">
-        {icon === "calendar" ? (
-          <ChevronDown aria-hidden size={14} strokeWidth={1.5} />
-        ) : (
-          <ListFilter aria-hidden size={14} strokeWidth={1.5} />
-        )}
+        <BizIcon name={icon === "calendar" ? "chevron" : "filter"} size={14} />
         <strong>{title}</strong>
       </div>
       <ul className="biz-menu__list">
@@ -213,7 +251,7 @@ function NotificationPanel({
       </header>
       {items.length === 0 ? (
         <div className="biz-notify__empty">
-          <Bell className="biz-notify__empty-icon" aria-hidden size={20} strokeWidth={1.5} />
+          <BizIcon name="bell" size={20} className="biz-notify__empty-icon" />
           <p>No notifications yet</p>
         </div>
       ) : (
@@ -361,12 +399,12 @@ export function BusinessDashboard({
             aria-label={collapsed ? "Expand menu" : "Collapse menu"}
             onClick={() => setCollapsed((v) => !v)}
           >
-            <PanelLeft aria-hidden size={16} strokeWidth={1.5} />
+            <BizIcon name="collapse" />
           </button>
         </div>
         <nav className="biz-sidebar__nav" aria-label="Business menu">
           <button type="button" className="biz-sidebar__new" onClick={onNew}>
-            <Plus aria-hidden size={16} strokeWidth={1.5} />
+            <BizIcon name="new" />
             {!collapsed && <span>New</span>}
           </button>
           <button
@@ -374,7 +412,7 @@ export function BusinessDashboard({
             className={`biz-sidebar__link${activeNav === "dashboard" ? " is-active" : ""}`}
             onClick={() => onNav("dashboard")}
           >
-            <LayoutGrid aria-hidden size={16} strokeWidth={1.5} />
+            <BizIcon name="dashboard" />
             {!collapsed && <span>Dashboard</span>}
           </button>
           <button
@@ -382,7 +420,7 @@ export function BusinessDashboard({
             className={`biz-sidebar__link${activeNav === "workflow" ? " is-active" : ""}`}
             onClick={() => onNav("workflow")}
           >
-            <Workflow aria-hidden size={16} strokeWidth={1.5} />
+            <BizIcon name="workflow" />
             {!collapsed && <span>Workflow</span>}
           </button>
         </nav>
@@ -408,7 +446,7 @@ export function BusinessDashboard({
               aria-label="Log out"
               onClick={onLogout}
             >
-              <LogOut aria-hidden size={16} strokeWidth={1.5} />
+              <BizIcon name="logout" />
             </button>
           )}
         </div>
@@ -429,7 +467,7 @@ export function BusinessDashboard({
                   setOpenMenu(null);
                 }}
               >
-                <Bell aria-hidden size={16} strokeWidth={1.5} />
+                <BizIcon name="bell" size={12} />
               </button>
               <NotificationPanel
                 open={notifyOpen}
@@ -444,7 +482,6 @@ export function BusinessDashboard({
               />
             </div>
             <button type="button" className="biz-export" onClick={exportCsv}>
-              <Upload aria-hidden size={14} strokeWidth={1.5} />
               Export
             </button>
           </div>
@@ -455,136 +492,138 @@ export function BusinessDashboard({
           <div className="biz-overview__grid">
             <article>
               <span>Total inflow</span>
-              <strong>{money(overview.inflow)}</strong>
+              <MoneyAmount value={overview.inflow} />
             </article>
             <article>
               <span>Total outflow</span>
-              <strong>{money(overview.outflow)}</strong>
+              <MoneyAmount value={overview.outflow} />
             </article>
             <article>
               <span>Net Profit</span>
-              <strong>{money(overview.net)}</strong>
+              <MoneyAmount value={overview.net} />
             </article>
             <article>
               <span>Actions Needed</span>
-              <strong>{overview.actions}</strong>
+              <strong className="biz-money">{overview.actions}</strong>
             </article>
           </div>
         </section>
 
         <section className="biz-table-card" aria-label="Payments">
-          <div className="biz-table-card__controls">
-            <div className="biz-seg" role="tablist" aria-label="Direction">
-              <button
-                type="button"
-                role="tab"
-                aria-selected={direction === "inflow"}
-                className={direction === "inflow" ? "is-active" : ""}
-                onClick={() => setDirection("inflow")}
-              >
-                Inflow
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={direction === "outflow"}
-                className={direction === "outflow" ? "is-active" : ""}
-                onClick={() => setDirection("outflow")}
-              >
-                Outflow
-              </button>
+          <div className="biz-table-card__header">
+            <div className="biz-table-card__controls">
+              <div className="biz-seg" role="tablist" aria-label="Direction">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={direction === "inflow"}
+                  className={direction === "inflow" ? "is-active" : ""}
+                  onClick={() => setDirection("inflow")}
+                >
+                  Inflow
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={direction === "outflow"}
+                  className={direction === "outflow" ? "is-active" : ""}
+                  onClick={() => setDirection("outflow")}
+                >
+                  Outflow
+                </button>
+              </div>
+              <div className="biz-filters">
+                <div className="biz-filter">
+                  <button
+                    type="button"
+                    className={openMenu === "status" ? "is-open" : ""}
+                    aria-haspopup="menu"
+                    aria-expanded={openMenu === "status"}
+                    onClick={() => {
+                      setOpenMenu((m) => (m === "status" ? null : "status"));
+                      setNotifyOpen(false);
+                    }}
+                  >
+                    <BizIcon name="filter" size={12} /> Status
+                  </button>
+                  <FilterMenu
+                    open={openMenu === "status"}
+                    title="Status"
+                    icon="filter"
+                    value={statusFilter === "all" ? "all" : statusFilter}
+                    options={STATUS_OPTIONS.map((id) => ({
+                      id,
+                      label: id === "all" ? "All Status" : id,
+                    }))}
+                    onChange={(id) => setStatusFilter(id as "all" | TxnStatus)}
+                    onClose={() => setOpenMenu(null)}
+                  />
+                </div>
+                <div className="biz-filter">
+                  <button
+                    type="button"
+                    className={openMenu === "type" ? "is-open" : ""}
+                    aria-haspopup="menu"
+                    aria-expanded={openMenu === "type"}
+                    onClick={() => {
+                      setOpenMenu((m) => (m === "type" ? null : "type"));
+                      setNotifyOpen(false);
+                    }}
+                  >
+                    <BizIcon name="filter" size={12} /> Type
+                  </button>
+                  <FilterMenu
+                    open={openMenu === "type"}
+                    title="Type"
+                    icon="filter"
+                    value={typeFilter === "all" ? "all" : typeFilter}
+                    options={TYPE_OPTIONS.map((id) => ({
+                      id,
+                      label: id === "all" ? "All types" : id,
+                    }))}
+                    onChange={(id) => setTypeFilter(id as "all" | TxnType)}
+                    onClose={() => setOpenMenu(null)}
+                  />
+                </div>
+                <div className="biz-filter">
+                  <button
+                    type="button"
+                    className={openMenu === "date" ? "is-open" : ""}
+                    aria-haspopup="menu"
+                    aria-expanded={openMenu === "date"}
+                    onClick={() => {
+                      setOpenMenu((m) => (m === "date" ? null : "date"));
+                      setNotifyOpen(false);
+                    }}
+                  >
+                    {dateLabel}
+                    <BizIcon name="chevron" size={12} />
+                  </button>
+                  <FilterMenu
+                    open={openMenu === "date"}
+                    title="Date"
+                    icon="calendar"
+                    value={dateFilter}
+                    options={DATE_OPTIONS.map((d) => ({
+                      id: d.id,
+                      label: d.label,
+                    }))}
+                    onChange={(id) => setDateFilter(id as DateRange)}
+                    onClose={() => setOpenMenu(null)}
+                  />
+                </div>
+              </div>
             </div>
-            <div className="biz-filters">
-              <div className="biz-filter">
-                <button
-                  type="button"
-                  className={openMenu === "status" ? "is-open" : ""}
-                  aria-haspopup="menu"
-                  aria-expanded={openMenu === "status"}
-                  onClick={() => {
-                    setOpenMenu((m) => (m === "status" ? null : "status"));
-                    setNotifyOpen(false);
-                  }}
-                >
-                  <ListFilter aria-hidden size={14} strokeWidth={1.5} /> Status
-                </button>
-                <FilterMenu
-                  open={openMenu === "status"}
-                  title="Status"
-                  icon="filter"
-                  value={statusFilter === "all" ? "all" : statusFilter}
-                  options={STATUS_OPTIONS.map((id) => ({
-                    id,
-                    label: id === "all" ? "All Status" : id,
-                  }))}
-                  onChange={(id) => setStatusFilter(id as "all" | TxnStatus)}
-                  onClose={() => setOpenMenu(null)}
-                />
-              </div>
-              <div className="biz-filter">
-                <button
-                  type="button"
-                  className={openMenu === "type" ? "is-open" : ""}
-                  aria-haspopup="menu"
-                  aria-expanded={openMenu === "type"}
-                  onClick={() => {
-                    setOpenMenu((m) => (m === "type" ? null : "type"));
-                    setNotifyOpen(false);
-                  }}
-                >
-                  <ListFilter aria-hidden size={14} strokeWidth={1.5} /> Type
-                </button>
-                <FilterMenu
-                  open={openMenu === "type"}
-                  title="Type"
-                  icon="filter"
-                  value={typeFilter === "all" ? "all" : typeFilter}
-                  options={TYPE_OPTIONS.map((id) => ({
-                    id,
-                    label: id === "all" ? "All types" : id,
-                  }))}
-                  onChange={(id) => setTypeFilter(id as "all" | TxnType)}
-                  onClose={() => setOpenMenu(null)}
-                />
-              </div>
-              <div className="biz-filter">
-                <button
-                  type="button"
-                  className={openMenu === "date" ? "is-open" : ""}
-                  aria-haspopup="menu"
-                  aria-expanded={openMenu === "date"}
-                  onClick={() => {
-                    setOpenMenu((m) => (m === "date" ? null : "date"));
-                    setNotifyOpen(false);
-                  }}
-                >
-                  {dateLabel}
-                  <ChevronDown aria-hidden size={14} strokeWidth={1.5} />
-                </button>
-                <FilterMenu
-                  open={openMenu === "date"}
-                  title="Date"
-                  icon="calendar"
-                  value={dateFilter}
-                  options={DATE_OPTIONS.map((d) => ({
-                    id: d.id,
-                    label: d.label,
-                  }))}
-                  onChange={(id) => setDateFilter(id as DateRange)}
-                  onClose={() => setOpenMenu(null)}
-                />
-              </div>
-            </div>
-          </div>
 
-          <label className="biz-search">
-            <Search aria-hidden size={16} strokeWidth={1.5} />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search by name or reference..."
-            />
-          </label>
+            <label className="biz-search">
+              <BizIcon name="search" />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search by name or reference..."
+              />
+            </label>
+          </div>
 
           <div className="biz-table-wrap">
             <table className="biz-table">
@@ -628,7 +667,9 @@ export function BusinessDashboard({
             </table>
             {empty && (
               <div className="biz-empty">
-                <div className="biz-empty__art" aria-hidden />
+                <div className="biz-empty__art" aria-hidden>
+                  <BizIcon name="empty" size={24} />
+                </div>
                 <h3>No payments yet</h3>
                 <p>
                   Payments show up here once an invoice gets paid or a payroll run
@@ -644,7 +685,10 @@ export function BusinessDashboard({
           </div>
         </section>
 
-        <footer className="biz-footer">Last updated {updated}</footer>
+        <footer className="biz-footer">
+          <BizIcon name="clock" size={14} />
+          Last updated {updated}
+        </footer>
       </main>
     </div>
   );
