@@ -48,6 +48,7 @@ jobs:
           MONNIFY_API_KEY: ${{ secrets.MONNIFY_API_KEY }}
           MONNIFY_SECRET_KEY: ${{ secrets.MONNIFY_SECRET_KEY }}
           MONNIFY_CONTRACT_CODE: ${{ secrets.MONNIFY_CONTRACT_CODE }}
+          MONNIFY_WALLET_ACCOUNT: ${{ secrets.MONNIFY_WALLET_ACCOUNT }}
           EVOLUTION_API_URL: ${{ secrets.EVOLUTION_API_URL }}
           EVOLUTION_API_KEY: ${{ secrets.EVOLUTION_API_KEY }}
           EVOLUTION_INSTANCE: ${{ secrets.EVOLUTION_INSTANCE }}

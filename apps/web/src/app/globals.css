@@ -1392,9 +1392,11 @@ body.is-resizing-sidebar iframe {
 }
 
 .studio-onboard__top {
-  display: flex;
+  /* Three tracks so the stepper is centered on the PAGE, not in the space left
+     over after the brand (the brand's width was pushing it off-center). */
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  justify-content: space-between;
   gap: 16px;
   padding: 12px 16px;
   background: #fff;
@@ -1404,6 +1406,7 @@ body.is-resizing-sidebar iframe {
 .studio-onboard__brand {
   display: flex;
   align-items: center;
+  justify-self: start;
   gap: 8px;
   font-size: 20px;
   font-weight: 600;
@@ -1411,7 +1414,7 @@ body.is-resizing-sidebar iframe {
 
 .studio-onboard__crumbs {
   display: flex;
-  flex: 1;
+  justify-self: center;
   justify-content: center;
   align-items: center;
   gap: 4px;
