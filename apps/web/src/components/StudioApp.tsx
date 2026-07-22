@@ -4,7 +4,7 @@
  */
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ReactFlowProvider,
   useEdgesState,
@@ -200,6 +200,34 @@ function CanvasInner() {
     if (!session.workflow) return null;
     return flowToWorkflow(session.workflow, nodes, edges);
   }, [session.workflow, nodes, edges]);
+
+  // Nudge the Dashboard when a run on a money-out flow finishes, so the owner
+  // knows to click there and see the outflow (#outflow).
+  const [dashboardNudge, setDashboardNudge] = useState(false);
+  const flowMovesMoneyOut = useMemo(
+    () =>
+      (currentIr?.nodes ?? []).some(
+        (n) =>
+          n.type === "monnify.bulk_transfer" || n.type === "monnify.initiate_transfer",
+      ),
+    [currentIr],
+  );
+  const wasRunning = useRef(false);
+  useEffect(() => {
+    if (
+      wasRunning.current &&
+      !trace.running &&
+      trace.run?.status &&
+      flowMovesMoneyOut &&
+      businessNav !== "dashboard"
+    ) {
+      setDashboardNudge(true);
+    }
+    wasRunning.current = trace.running;
+  }, [trace.running, trace.run?.status, flowMovesMoneyOut, businessNav]);
+  useEffect(() => {
+    if (businessNav === "dashboard") setDashboardNudge(false);
+  }, [businessNav]);
 
   // Run + "who gets the confirmation?" (#notify): a flow with a notify block
   // asks the tester for their own WhatsApp/email so the confirmation lands on
@@ -809,7 +837,7 @@ function CanvasInner() {
     const load = () => {
       void fetchWorkflowDashboard(businessWorkflowId).then((d) => {
         if (cancelled || !d) return;
-        const transactions: DashboardTxn[] = (d.invoices ?? []).map((inv) => ({
+        const inflow: DashboardTxn[] = (d.invoices ?? []).map((inv) => ({
           id: inv.reference,
           date: (inv.created_at ?? "").slice(0, 10),
           at: inv.created_at ?? new Date(0).toISOString(),
@@ -826,6 +854,22 @@ function CanvasInner() {
                 : "Pending",
           direction: "inflow",
         }));
+        // Money OUT: payroll / vendor disbursements, one row each (#outflow).
+        const outflow: DashboardTxn[] = (d.payouts ?? []).map((p, i) => ({
+          id: p.reference || `payout-${i}`,
+          date: (p.ts ?? "").slice(0, 10),
+          at: p.ts ?? new Date(0).toISOString(),
+          customer: p.name || "Payee",
+          initials: (p.name || "Payee").trim().slice(0, 2).toUpperCase(),
+          type: "Payroll",
+          amount_ngn: Number(p.amount) || 0,
+          method: "Bank transfer",
+          status: p.status === "paid" ? "Successful" : "Pending",
+          direction: "outflow",
+        }));
+        const transactions: DashboardTxn[] = [...outflow, ...inflow].sort((a, b) =>
+          a.at < b.at ? 1 : -1,
+        );
         const notifications: BizNotification[] = (d.activity ?? [])
           .slice(0, 12)
           .map((a, index) => ({
@@ -980,6 +1024,7 @@ function CanvasInner() {
           <div className="studio-panels__left">
             <StudioIconRail
               active={railActive}
+              nudgeDashboard={dashboardNudge}
               onNew={() => setTemplatesOpen(true)}
               onDashboard={() => void goBusinessDashboard()}
             />

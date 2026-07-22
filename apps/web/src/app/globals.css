@@ -5134,3 +5134,34 @@ body.is-resizing-sidebar iframe {
 .studio-schedule p.muted {
   margin: 2px 0 0;
 }
+
+/* Dashboard nudge (#outflow): a run moved money out - draw the eye to the rail. */
+@keyframes studio-rail-nudge {
+  0%, 60%, 100% { transform: translateX(0) rotate(0); }
+  65% { transform: translateX(-2px) rotate(-6deg); }
+  72% { transform: translateX(2px) rotate(6deg); }
+  79% { transform: translateX(-2px) rotate(-4deg); }
+  86% { transform: translateX(2px) rotate(4deg); }
+  93% { transform: translateX(0) rotate(0); }
+}
+.studio-rail__btn.is-nudging {
+  animation: studio-rail-nudge 2.4s ease-in-out infinite;
+  color: var(--brand, #00b8c2);
+  box-shadow: 0 0 0 2px rgba(0, 184, 194, 0.35), 0 0 12px rgba(0, 184, 194, 0.45);
+  border-radius: 8px;
+  position: relative;
+}
+.studio-rail__btn.is-nudging::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ef4444;
+  box-shadow: 0 0 0 2px #fff;
+}
+@media (prefers-reduced-motion: reduce) {
+  .studio-rail__btn.is-nudging { animation: none; }
+}
