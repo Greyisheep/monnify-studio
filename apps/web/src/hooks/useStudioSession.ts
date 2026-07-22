@@ -345,6 +345,7 @@ export function useStudioSession({ setNodes, setEdges }: UseStudioSessionOptions
               composed.explanation ||
               `Built “${composed.workflow.name}” and loaded it on the canvas.`,
             workflowName: composed.workflow.name,
+            workflowId: composed.workflow.id,
           };
         } catch (composeError) {
           const unavailable =
