@@ -68,6 +68,7 @@ import type {
   ShopProduct,
   StudioPath,
   StudioProfile,
+  Workflow,
 } from "@/types";
 
 const HERO_WORKFLOW_IDS = new Set(["marketplace-unsafe", "marketplace-safe"]);
@@ -197,9 +198,24 @@ function CanvasInner() {
   }, []);
 
   const currentIr = useMemo(() => {
-    if (!session.workflow) return null;
-    return flowToWorkflow(session.workflow, nodes, edges);
-  }, [session.workflow, nodes, edges]);
+    if (session.workflow) return flowToWorkflow(session.workflow, nodes, edges);
+    // Draft canvas: nodes dropped before composing/opening a Flow. Synthesize a
+    // minimal base so Run and codegen work on a lone block (e.g. a single Code
+    // Block the developer wants to run right away) (#153).
+    if (nodes.length === 0) return null;
+    const draft: Workflow = {
+      id: session.activeWorkflowId ?? "draft-canvas",
+      name: "Workflow 1",
+      version: 1,
+      provider: "monnify",
+      description: "",
+      variables: {},
+      nodes: [],
+      edges: [],
+      entrypoint: null,
+    };
+    return flowToWorkflow(draft, nodes, edges);
+  }, [session.workflow, session.activeWorkflowId, nodes, edges]);
 
   // Nudge the Dashboard when a run on a money-out flow finishes, so the owner
   // knows to click there and see the outflow (#outflow).
