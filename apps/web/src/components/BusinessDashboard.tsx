@@ -11,7 +11,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { ShopProduct } from "@/types";
 
-import { AjoPanel } from "./AjoPanel";
+import { AjoPanel, type AjoPanelHandle } from "./AjoPanel";
 
 type ProductTab = "sell" | "invoice" | "ajo";
 
@@ -328,6 +328,8 @@ export function BusinessDashboard({
   onNew,
   onLogout,
 }: BusinessDashboardProps) {
+  const ajoPanelRef = useRef<AjoPanelHandle>(null);
+  const transactionsRef = useRef<HTMLElement>(null);
   const [copied, setCopied] = useState(false);
   // Preview-before-share nudge (#160): pulse + tooltip on first sight of a
   // share link, auto-quieting after a few seconds so it never nags.
@@ -675,7 +677,12 @@ export function BusinessDashboard({
                   <h2>Saving Group (Ajo)</h2>
                   <p>Member contribution ledger</p>
                 </div>
-                <button type="button" className="biz-product-panel__cta" onClick={onNew}>
+                <button
+                  type="button"
+                  className="biz-product-panel__cta"
+                  onClick={() => ajoPanelRef.current?.addMember()}
+                  disabled={!artifactId}
+                >
                   Add New Member
                 </button>
               </header>
@@ -735,7 +742,7 @@ export function BusinessDashboard({
                   Start an Ajo from New to add members and track contributions here.
                 </p>
               )}
-              {artifactId ? <AjoPanel artifactId={artifactId} /> : null}
+              {artifactId ? <AjoPanel ref={ajoPanelRef} artifactId={artifactId} /> : null}
             </>
           )}
         </section>
@@ -752,11 +759,14 @@ export function BusinessDashboard({
                 type="button"
                 className="biz-activity__all"
                 onClick={() => {
-                  setNotifyOpen(true);
                   setOpenMenu(null);
+                  transactionsRef.current?.scrollIntoView({
+                    behavior: "smooth",
+                    block: "start",
+                  });
                 }}
               >
-                View all activites
+                View all activities
               </button>
             </header>
             {activityPreview.length === 0 ? (
@@ -782,7 +792,12 @@ export function BusinessDashboard({
           </div>
         </section>
 
-        <section className="biz-table-card" aria-label="Recent transaction" data-tour="biz-transactions">
+        <section
+          className="biz-table-card"
+          aria-label="Recent transaction"
+          data-tour="biz-transactions"
+          ref={transactionsRef}
+        >
           <div className="biz-table-card__title">Recent transaction</div>
           <div className="biz-table-card__header">
             <div className="biz-table-card__controls">
