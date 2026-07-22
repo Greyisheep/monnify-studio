@@ -168,6 +168,23 @@ _TEST_DEST_BANK = "057"
 _TEST_DEST_NAME = "Studio Recipient"
 
 
+def _cfg(config: dict[str, Any], *keys: str, default: Any = None) -> Any:
+    """The value a dev typed for this field, so request-body edits drive the real
+    call (Flow C). The request-body editor writes the template's camelCase keys
+    (customerName); older callers used snake_case (customer_name) - accept either.
+    Template placeholders like "<unique-reference>" count as unset so we fall
+    back to a sensible default instead of sending a literal angle-bracket string.
+    """
+    for key in keys:
+        value = config.get(key)
+        if value in (None, ""):
+            continue
+        if isinstance(value, str) and value.startswith("<") and value.endswith(">"):
+            continue
+        return value
+    return default
+
+
 class SandboxAdapter:
     """Run the flow against the REAL Monnify sandbox, not a stub (#9).
 
@@ -215,21 +232,25 @@ class SandboxAdapter:
 
         try:
             if node.type == "monnify.initialize_transaction" or node.type == "monnify.create_invoice":
+                reference = _cfg(config, "paymentReference", "payment_reference", default=ref)
                 tx = self._c().initialize_transaction(
                     amount=money(amount),
-                    customer_name=config.get("customer_name", "Studio Demo Customer"),
-                    customer_email=config.get("customer_email", "customer@example.com"),
-                    reference=ref,
-                    description=config.get("description", f"Studio run: {node.type}"),
+                    customer_name=_cfg(config, "customerName", "customer_name", default="Studio Demo Customer"),
+                    customer_email=_cfg(config, "customerEmail", "customer_email", default="customer@example.com"),
+                    reference=reference,
+                    description=_cfg(config, "paymentDescription", "description", default=f"Studio run: {node.type}"),
+                    redirect_url=_cfg(config, "redirectUrl", "redirect_url"),
                 )
-                request["body"] = {"amount": amount, "reference": ref}
+                request["body"] = {"amount": amount, "reference": reference}
                 outputs.update(
                     checkout_url=tx["checkout_url"],
                     payment_reference=tx["payment_reference"],
                     transaction_reference=tx["transaction_reference"],
                 )
             elif node.type in ("monnify.verify_transaction", "monnify.query_transaction"):
-                payment_ref = inputs.get("payment_reference") or config.get("payment_reference")
+                payment_ref = inputs.get("payment_reference") or _cfg(
+                    config, "paymentReference", "payment_reference"
+                )
                 if not payment_ref:
                     return self._failed(node, "no payment_reference reached verify (wire it from initialize)")
                 res = self._c().query_transaction(payment_reference=payment_ref)
@@ -244,12 +265,21 @@ class SandboxAdapter:
                     return self._failed(node, "no source wallet (set MONNIFY_WALLET_ACCOUNT)")
                 res = self._c().initiate_transfer(
                     amount=money(amount),
-                    reference=ref,
-                    source_account_number=self._wallet,
-                    destination_account_number=config.get("destination_account_number", _TEST_DEST_ACCOUNT),
-                    destination_bank_code=config.get("destination_bank_code", _TEST_DEST_BANK),
-                    destination_account_name=config.get("destination_account_name", _TEST_DEST_NAME),
-                    narration=config.get("narration", "Monnify Studio sandbox payout"),
+                    reference=_cfg(config, "reference", default=ref),
+                    source_account_number=_cfg(
+                        config, "sourceAccountNumber", "source_account_number", default=self._wallet
+                    ),
+                    destination_account_number=_cfg(
+                        config, "destinationAccountNumber", "destination_account_number",
+                        default=_TEST_DEST_ACCOUNT,
+                    ),
+                    destination_bank_code=_cfg(
+                        config, "destinationBankCode", "destination_bank_code", default=_TEST_DEST_BANK
+                    ),
+                    destination_account_name=_cfg(
+                        config, "destinationAccountName", "destination_account_name", default=_TEST_DEST_NAME
+                    ),
+                    narration=_cfg(config, "narration", default="Monnify Studio sandbox payout"),
                 )
                 request["body"] = {"amount": amount, "reference": ref, "source": self._wallet}
                 outputs.update(transfer_reference=res["transfer_reference"], transfer_status=res["status"])
