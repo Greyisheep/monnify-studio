@@ -6,6 +6,7 @@ in later (#9) without changing the event stream format.
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 from uuid import uuid4
@@ -17,6 +18,29 @@ from ..money import covers, money
 from ..notifications import whatsapp_notifier
 from ..observability.redaction import redact
 from .sandbox import SandboxError, run_user_code
+
+# Where a flow's app.notify node sends when the node itself names no recipient
+# (#231). Set STUDIO_NOTIFY_NUMBER in .env for the demo; empty = record only.
+_DEMO_NOTIFY_NUMBER = os.getenv("STUDIO_NOTIFY_NUMBER", "")
+
+
+def _notify_target(config: dict[str, Any], inputs: dict[str, Any]) -> str:
+    """The number a notify node sends to: its own config, then an upstream
+    customer number, then the demo default."""
+    for source in (config, inputs):
+        for key in ("to", "number", "phone", "customer_number", "msisdn"):
+            value = source.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+    return _DEMO_NOTIFY_NUMBER
+
+
+def _notify_message(config: dict[str, Any], amount: str) -> str:
+    for key in ("message", "text", "body"):
+        value = config.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return f"Monnify Studio: your payment flow ran and confirmed NGN {amount}."
 
 
 @dataclass
@@ -144,6 +168,9 @@ class MockAdapter:
             outputs.update(balance=balance, covers_payout=covers(balance, amount))
         elif node.type.startswith("monnify.initiate_transfer") or node.type == "monnify.bulk_transfer":
             outputs.update(transfer_reference=f"xfer-{node.id}")
+        elif node.type in ("app.notify", "app.notify_whatsapp"):
+            # Practice run: never send a real message; show it would have (#231).
+            outputs.update(notified="simulated", channel="whatsapp")
         elif node.type == "app.credit_ledger":
             outputs.update(credited=amount)
         elif node.type == "custom.code":
@@ -325,8 +352,18 @@ class SandboxAdapter:
             elif node.type == "custom.code":
                 # Real sandboxed execution (#147, #69); SandboxError -> _failed.
                 outputs.update(_code_block_outputs(inputs, config))
-            elif node.type.startswith("app.notify"):
-                outputs.update(_notification_outputs(node, inputs, config))
+            elif node.type in ("app.notify", "app.notify_whatsapp"):
+                # A live run actually notifies (#231): real WhatsApp when Evolution
+                # is reachable (local + tunnel), recorded otherwise. Never fakes.
+                to = _notify_target(config, inputs)
+                delivered = (
+                    whatsapp_notifier.notify(number=to, text=_notify_message(config, amount))
+                    if to
+                    else False
+                )
+                outputs.update(
+                    notified=True, channel="whatsapp", to=to or "(no recipient)", delivered=delivered
+                )
             elif node.type == "app.credit_ledger":
                 outputs.update(credited=amount)
         except (MonnifyError, SandboxError) as exc:

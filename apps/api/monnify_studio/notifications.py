@@ -79,6 +79,11 @@ class WhatsAppNotifier:
         )
         return delivered
 
+    def notify(self, *, number: str, text: str, artifact_id: str = "studio-run") -> bool:
+        """Generic send for a flow's app.notify node during a run (#231): real
+        WhatsApp when Evolution is reachable (local + tunnel), logged otherwise."""
+        return self._send_and_record(artifact_id, number, text, text)
+
     def invoice_ready(
         self, *, artifact_id: str, number: str, business: str, amount: Decimal, url: str
     ) -> bool:

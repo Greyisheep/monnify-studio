@@ -184,3 +184,21 @@ def test_notification_nodes_complete_with_an_explicit_delivery_outcome(monkeypat
     assert run.status.value == "completed"
     assert completed["local"]["notification"]["delivered"] is True
     assert completed["whatsapp"]["notification"]["reason"] == "not_configured"
+    
+def test_notify_node_simulated_in_practice_and_recorded_live():
+    """A notify block is a no-op-with-signal in Practice, and a real send path in
+    a live run - never faked (#231)."""
+    from monnify_studio.executor.adapter import MockAdapter
+    from monnify_studio.ir.models import Node
+    from monnify_studio.notifications import notification_log, whatsapp_notifier
+
+    res = MockAdapter().invoke(
+        Node(id="n", type="app.notify_whatsapp", config={"message": "hi"}),
+        {"inputs": {}},
+    )
+    assert res.outputs["notified"] == "simulated"
+
+    before = len(notification_log.for_artifact("studio-run"))
+    delivered = whatsapp_notifier.notify(number="08110774138", text="test")
+    assert delivered is False  # no Evolution configured in the test env
+    assert len(notification_log.for_artifact("studio-run")) == before + 1
