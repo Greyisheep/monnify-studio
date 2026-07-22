@@ -20,8 +20,22 @@ from ..observability.redaction import redact
 from .sandbox import SandboxError, run_user_code
 
 # Where a flow's app.notify node sends when the node itself names no recipient
-# (#231). Set STUDIO_NOTIFY_NUMBER in .env for the demo; empty = record only.
+# (#231). Set STUDIO_NOTIFY_NUMBER / STUDIO_NOTIFY_EMAIL in .env for the demo;
+# empty = record only.
 _DEMO_NOTIFY_NUMBER = os.getenv("STUDIO_NOTIFY_NUMBER", "")
+_DEMO_NOTIFY_EMAIL = os.getenv("STUDIO_NOTIFY_EMAIL", "")
+
+# Composer seeds a placeholder customer email on initialize; it is not a real
+# inbox, so it must never win over the demo fallback (the notification is the
+# whole point of the demo - it has to land somewhere a human can see it).
+_PLACEHOLDER_EMAIL_DOMAINS = ("example.com", "example.org", "example.net", "example")
+
+
+def _is_real_email(value: object) -> bool:
+    if not isinstance(value, str) or "@" not in value:
+        return False
+    domain = value.rsplit("@", 1)[-1].strip().lower()
+    return bool(domain) and domain not in _PLACEHOLDER_EMAIL_DOMAINS
 
 
 def _notify_target(config: dict[str, Any], inputs: dict[str, Any]) -> str:
@@ -44,14 +58,16 @@ def _notify_message(config: dict[str, Any], amount: str) -> str:
 
 
 def _notify_email(config: dict[str, Any], inputs: dict[str, Any]) -> str:
-    """The email a notify node sends to, if any (keeps ZeptoMail email working
-    alongside WhatsApp): node config, then an upstream customer email."""
+    """The email a notify node sends to (keeps ZeptoMail email working alongside
+    WhatsApp): a real address on the node, then a real upstream customer email,
+    then the demo fallback. Placeholder addresses (example.com) are skipped so a
+    just-composed flow still reaches a real inbox in the demo."""
     for source in (config, inputs):
         for key in ("email", "to_email", "customer_email", "customerEmail"):
             value = source.get(key)
-            if isinstance(value, str) and "@" in value:
-                return value.strip()
-    return ""
+            if _is_real_email(value):
+                return value.strip()  # type: ignore[union-attr]
+    return _DEMO_NOTIFY_EMAIL
 
 
 @dataclass
