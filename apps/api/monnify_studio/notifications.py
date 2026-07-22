@@ -168,6 +168,15 @@ class EmailNotifier:
         )
         return delivered
 
+    def notify(
+        self, *, to: str, text: str, subject: str = "Monnify Studio notification",
+        artifact_id: str = "studio-run",
+    ) -> bool:
+        """Generic email send for a flow's app.notify node during a run (#231):
+        real ZeptoMail email when configured, logged otherwise."""
+        html = f"<p>{text}</p>"
+        return self._send_and_record(artifact_id, to, subject, html, text)
+
     def invoice_ready(
         self, *, artifact_id: str, to: str, business: str, amount: Decimal, url: str
     ) -> bool:
