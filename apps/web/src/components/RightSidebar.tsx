@@ -16,6 +16,7 @@ export interface RightSidebarProps {
   busy: boolean;
   executionAdapter: ExecutionAdapter;
   onRun: () => void;
+  onToggleAdapter: () => void;
   onDeploy: () => void;
   deployDisabled?: boolean;
   deployTitle?: string;
@@ -31,6 +32,7 @@ export function RightSidebar({
   busy,
   executionAdapter,
   onRun,
+  onToggleAdapter,
   onDeploy,
   deployDisabled = false,
   deployTitle,
@@ -81,11 +83,18 @@ export function RightSidebar({
           </button>
           <button
             type="button"
-            className="studio-btn studio-btn--ghost"
-            aria-pressed={rightTab === "settings"}
-            onClick={() => onRightTabChange("settings")}
+            className={`studio-btn studio-btn--mode${
+              executionAdapter === "monnify" ? " is-live" : ""
+            }`}
+            aria-pressed={executionAdapter === "monnify"}
+            title={
+              executionAdapter === "monnify"
+                ? "Runs against the REAL Monnify sandbox (a demo key is connected). Click to switch to Practice."
+                : "Practice: simulated run, no Monnify request. Click to run against the real Monnify sandbox."
+            }
+            onClick={onToggleAdapter}
           >
-            {executionAdapter === "monnify" ? "Sandbox" : "Practice"}
+            {executionAdapter === "monnify" ? "● Sandbox" : "○ Practice"}
           </button>
           <button
             type="button"

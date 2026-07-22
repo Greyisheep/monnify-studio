@@ -111,8 +111,12 @@ function CanvasInner() {
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [explainBusy, setExplainBusy] = useState(false);
   const [explainNote, setExplainNote] = useState<string | null>(null);
+  // Default to the real Monnify sandbox: a demo key is seeded, so Run should
+  // hit Monnify out of the box (Flow C). Practice/mock is one click away.
   const [executionAdapter, setExecutionAdapter] =
-    useState<ExecutionAdapter>("mock");
+    useState<ExecutionAdapter>("monnify");
+  const toggleExecutionAdapter = () =>
+    setExecutionAdapter((current) => (current === "monnify" ? "mock" : "monnify"));
 
   const session = useStudioSession({ setNodes, setEdges });
   const sidebars = useSidebarWidths();
@@ -957,6 +961,7 @@ function CanvasInner() {
               setRightTab("preview");
               void trace.runWorkflow(currentIr, executionAdapter);
             }}
+            onToggleAdapter={toggleExecutionAdapter}
             onDeploy={() => undefined}
             deployDisabled
             deployTitle="Coming soon"
