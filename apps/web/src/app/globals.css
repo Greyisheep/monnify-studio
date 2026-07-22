@@ -646,6 +646,28 @@ body.is-resizing-sidebar iframe {
   border-radius: 8px;
 }
 
+/* Run-mode toggle next to Run (Flow C): live = real Monnify sandbox. */
+.studio-btn--mode {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  padding: 3px 8px;
+  min-height: 22px;
+  border-radius: 8px;
+  color: #737373;
+  background: transparent;
+}
+
+.studio-btn--mode:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.studio-btn--mode.is-live {
+  color: #05603a;
+  background: #ecfdf3;
+  border-color: #a6f4c5;
+}
+
 .studio-segment {
   display: flex;
   margin: 12px 0 8px;
@@ -2070,6 +2092,20 @@ body.is-resizing-sidebar iframe {
   font-weight: 500;
   line-height: 16px;
   color: #0a0a0a;
+}
+
+.studio-doc__format-single {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.studio-doc__lang-note {
+  font-size: 11px;
+  font-weight: 500;
+  color: #a3a3a3;
+  white-space: nowrap;
 }
 
 .studio-doc__formats {

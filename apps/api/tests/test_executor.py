@@ -136,3 +136,18 @@ def test_unknown_adapter_is_400():
     workflow = client.get("/workflows/marketplace-unsafe").json()["workflow"]
     res = client.post("/executions", json={"workflow": workflow, "adapter": "paystack"})
     assert res.status_code == 400
+
+
+def test_cfg_prefers_edited_camelcase_and_skips_placeholders():
+    """Request-body edits (camelCase) drive the real call; unedited template
+    placeholders (<...>) fall back to the default, not a literal string (#Flow C)."""
+    from monnify_studio.executor.adapter import _cfg
+
+    # A dev edited customerName -> that value wins over the snake_case fallback.
+    assert _cfg({"customerName": "Ada"}, "customerName", "customer_name", default="X") == "Ada"
+    # Snake_case still works when that is what is present.
+    assert _cfg({"customer_name": "Bola"}, "customerName", "customer_name", default="X") == "Bola"
+    # An untouched template placeholder is treated as unset -> default.
+    assert _cfg({"paymentReference": "<unique-reference>"}, "paymentReference", default="gen") == "gen"
+    # Nothing set -> default.
+    assert _cfg({}, "narration", default="Payout") == "Payout"

@@ -10,7 +10,7 @@ import { PrismLight as SyntaxHighlighter } from "react-syntax-highlighter";
 import json from "react-syntax-highlighter/dist/esm/languages/prism/json";
 import markdown from "react-syntax-highlighter/dist/esm/languages/prism/markdown";
 import python from "react-syntax-highlighter/dist/esm/languages/prism/python";
-import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
+import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 
 // Only the languages we render, so the bundle stays small (#211).
 SyntaxHighlighter.registerLanguage("python", python);
@@ -31,6 +31,8 @@ export interface InspectDocumentPanelProps {
   formats?: InspectFormatOption[];
   activeFormat?: string;
   onFormatChange?: (id: string) => void;
+  /** Muted hint next to a single-format label (e.g. "JSON coming soon"). */
+  languagesNote?: string;
   /** Shown in the header row (e.g. generated Python filename). */
   subtitle?: string | null;
   busy?: boolean;
@@ -43,6 +45,7 @@ export function InspectDocumentPanel({
   formats,
   activeFormat,
   onFormatChange,
+  languagesNote,
   subtitle,
   busy = false,
 }: InspectDocumentPanelProps) {
@@ -91,7 +94,14 @@ export function InspectDocumentPanel({
       </div>
     );
   } else {
-    headLeft = <span className="studio-doc__format">{formatLabel}</span>;
+    headLeft = (
+      <span className="studio-doc__format-single">
+        <span className="studio-doc__format">{formatLabel}</span>
+        {languagesNote ? (
+          <span className="studio-doc__lang-note">{languagesNote}</span>
+        ) : null}
+      </span>
+    );
   }
 
   return (
@@ -140,27 +150,29 @@ export function InspectDocumentPanel({
         ) : text ? (
           <SyntaxHighlighter
             language={language}
-            style={vscDarkPlus}
+            style={oneDark}
             showLineNumbers
             wrapLongLines
             className="studio-doc__code"
             customStyle={{
               margin: 0,
-              padding: "16px 14px",
+              padding: "20px 18px",
               borderRadius: "10px",
-              fontSize: "12.5px",
-              lineHeight: "1.55",
-              background: "#1e1e1e",
+              fontSize: "13px",
+              lineHeight: "1.75",
+              background: "#282c34",
             }}
             codeTagProps={{
               style: {
                 fontFamily:
                   "var(--font-mono, 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, monospace)",
+                letterSpacing: "0.1px",
               },
             }}
             lineNumberStyle={{
-              color: "#5a6270",
-              minWidth: "2.4em",
+              color: "#495162",
+              minWidth: "2.6em",
+              paddingRight: "1.1em",
               userSelect: "none",
             }}
           >

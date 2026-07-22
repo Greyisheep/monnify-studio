@@ -90,7 +90,9 @@ function CanvasInner() {
     "preview" | "code" | "review" | "settings"
   >("preview");
   /** Code tab format (#152): JSON from canvas IR; Python from GET /workflows/{id}/code. */
-  const [codeFormat, setCodeFormat] = useState<"json" | "python">("json");
+  // Python is the default and only visible code output for now (JSON + more
+  // languages coming soon), so a dev copies runnable code, not raw graph JSON.
+  const [codeFormat] = useState<"json" | "python">("python");
   const [pythonFilename, setPythonFilename] = useState<string | null>(null);
   const [pythonSource, setPythonSource] = useState("");
   const [pythonBusy, setPythonBusy] = useState(false);
@@ -111,8 +113,12 @@ function CanvasInner() {
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [explainBusy, setExplainBusy] = useState(false);
   const [explainNote, setExplainNote] = useState<string | null>(null);
+  // Default to the real Monnify sandbox: a demo key is seeded, so Run should
+  // hit Monnify out of the box (Flow C). Practice/mock is one click away.
   const [executionAdapter, setExecutionAdapter] =
-    useState<ExecutionAdapter>("mock");
+    useState<ExecutionAdapter>("monnify");
+  const toggleExecutionAdapter = () =>
+    setExecutionAdapter((current) => (current === "monnify" ? "mock" : "monnify"));
 
   const session = useStudioSession({ setNodes, setEdges });
   const sidebars = useSidebarWidths();
@@ -298,15 +304,6 @@ function CanvasInner() {
     session.workflow?.name,
   ]);
 
-  const codeDocument = useMemo(() => {
-    if (selectedIrNode) {
-      return JSON.stringify(selectedIrNode, null, 2);
-    }
-    if (currentIr) {
-      return JSON.stringify(currentIr, null, 2);
-    }
-    return "";
-  }, [currentIr, selectedIrNode]);
 
   // Python Code tab: debounced save + codegen when Flow changes (#152).
   useEffect(() => {
@@ -957,6 +954,7 @@ function CanvasInner() {
               setRightTab("preview");
               void trace.runWorkflow(currentIr, executionAdapter);
             }}
+            onToggleAdapter={toggleExecutionAdapter}
             onDeploy={() => undefined}
             deployDisabled
             deployTitle="Coming soon"
@@ -996,31 +994,14 @@ function CanvasInner() {
               />
             ) : rightTab === "code" ? (
               <InspectDocumentPanel
-                formatLabel="JSON"
-                formats={[
-                  { id: "json", label: "JSON" },
-                  { id: "python", label: "Python" },
-                ]}
-                activeFormat={codeFormat}
-                onFormatChange={(id) =>
-                  setCodeFormat(id === "python" ? "python" : "json")
-                }
-                subtitle={
-                  codeFormat === "python" ? pythonFilename : null
-                }
-                content={
-                  codeFormat === "python"
-                    ? pythonError
-                      ? ""
-                      : pythonSource
-                    : codeDocument
-                }
-                busy={codeFormat === "python" && pythonBusy}
+                formatLabel="Python"
+                activeFormat="python"
+                languagesNote="JSON & more coming soon"
+                subtitle={pythonFilename}
+                content={pythonError ? "" : pythonSource}
+                busy={pythonBusy}
                 emptyHint={
-                  codeFormat === "python"
-                    ? pythonError ??
-                      "Compose or open a Flow to generate Python."
-                    : "Compose or open a workflow to see its code."
+                  pythonError ?? "Compose or open a Flow to generate Python."
                 }
               />
             ) : trace.running || trace.run || trace.events.length > 0 ? (
