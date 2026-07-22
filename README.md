@@ -17,7 +17,7 @@ Built for the **API Conference Lagos 2026 - Build With Monnify Developer Challen
 
 ### ▶ https://monnify-studio-web-cu5qickhka-bq.a.run.app
 
-It is seeded with a live demo business ("Mama Nkechi Foods"), so it is never empty. Ask the assistant for something impossible (*"build me a rocket to the moon"*) and watch it politely refuse.
+You start on a clean slate - build your own flow from a template or plain words. Ask the assistant for something impossible (*"build me a rocket to the moon"*) and watch it politely refuse.
 
 **2. Run the whole thing yourself - one command:**
 
