@@ -12,6 +12,10 @@ COPY . .
 # The deploy script passes the API's own Cloud Run URL here (#84).
 ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+# Baked into the /studio-backend rewrite (same-origin proxy for the session
+# cookie). docker compose passes http://api:8080; unset falls back to local dev.
+ARG STUDIO_API_ORIGIN
+ENV STUDIO_API_ORIGIN=${STUDIO_API_ORIGIN}
 RUN npm run build
 
 FROM node:22-slim AS runner
