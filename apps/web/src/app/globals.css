@@ -5093,3 +5093,44 @@ body.is-resizing-sidebar iframe {
 .studio-sheet__empty {
   padding: 10px 2px;
 }
+
+/* Scheduled trigger editor (event.scheduled) */
+.studio-schedule {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 6px;
+  padding-top: 12px;
+  border-top: 1px solid #eef0f2;
+}
+.studio-schedule h4 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+.studio-schedule label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #374151;
+}
+.studio-schedule select,
+.studio-schedule input {
+  padding: 8px 10px;
+  font-size: 14px;
+  font-weight: 400;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  outline: none;
+  background: #fff;
+}
+.studio-schedule select:focus,
+.studio-schedule input:focus {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 2px rgba(0, 184, 194, 0.14);
+}
+.studio-schedule p.muted {
+  margin: 2px 0 0;
+}

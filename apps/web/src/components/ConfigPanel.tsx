@@ -117,6 +117,24 @@ export function ConfigPanel({
     writeRows(sheetRows().filter((_, i) => i !== index));
   }
 
+  // Scheduled trigger (event.scheduled): let the dev pick when it runs.
+  function sched(key: string): string {
+    const v = node?.config?.[key];
+    return typeof v === "string" ? v : "";
+  }
+  function setSched(key: string, value: string) {
+    if (!node) return;
+    onChange({ ...node, config: { ...node.config, [key]: value } });
+  }
+  function scheduleSummary(): string {
+    const cadence = sched("cadence") || "monthly";
+    const at = sched("at") || "09:00";
+    if (cadence === "daily") return `Every day at ${at}.`;
+    if (cadence === "weekly")
+      return `Every ${sched("weekday") || "Monday"} at ${at}.`;
+    return `On day ${sched("day") || "1"} of each month at ${at}.`;
+  }
+
   function updateDeclaredOutput(
     previousKey: string | null,
     key: string,
@@ -384,6 +402,66 @@ export function ConfigPanel({
               <button type="button" className="ghost-btn" onClick={addRow}>
                 + Add employee
               </button>
+            </div>
+          ) : null}
+          {node.type === "event.scheduled" ? (
+            <div className="studio-schedule">
+              <h4>Schedule</h4>
+              <label>
+                Runs
+                <select
+                  value={sched("cadence") || "monthly"}
+                  onChange={(e) => setSched("cadence", e.target.value)}
+                >
+                  <option value="daily">Every day</option>
+                  <option value="weekly">Every week</option>
+                  <option value="monthly">Every month</option>
+                </select>
+              </label>
+              {sched("cadence") === "weekly" ? (
+                <label>
+                  On
+                  <select
+                    value={sched("weekday") || "Monday"}
+                    onChange={(e) => setSched("weekday", e.target.value)}
+                  >
+                    {[
+                      "Monday",
+                      "Tuesday",
+                      "Wednesday",
+                      "Thursday",
+                      "Friday",
+                      "Saturday",
+                      "Sunday",
+                    ].map((d) => (
+                      <option key={d} value={d}>
+                        {d}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
+              {(sched("cadence") || "monthly") === "monthly" ? (
+                <label>
+                  Day of month
+                  <input
+                    type="number"
+                    min={1}
+                    max={28}
+                    value={sched("day") || "1"}
+                    onChange={(e) => setSched("day", e.target.value)}
+                  />
+                </label>
+              ) : null}
+              <label>
+                Time
+                <input
+                  type="time"
+                  value={sched("at") || "09:00"}
+                  onChange={(e) => setSched("at", e.target.value)}
+                />
+              </label>
+              <p className="muted">{scheduleSummary()}</p>
             </div>
           ) : null}
           {meta?.description && <p className="muted">{meta.description}</p>}

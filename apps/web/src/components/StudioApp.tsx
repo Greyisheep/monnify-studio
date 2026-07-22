@@ -1051,6 +1051,7 @@ function CanvasInner() {
               rightTab === "code" &&
               (selectedIrNode.type === "custom.code" ||
                 selectedIrNode.type === "app.data_rows" ||
+                selectedIrNode.type === "event.scheduled" ||
                 Object.keys(selectedNodeMeta?.request_template ?? {}).length > 0) ? (
               <ConfigPanel
                 node={selectedIrNode}
