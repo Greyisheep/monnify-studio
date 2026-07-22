@@ -615,7 +615,10 @@ function CanvasInner() {
   async function goBusinessDashboard() {
     if (profile?.path !== "business") return;
     setBusinessNav("dashboard");
-    if (profile.step === "dashboard" || profile.step === "done") return;
+    // Workflow uses `done` as its durable route. Persist dashboard on the way
+    // back too, otherwise a reload after visiting Workflow silently returns the
+    // owner to the whiteboard (#169, caught by the Flow 2 browser drive).
+    if (profile.step === "dashboard") return;
     try {
       const next = await putStudioProfile({ step: "dashboard" });
       setProfile(next);
@@ -692,6 +695,8 @@ function CanvasInner() {
       ? null
       : showBusinessDashboard
         ? ("business" as const)
+        : profile?.path === "business" && businessNav === "workflow"
+          ? ("business-workflow" as const)
         : profile?.path === "developer" && profile.step === "done"
           ? ("developer" as const)
           : null;
@@ -702,14 +707,16 @@ function CanvasInner() {
   // the dashboard too (#70), so it gets the tour like every other flow.
   const businessTourReady =
     tourPath === "business" && showBusinessDashboard;
-  const developerTourReady = tourPath === "developer";
+  const workflowTourReady =
+    (tourPath === "developer" || tourPath === "business-workflow") &&
+    Boolean(session.workflow);
   const tour = useOnboardingTour({
     path: tourPath,
     ready:
       Boolean(tourPath) &&
       profileReady &&
       session.ready &&
-      (tourPath === "business" ? businessTourReady : developerTourReady),
+      (tourPath === "business" ? businessTourReady : workflowTourReady),
   });
 
   async function askWhySelectedNode() {
@@ -1073,7 +1080,7 @@ function CanvasInner() {
             }}
           />
         ) : null}
-        <div className="studio-canvas-card">
+        <div className="studio-canvas-card" data-tour="biz-workflow-canvas">
           {panelsCollapsed ? (
             <StudioFloatingChrome
               workflowName={session.workflow?.name ?? "Workflow 1"}

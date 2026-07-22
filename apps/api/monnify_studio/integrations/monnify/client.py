@@ -26,6 +26,7 @@ _AUTH_PATH = "/api/v1/auth/login"
 _INIT_PATH = "/api/v1/merchant/transactions/init-transaction"
 _QUERY_PATH = "/api/v2/merchant/transactions/query"
 _TRANSFER_PATH = "/api/v2/disbursements/single"
+_RESERVED_ACCOUNT_PATH = "/api/v2/bank-transfer/reserved-accounts"
 
 
 class MonnifyError(RuntimeError):
@@ -105,7 +106,6 @@ class MonnifySandboxClient:
             )
             return result
 
-
     def initiate_transfer(
         self,
         *,
@@ -154,6 +154,71 @@ class MonnifySandboxClient:
             )
             return result
 
+    def create_reserved_account(
+        self,
+        *,
+        account_reference: str,
+        account_name: str,
+        customer_email: str,
+        customer_name: str,
+        bvn: str = "",
+        nin: str = "",
+        get_all_available_banks: bool = True,
+    ) -> dict[str, Any]:
+        """Create a real dedicated sandbox account for an ajo member (#235).
+
+        Monnify requires at least one KYC identifier. Refuse locally with a
+        useful message rather than making a doomed provider request. Provider
+        errors (including sandbox 503/response code 99) remain MonnifyError so
+        the executor can show an honest failed node without crashing the run.
+        """
+        if not bvn.strip() and not nin.strip():
+            raise MonnifyError("Reserved account requires the member's BVN or NIN")
+        if self._token is None:
+            self.authenticate()
+        payload: dict[str, Any] = {
+            "accountReference": account_reference,
+            "accountName": account_name,
+            "currencyCode": "NGN",
+            "contractCode": self._settings.monnify_contract_code,
+            "customerEmail": customer_email,
+            "customerName": customer_name,
+            "getAllAvailableBanks": get_all_available_banks,
+        }
+        if bvn.strip():
+            payload["bvn"] = bvn.strip()
+        if nin.strip():
+            payload["nin"] = nin.strip()
+        with traced("monnify.create_reserved_account", reference=account_reference):
+            resp = self._http.post(
+                _RESERVED_ACCOUNT_PATH,
+                headers={"Authorization": f"Bearer {self._token}"},
+                json=payload,
+            )
+            body = _ok(resp)["responseBody"]
+            accounts = body.get("accounts") or []
+            if not accounts:
+                raise MonnifyError("Monnify returned no bank account for the reservation")
+            account = accounts[0]
+            result = {
+                "account_reference": body.get("accountReference", account_reference),
+                "reservation_reference": body.get("reservationReference", ""),
+                "account_number": account.get("accountNumber", ""),
+                "account_name": account.get("accountName", account_name),
+                "bank": account.get("bankName", ""),
+                "bank_code": account.get("bankCode", ""),
+                "status": body.get("status", "UNKNOWN"),
+            }
+            if not result["account_number"]:
+                raise MonnifyError("Monnify returned a reserved account without an account number")
+            log.info(
+                "monnify.reserved_account.created",
+                reference=result["account_reference"],
+                bank=result["bank"],
+                status=result["status"],
+            )
+            return result
+
     def query_transaction(self, *, payment_reference: str) -> dict[str, Any]:
         """Authoritative transaction state by payment reference (#53).
 
@@ -171,7 +236,9 @@ class MonnifySandboxClient:
             body = _ok(resp)["responseBody"]
             result = {
                 "status": body.get("paymentStatus", "UNKNOWN"),
-                "amount_paid": str(body.get("amountPaid") or "0"),  # exact string; money() parses it
+                "amount_paid": str(
+                    body.get("amountPaid") or "0"
+                ),  # exact string; money() parses it
             }
             log.info(
                 "monnify.transaction.queried",

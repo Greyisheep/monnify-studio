@@ -170,7 +170,10 @@ class MockAdapter:
         elif node.type == "safety.balance_guard":
             balance = str(money(config.get("balance", money(amount) * 2)))
             outputs.update(balance=balance, covers_payout=covers(balance, amount))
-        elif node.type.startswith("monnify.initiate_transfer") or node.type == "monnify.bulk_transfer":
+        elif (
+            node.type.startswith("monnify.initiate_transfer")
+            or node.type == "monnify.bulk_transfer"
+        ):
             outputs.update(transfer_reference=f"xfer-{node.id}")
         elif node.type in ("app.notify", "app.notify_whatsapp", "app.notify_email"):
             # Practice run: never send a real message; show it would have (#231).
@@ -189,7 +192,10 @@ class MockAdapter:
                     outputs={"status": "failed"},
                     request=request,
                     response=redact(
-                        {"status": 500, "body": {"ok": False, "node_id": node.id, "error": str(exc)}}
+                        {
+                            "status": 500,
+                            "body": {"ok": False, "node_id": node.id, "error": str(exc)},
+                        }
                     ),
                     error=str(exc),
                 )
@@ -241,6 +247,18 @@ def _cfg(config: dict[str, Any], *keys: str, default: Any = None) -> Any:
     return default
 
 
+def _cfg_bool(config: dict[str, Any], *keys: str, default: bool) -> bool:
+    """Parse booleans edited through JSON or text-backed config fields."""
+    value = _cfg(config, *keys, default=default)
+    if isinstance(value, str):
+        normalized = value.strip().casefold()
+        if normalized in {"true", "1", "yes"}:
+            return True
+        if normalized in {"false", "0", "no"}:
+            return False
+    return bool(value)
+
+
 class SandboxAdapter:
     """Run the flow against the REAL Monnify sandbox, not a stub (#9).
 
@@ -287,14 +305,26 @@ class SandboxAdapter:
         is_wait = node.type.startswith("event.")
 
         try:
-            if node.type == "monnify.initialize_transaction" or node.type == "monnify.create_invoice":
+            if (
+                node.type == "monnify.initialize_transaction"
+                or node.type == "monnify.create_invoice"
+            ):
                 reference = _cfg(config, "paymentReference", "payment_reference", default=ref)
                 tx = self._c().initialize_transaction(
                     amount=money(amount),
-                    customer_name=_cfg(config, "customerName", "customer_name", default="Studio Demo Customer"),
-                    customer_email=_cfg(config, "customerEmail", "customer_email", default="customer@example.com"),
+                    customer_name=_cfg(
+                        config, "customerName", "customer_name", default="Studio Demo Customer"
+                    ),
+                    customer_email=_cfg(
+                        config, "customerEmail", "customer_email", default="customer@example.com"
+                    ),
                     reference=reference,
-                    description=_cfg(config, "paymentDescription", "description", default=f"Studio run: {node.type}"),
+                    description=_cfg(
+                        config,
+                        "paymentDescription",
+                        "description",
+                        default=f"Studio run: {node.type}",
+                    ),
                     redirect_url=_cfg(config, "redirectUrl", "redirect_url"),
                 )
                 request["body"] = {"amount": amount, "reference": reference}
@@ -310,7 +340,9 @@ class SandboxAdapter:
                     or _run_payment_reference(context)
                 )
                 if not payment_ref:
-                    return self._failed(node, "no payment_reference reached verify (wire it from initialize)")
+                    return self._failed(
+                        node, "no payment_reference reached verify (wire it from initialize)"
+                    )
                 res = self._c().query_transaction(payment_reference=payment_ref)
                 request["body"] = {"payment_reference": payment_ref}
                 outputs.update(
@@ -328,29 +360,80 @@ class SandboxAdapter:
                         config, "sourceAccountNumber", "source_account_number", default=self._wallet
                     ),
                     destination_account_number=_cfg(
-                        config, "destinationAccountNumber", "destination_account_number",
+                        config,
+                        "destinationAccountNumber",
+                        "destination_account_number",
                         default=_TEST_DEST_ACCOUNT,
                     ),
                     destination_bank_code=_cfg(
-                        config, "destinationBankCode", "destination_bank_code", default=_TEST_DEST_BANK
+                        config,
+                        "destinationBankCode",
+                        "destination_bank_code",
+                        default=_TEST_DEST_BANK,
                     ),
                     destination_account_name=_cfg(
-                        config, "destinationAccountName", "destination_account_name", default=_TEST_DEST_NAME
+                        config,
+                        "destinationAccountName",
+                        "destination_account_name",
+                        default=_TEST_DEST_NAME,
                     ),
                     narration=_cfg(config, "narration", default="Monnify Studio sandbox payout"),
                 )
                 request["body"] = {"amount": amount, "reference": ref, "source": self._wallet}
-                outputs.update(transfer_reference=res["transfer_reference"], transfer_status=res["status"])
+                outputs.update(
+                    transfer_reference=res["transfer_reference"], transfer_status=res["status"]
+                )
             elif node.type == "safety.validate_amount":
                 expected = str(money(config.get("expected_amount", amount)))
                 paid = str(money(inputs.get("paid_amount", amount)))
-                outputs.update(expected_amount=expected, paid_amount=paid, valid=covers(paid, expected))
+                outputs.update(
+                    expected_amount=expected, paid_amount=paid, valid=covers(paid, expected)
+                )
             elif node.type == "safety.balance_guard":
                 balance = str(money(config.get("balance", money(amount) * 2)))
                 outputs.update(balance=balance, covers_payout=covers(balance, amount))
             elif node.type == "monnify.create_reserved_account":
-                # Not wired to a live call this slice; declared outputs keep the flow honest.
-                outputs.update(account_number="live-account-pending", bank="Moniepoint MFB")
+                account_reference = _cfg(
+                    config, "accountReference", "account_reference", default=ref
+                )
+                customer_name = _cfg(config, "customerName", "customer_name", default="Ajo Member")
+                customer_email = _cfg(
+                    config,
+                    "customerEmail",
+                    "customer_email",
+                    default=f"{account_reference}@example.com",
+                )
+                res = self._c().create_reserved_account(
+                    account_reference=account_reference,
+                    account_name=_cfg(
+                        config,
+                        "accountName",
+                        "account_name",
+                        default=f"{customer_name} Ajo Account",
+                    ),
+                    customer_email=customer_email,
+                    customer_name=customer_name,
+                    bvn=str(_cfg(config, "bvn", "BVN", default="")),
+                    nin=str(_cfg(config, "nin", "NIN", default="")),
+                    get_all_available_banks=_cfg_bool(
+                        config,
+                        "getAllAvailableBanks",
+                        "get_all_available_banks",
+                        default=True,
+                    ),
+                )
+                request["body"] = redact(
+                    {
+                        "accountReference": account_reference,
+                        "accountName": res["account_name"],
+                        "customerEmail": customer_email,
+                        "customerName": customer_name,
+                        "kycProvided": bool(
+                            _cfg(config, "bvn", "BVN") or _cfg(config, "nin", "NIN")
+                        ),
+                    }
+                )
+                outputs.update(res)
             elif is_wait:
                 outputs.update(paid_amount=amount, event="arrived")
             elif node.type == "custom.code":
@@ -373,15 +456,15 @@ class SandboxAdapter:
                     if email_notifier.notify(to=to_email, text=message):
                         delivered = True
                     channels.append("email")
-                outputs.update(
-                    notified=True, channels=channels or ["none"], delivered=delivered
-                )
+                outputs.update(notified=True, channels=channels or ["none"], delivered=delivered)
             elif node.type == "app.credit_ledger":
                 outputs.update(credited=amount)
         except (MonnifyError, SandboxError) as exc:
             return self._failed(node, str(exc), request=request)
 
-        response = redact({"status": 200, "body": {"ok": True, "node_id": node.id, "live": True, **outputs}})
+        response = redact(
+            {"status": 200, "body": {"ok": True, "node_id": node.id, "live": True, **outputs}}
+        )
         return AdapterResult(
             ok=True,
             duration_ms=20,
@@ -391,13 +474,17 @@ class SandboxAdapter:
             waiting=is_wait,
         )
 
-    def _failed(self, node: Node, error: str, *, request: dict[str, Any] | None = None) -> AdapterResult:
+    def _failed(
+        self, node: Node, error: str, *, request: dict[str, Any] | None = None
+    ) -> AdapterResult:
         """Surface a provider/wiring failure as an honest failed node (D3)."""
         return AdapterResult(
             ok=False,
             duration_ms=20,
             outputs={"status": "failed"},
             request=redact(request or {"method": "LIVE", "path": f"/sandbox/{node.type}"}),
-            response=redact({"status": 502, "body": {"ok": False, "node_id": node.id, "error": error}}),
+            response=redact(
+                {"status": 502, "body": {"ok": False, "node_id": node.id, "error": error}}
+            ),
             error=error,
         )

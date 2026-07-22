@@ -50,13 +50,13 @@ updates. **And** if the owner is tech-savvy and opens the **whiteboard**, a
 |---|---|---|
 | Land → business → template picker | ✅ | Picker now matches Figma (solid bg, illustrations). |
 | Pick **Ajo** / **Shop** → set up → **dashboard** | ✅ | Real totals / invoices / activity / goal-aware share. |
-| **Detailed onboarding tour** on the dashboard | ⚠️ | Tour exists but **poor vs the design** (Claret). → **onboarding tour accuracy + design** (#103, design) |
+| **Detailed onboarding tour** on the dashboard | ✅ | Seven-step Figma walkthrough with dashboard spotlights, independent dismissal, and browser-driven coverage (#103). |
 | Share a **link** to a customer | ✅ | Goal-aware share (shop vs ajo contribute) + WhatsApp share. |
-| Customer **reminded to pay** (ajo → WhatsApp) | ⚠️ | **Real WhatsApp is proven** via our EvolutionClient (Carlofty tunnel, instance `carlofty-otc`). Needs the ajo pay-in / reminder to **fire real sends** to member numbers (currently logged/simulated). → **ajo real WhatsApp nudge** |
-| Reserved account per ajo member (funding) | ❌ | `monnify.create_reserved_account` is a **stub** in the adapter. → **real reserved accounts** |
+| Customer **reminded to pay** (ajo → WhatsApp) | ✅ | Verified pay-ins and the labeled demo simulation call Evolution for each unpaid member. Delivery/failure is recorded truthfully; hidden member numbers survive roster edits (#234). |
+| Reserved account per ajo member (funding) | ⚠️ | Live adapter now calls Monnify v2 with BVN/NIN and surfaces provider failures honestly. Hermetic contract coverage is green; a live sandbox smoke remains because this endpoint can return 503/`99` (#235). |
 | Money moves → dashboard updates | ✅ | Real collection + disbursement against sandbox. |
 | Tech-savvy owner opens the **whiteboard** | ✅ | Reachable via the rail (Workflow). |
-| **Whiteboard tour** for business owners | ❌ | No business-facing whiteboard tour. → **whiteboard tour** |
+| **Whiteboard tour** for business owners | ✅ | Separate three-step, plain-words tour on first Workflow visit, with its own dismissal state (#233). |
 | Business onboarding **matches the design** | ⚠️ | Header/template-picker/product-thumb fixed; broader onboarding is **poor vs design** → **onboarding design pass** |
 
 **"Something else" (no template):** describing a product to Moni now generates a
@@ -97,10 +97,8 @@ except real WhatsApp works there (Evolution is local-only).
 
 - **notification-on-run** — executor fires `app.notify*` (and real WhatsApp) during a Run
 - **drag-drop product blocks** — add a dashboard / invoice block on the canvas (Flow 1 bonus)
-- **whiteboard tour (business)** — guided tour when a business owner opens the whiteboard
-- **ajo real WhatsApp nudge** — wire the ajo reminder to fire a real send (Evolution proven)
-- **real reserved accounts** — un-stub `create_reserved_account` against sandbox
-- **onboarding tour accuracy + design** — match the Figma, detailed & warm (#103)
+- **reserved-account live smoke** — run `create_reserved_account` against sandbox with test KYC; retain the honest fallback when Monnify returns 503/`99` (#235)
+- **Flow 2 visual acceptance** — final design-owner pass over dashboard/Ajo surfaces (#194/#193)
 - **compose speed** — cap LLM rounds / stream progress so it doesn't feel stuck
 - **preview default state** (#212), **Code Block discoverability** (#153), **redirect-back** (#178)
 - **persistence** (#81), **submission** (#56)

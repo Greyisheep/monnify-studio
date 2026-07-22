@@ -4,6 +4,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  BUSINESS_WORKFLOW_TOUR_STEPS,
   BUSINESS_TOUR_STEPS,
   DEVELOPER_TOUR_STEPS,
   tourDismissKey,
@@ -54,6 +55,24 @@ describe("tourSteps (#103)", () => {
       "dev-run",
     ]);
     for (const step of DEVELOPER_TOUR_STEPS) {
+      expect(step.chrome).toBe("hover");
+      expect(`${step.title} ${step.body}`.toLowerCase()).not.toMatch(
+        /\bir\b|sse|node_type/,
+      );
+    }
+  });
+
+  it("gives business owners a separate plain-words whiteboard tour (#233, AC10)", () => {
+    expect(tourStepsFor("business-workflow")).toBe(BUSINESS_WORKFLOW_TOUR_STEPS);
+    expect(BUSINESS_WORKFLOW_TOUR_STEPS.map((s) => s.target)).toEqual([
+      "biz-workflow-canvas",
+      "dev-catalog",
+      "dev-run",
+    ]);
+    expect(tourDismissKey("business-workflow")).toBe(
+      "monnify.studio.tour.dismissed.business-workflow",
+    );
+    for (const step of BUSINESS_WORKFLOW_TOUR_STEPS) {
       expect(step.chrome).toBe("hover");
       expect(`${step.title} ${step.body}`.toLowerCase()).not.toMatch(
         /\bir\b|sse|node_type/,
