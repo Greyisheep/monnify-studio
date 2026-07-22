@@ -116,20 +116,20 @@ export function RightSidebar({
         <button
           type="button"
           role="tab"
-          aria-selected={rightTab === "preview"}
-          className={rightTab === "preview" ? "is-active" : ""}
-          onClick={() => onRightTabChange("preview")}
-        >
-          Preview
-        </button>
-        <button
-          type="button"
-          role="tab"
           aria-selected={rightTab === "code"}
           className={rightTab === "code" ? "is-active" : ""}
           onClick={() => onRightTabChange("code")}
         >
           Code
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={rightTab === "preview"}
+          className={rightTab === "preview" ? "is-active" : ""}
+          onClick={() => onRightTabChange("preview")}
+        >
+          Preview
         </button>
         <button
           type="button"
