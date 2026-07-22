@@ -63,6 +63,8 @@ done
 # failing, so default to a funded provider; the failover chain still covers the
 # rest. Overridable via the AI_PROVIDER env in CI.
 echo "AI_PROVIDER: \"${AI_PROVIDER:-openai}\"" >> "$ENV_FILE"
+# Compose loop rounds (#236): 2 caps LLM calls (faster, less rate-limit pressure).
+echo "MONI_COMPOSE_ROUNDS: \"${MONI_COMPOSE_ROUNDS:-2}\"" >> "$ENV_FILE"
 
 echo "==> Deploying $API_SERVICE"
 gcloud run deploy "$API_SERVICE" \
