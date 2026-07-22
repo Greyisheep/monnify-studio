@@ -6,6 +6,16 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import { PrismLight as SyntaxHighlighter } from "react-syntax-highlighter";
+import json from "react-syntax-highlighter/dist/esm/languages/prism/json";
+import markdown from "react-syntax-highlighter/dist/esm/languages/prism/markdown";
+import python from "react-syntax-highlighter/dist/esm/languages/prism/python";
+import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
+
+// Only the languages we render, so the bundle stays small (#211).
+SyntaxHighlighter.registerLanguage("python", python);
+SyntaxHighlighter.registerLanguage("json", json);
+SyntaxHighlighter.registerLanguage("markdown", markdown);
 
 export interface InspectFormatOption {
   id: string;
@@ -38,6 +48,9 @@ export function InspectDocumentPanel({
 }: InspectDocumentPanelProps) {
   const [copied, setCopied] = useState(false);
   const text = content.trim();
+  const langKey = (activeFormat ?? formatLabel).toLowerCase();
+  const language =
+    langKey === "python" ? "python" : langKey === "json" ? "json" : "markdown";
 
   async function onCopy() {
     if (!text) return;
@@ -125,7 +138,34 @@ export function InspectDocumentPanel({
         {busy && !text ? (
           <p className="studio-doc__empty">Generating…</p>
         ) : text ? (
-          <pre className="studio-doc__pre">{text}</pre>
+          <SyntaxHighlighter
+            language={language}
+            style={vscDarkPlus}
+            showLineNumbers
+            wrapLongLines
+            className="studio-doc__code"
+            customStyle={{
+              margin: 0,
+              padding: "16px 14px",
+              borderRadius: "10px",
+              fontSize: "12.5px",
+              lineHeight: "1.55",
+              background: "#1e1e1e",
+            }}
+            codeTagProps={{
+              style: {
+                fontFamily:
+                  "var(--font-mono, 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, monospace)",
+              },
+            }}
+            lineNumberStyle={{
+              color: "#5a6270",
+              minWidth: "2.4em",
+              userSelect: "none",
+            }}
+          >
+            {text}
+          </SyntaxHighlighter>
         ) : (
           <p className="studio-doc__empty">{emptyHint}</p>
         )}
