@@ -83,6 +83,14 @@ export interface WorkflowDashboardDto {
     created_at?: string;
     kind: string;
   }>;
+  /** Money OUT (payroll / vendor disbursements), derived from real runs. */
+  payouts: Array<{
+    name: string;
+    amount: string | number;
+    status: string;
+    ts: string;
+    reference: string;
+  }>;
   activity: Array<{ ts: string; kind: string; text: string }>;
 }
 

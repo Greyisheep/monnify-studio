@@ -10,12 +10,15 @@ export interface StudioIconRailProps {
   active?: "workflow" | "dashboard" | "new";
   onNew?: () => void;
   onDashboard?: () => void;
+  /** Draw the eye to the Dashboard (e.g. a run just produced new outflow). */
+  nudgeDashboard?: boolean;
 }
 
 export function StudioIconRail({
   active = "workflow",
   onNew,
   onDashboard,
+  nudgeDashboard = false,
 }: StudioIconRailProps) {
   return (
     <nav className="studio-rail" aria-label="Studio navigation">
@@ -47,8 +50,10 @@ export function StudioIconRail({
         </button>
         <button
           type="button"
-          className={`studio-rail__btn${active === "dashboard" ? " is-active" : ""}`}
-          title="Dashboard"
+          className={`studio-rail__btn${active === "dashboard" ? " is-active" : ""}${
+            nudgeDashboard && active !== "dashboard" ? " is-nudging" : ""
+          }`}
+          title={nudgeDashboard ? "New activity - open your Dashboard" : "Dashboard"}
           aria-label="Dashboard"
           onClick={onDashboard}
         >
