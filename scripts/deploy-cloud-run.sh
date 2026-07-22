@@ -35,7 +35,10 @@ trap 'rm -f "$ENV_FILE"' EXIT
   echo "studio_env: production"
   echo "allow_production_execution: \"false\""   # sandbox-only, always
   echo "cors_origins: \"*\""                       # tightened after web deploys, below
-  echo "STUDIO_SEED_DEMO: \"1\""                  # boot seeds a demo business (#116)
+  # No boot seed: testers start on a clean slate and only ever see what they
+  # create, so nobody is confused by data they did not add. Set STUDIO_SEED_DEMO=1
+  # in the environment if you want the sample "Mama Nkechi Foods" business back.
+  echo "STUDIO_SEED_DEMO: \"${STUDIO_SEED_DEMO:-0}\""
 } > "$ENV_FILE"
 
 # Forward only known keys — never print values. A real exported env var wins
