@@ -88,7 +88,7 @@ function CanvasInner() {
   const [panelsCollapsed, setPanelsCollapsed] = useState(false);
   const [rightTab, setRightTab] = useState<
     "preview" | "code" | "review" | "settings"
-  >("preview");
+  >("code");
   /** Code tab format (#152): JSON from canvas IR; Python from GET /workflows/{id}/code. */
   // Python is the default and only visible code output for now (JSON + more
   // languages coming soon), so a dev copies runnable code, not raw graph JSON.
@@ -275,32 +275,27 @@ function CanvasInner() {
 
   const previewMarkdown = useMemo(() => {
     const name = session.workflow?.name ?? "Untitled workflow";
-    const findings = session.report?.findings?.length ?? 0;
     const nodeCount = currentIr?.nodes.length ?? nodes.length;
-    const lines = [
+    if (!nodeCount) {
+      return [
+        "# Nothing to run yet",
+        "",
+        "Describe a payment flow to Moni, or open a template.",
+        "Your live execution trace will appear here once you press Run.",
+      ].join("\n");
+    }
+    const steps = nodeCount === 1 ? "1 step" : `${nodeCount} steps`;
+    return [
       `# ${name}`,
       "",
-      "Studio preview — composed flow summary.",
+      `Ready to run — ${steps} on the canvas.`,
       "",
-      "## Graph",
-      `- Nodes: ${nodeCount}`,
-      `- Edges: ${currentIr?.edges.length ?? edges.length}`,
-      findings
-        ? `- Findings: ${findings}`
-        : "- Findings: none yet (run analyze after compose)",
-      "",
-      "## Next",
-      "- Edit nodes on the canvas",
-      "- Open Code for the workflow JSON",
-      "- Run to stream an execution trace",
-    ];
-    return lines.join("\n");
+      "Press **Run** (top right) to execute this flow against the Monnify",
+      "sandbox and watch a live, step-by-step trace appear here.",
+    ].join("\n");
   }, [
-    currentIr?.edges.length,
     currentIr?.nodes.length,
-    edges.length,
     nodes.length,
-    session.report?.findings?.length,
     session.workflow?.name,
   ]);
 
