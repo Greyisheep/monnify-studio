@@ -9,6 +9,9 @@ export type MoniAskResult =
       kind: "compose";
       explanation: string;
       workflowName: string | null;
+      // The composed workflow's id, so a business flow can generate its
+      // dashboard artifact right after composing (#70, Flow B).
+      workflowId: string | null;
     }
   | {
       kind: "refine";

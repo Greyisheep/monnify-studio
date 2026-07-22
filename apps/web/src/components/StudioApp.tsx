@@ -34,6 +34,7 @@ import {
   fetchStudioProfile,
   fetchWorkflowCode,
   fetchWorkflowDashboard,
+  generateArtifact,
   putStudioProfile,
   saveWorkflow,
 } from "@/lib/api";
@@ -62,6 +63,7 @@ import { WorkflowCanvas } from "./WorkflowCanvas";
 import type {
   BusinessGoal,
   ExecutionAdapter,
+  MoniAskResult,
   ShopProduct,
   StudioPath,
   StudioProfile,
@@ -520,6 +522,39 @@ function CanvasInner() {
     }
   }
 
+  /** Flow B (#70): a business user who composes a flow with Moni (e.g. via
+   *  "Something else") should land on a real dashboard, not a bare canvas. On a
+   *  successful compose we generate the dashboard artifact and open it, so
+   *  "describe any product" becomes a working product. Best-effort: if artifact
+   *  generation fails, the composed flow still stays on the canvas. */
+  async function onBusinessAsk(
+    message: string,
+    onStatus?: (text: string) => void,
+  ): Promise<MoniAskResult> {
+    const result = await session.askMoni(message, onStatus);
+    if (
+      result.kind === "compose" &&
+      result.workflowId &&
+      profile?.path === "business"
+    ) {
+      try {
+        onStatus?.("Setting up your dashboard…");
+        await generateArtifact(result.workflowId, {});
+        const next = await putStudioProfile({
+          path: "business",
+          goal: profile?.goal ?? "other",
+          step: "dashboard",
+          workflow_id: result.workflowId,
+        });
+        setProfile(next);
+        setBusinessNav("dashboard");
+      } catch {
+        // Artifact generation is best-effort; keep the flow on the canvas.
+      }
+    }
+    return result;
+  }
+
   async function onProductsNext(products: ShopProduct[]) {
     setProfileBusy(true);
     setProfileError(null);
@@ -671,12 +706,10 @@ function CanvasInner() {
   // Business tour matches Figma filled dashboard: wait until the owner is
   // actually on the dashboard shell it highlights. Gate on the dashboard
   // itself (not products.length) so Invoice/Ajo — which never populate
-  // products — still get the tour; "Something else" (goal "other") never
-  // reaches the dashboard shell, so blank setups are naturally excluded.
+  // products — still get the tour. "Something else" (goal "other") now reaches
+  // the dashboard too (#70), so it gets the tour like every other flow.
   const businessTourReady =
-    tourPath === "business" &&
-    showBusinessDashboard &&
-    profile?.goal !== "other";
+    tourPath === "business" && showBusinessDashboard;
   const developerTourReady = tourPath === "developer";
   const tour = useOnboardingTour({
     path: tourPath,
@@ -900,7 +933,7 @@ function CanvasInner() {
               onLeftTabChange={setLeftTab}
               onToggleCollapsed={() => setPanelsCollapsed(true)}
               onAdd={(typeKey) => graph.addNode(typeKey)}
-              onAsk={session.askMoni}
+              onAsk={onBusinessAsk}
               onRefine={session.refineWithMoni}
               hasOpenWorkflow={
                 profile?.path === "developer" && !!session.activeWorkflowId
