@@ -61,7 +61,7 @@ The thesis, in one line: **AI proposes, the analyzer disposes. Correctness never
 
 ## The two demos
 
-**Developer:** open the app → *"I'm a developer"* → in Chat, type *"Take a card payment, and when the payment webhook arrives, verify the transaction with Monnify and then send the customer a WhatsApp confirmation."* → **Run**. It hits the **real** Monnify sandbox, shows the honest `PENDING` status (not a fake success), completes the flow, and fires a **real WhatsApp + email** confirmation.
+**Developer:** open the app → *"I'm a developer"* → in Chat, type *"Take a card payment, and when the payment webhook arrives, verify the transaction with Monnify and then send the customer a WhatsApp confirmation."* → **Run**. It hits the **real** Monnify sandbox, shows the honest `PENDING` status (not a fake success), completes the flow, and — after asking where to send it — fires a **real WhatsApp + email** confirmation to your own phone and inbox.
 
 **Business owner:** open the app → *"I'm a business owner"* → pick a template (Ajo, or Sell online) → get a **dashboard** (money in/out), a **shop link** + QR to share on WhatsApp, and a **branded invoice**. A buyer opens the link, picks items, and pays - and it is only marked *paid* once Monnify confirms it, which defeats fake-transfer-screenshot fraud.
 
@@ -110,7 +110,7 @@ Nothing is required to run the app or the tests. Copy [`.env.example`](.env.exam
 | `ANTHROPIC_API_KEY` (or `OPENAI_API_KEY` / `GOOGLE_API_KEY`) | Moni composing new flows from free text | [console.anthropic.com](https://console.anthropic.com) · [platform.openai.com](https://platform.openai.com) · [aistudio.google.com](https://aistudio.google.com/app/apikey) |
 | `MONNIFY_API_KEY`, `MONNIFY_SECRET_KEY`, `MONNIFY_CONTRACT_CODE` | Real sandbox checkout, verification, disbursement | [app.monnify.com](https://app.monnify.com) → sandbox → API keys |
 | `ZEPTOMAIL_*` | Real email receipts | [zeptomail.zoho.com](https://zeptomail.zoho.com) |
-| `EVOLUTION_*` + `STUDIO_NOTIFY_NUMBER` | Real WhatsApp nudges | a self-hosted [Evolution API](https://github.com/EvolutionAPI/evolution-api) instance |
+| `EVOLUTION_*` | Real WhatsApp nudges (the recipient comes from the run prompt or the node) | a self-hosted [Evolution API](https://github.com/EvolutionAPI/evolution-api) instance |
 
 **Sandbox only** - production execution is refused by default. Secrets never enter logs, workflows, shared links, or AI context.
 

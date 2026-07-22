@@ -1,5 +1,9 @@
 # Monnify Studio (web)
 
+> To run the whole product (web + API) in one command, use `docker compose up`
+> from the repo root — see the top-level `README.md`. The steps below are for
+> working on the web app on its own.
+
 Next.js + React Flow shell for the Monnify Studio canvas: edit the payment IR,
 run Architecture Review, and Apply Fix against the FastAPI analyzer.
 
