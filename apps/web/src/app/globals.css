@@ -4926,3 +4926,114 @@ body.is-resizing-sidebar iframe {
   padding: 20px;
   border-bottom: 0.8px solid #e5e5e5;
 }
+
+/* Pre-run "send the confirmation to me" prompt (#notify encourage) */
+.run-recipient__scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(6, 20, 21, 0.45);
+  backdrop-filter: blur(2px);
+}
+.run-recipient__card {
+  width: 100%;
+  max-width: 420px;
+  background: #fff;
+  border-radius: 18px;
+  padding: 28px 26px 24px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
+  text-align: center;
+}
+.run-recipient__badge {
+  font-size: 32px;
+  line-height: 1;
+  width: 60px;
+  height: 60px;
+  margin: 0 auto 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--accent-soft);
+}
+.run-recipient__title {
+  margin: 0 0 6px;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.run-recipient__sub {
+  margin: 0 0 18px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #4b5563;
+}
+.run-recipient__label {
+  display: block;
+  text-align: left;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #374151;
+  margin: 12px 2px 6px;
+}
+.run-recipient__muted {
+  font-weight: 400;
+  color: #9ca3af;
+}
+.run-recipient__input {
+  width: 100%;
+  padding: 11px 14px;
+  font-size: 15px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 10px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.run-recipient__input:focus {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px rgba(0, 184, 194, 0.15);
+}
+.run-recipient__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 22px;
+}
+.run-recipient__primary {
+  width: 100%;
+  padding: 12px 16px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--accent);
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.run-recipient__primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.run-recipient__primary:not(:disabled):hover {
+  opacity: 0.9;
+}
+.run-recipient__ghost {
+  width: 100%;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #6b7280;
+  background: transparent;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.run-recipient__ghost:hover {
+  background: rgba(0, 0, 0, 0.04);
+  color: #374151;
+}
