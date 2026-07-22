@@ -15,7 +15,7 @@ from ..config import Settings
 from ..integrations.monnify import MonnifyError, MonnifySandboxClient
 from ..ir.models import Node
 from ..money import covers, money
-from ..notifications import whatsapp_notifier
+from ..notifications import email_notifier, whatsapp_notifier
 from ..observability.redaction import redact
 from .sandbox import SandboxError, run_user_code
 
@@ -41,6 +41,17 @@ def _notify_message(config: dict[str, Any], amount: str) -> str:
         if isinstance(value, str) and value.strip():
             return value.strip()
     return f"Monnify Studio: your payment flow ran and confirmed NGN {amount}."
+
+
+def _notify_email(config: dict[str, Any], inputs: dict[str, Any]) -> str:
+    """The email a notify node sends to, if any (keeps ZeptoMail email working
+    alongside WhatsApp): node config, then an upstream customer email."""
+    for source in (config, inputs):
+        for key in ("email", "to_email", "customer_email", "customerEmail"):
+            value = source.get(key)
+            if isinstance(value, str) and "@" in value:
+                return value.strip()
+    return ""
 
 
 @dataclass
@@ -144,7 +155,7 @@ class MockAdapter:
             outputs.update(balance=balance, covers_payout=covers(balance, amount))
         elif node.type.startswith("monnify.initiate_transfer") or node.type == "monnify.bulk_transfer":
             outputs.update(transfer_reference=f"xfer-{node.id}")
-        elif node.type in ("app.notify", "app.notify_whatsapp"):
+        elif node.type in ("app.notify", "app.notify_whatsapp", "app.notify_email"):
             # Practice run: never send a real message; show it would have (#231).
             outputs.update(notified="simulated", channel="whatsapp")
         elif node.type == "app.credit_ledger":
@@ -326,17 +337,25 @@ class SandboxAdapter:
             elif node.type == "custom.code":
                 # Real sandboxed execution (#147, #69); SandboxError -> _failed.
                 outputs.update(_code_block_outputs(inputs, config))
-            elif node.type in ("app.notify", "app.notify_whatsapp"):
-                # A live run actually notifies (#231): real WhatsApp when Evolution
-                # is reachable (local + tunnel), recorded otherwise. Never fakes.
-                to = _notify_target(config, inputs)
-                delivered = (
-                    whatsapp_notifier.notify(number=to, text=_notify_message(config, amount))
-                    if to
-                    else False
-                )
+            elif node.type in ("app.notify", "app.notify_whatsapp", "app.notify_email"):
+                # A live run actually notifies (#231): real WhatsApp (Evolution)
+                # and/or real email (ZeptoMail) to whatever recipients the node
+                # carries, recorded otherwise. Never fakes.
+                message = _notify_message(config, amount)
+                to_phone = _notify_target(config, inputs)
+                to_email = _notify_email(config, inputs)
+                channels: list[str] = []
+                delivered = False
+                if to_phone and node.type != "app.notify_email":
+                    if whatsapp_notifier.notify(number=to_phone, text=message):
+                        delivered = True
+                    channels.append("whatsapp")
+                if to_email:
+                    if email_notifier.notify(to=to_email, text=message):
+                        delivered = True
+                    channels.append("email")
                 outputs.update(
-                    notified=True, channel="whatsapp", to=to or "(no recipient)", delivered=delivered
+                    notified=True, channels=channels or ["none"], delivered=delivered
                 )
             elif node.type == "app.credit_ledger":
                 outputs.update(credited=amount)
