@@ -158,7 +158,7 @@ function CategoryGlyph({ category, nodeType }: { category: string; nodeType: str
 export function StudioNode({ id, data, selected }: NodeProps<StudioFlowNode>) {
   const categoryClass = CATEGORY_CLASS[data.category] ?? "cat-application";
   const runIo = data.runIo;
-  const { getNode, addNodes, deleteElements } = useReactFlow();
+  const { getNode, addNodes, deleteElements, updateNodeData } = useReactFlow();
   const connections = useNodeConnections({ id });
   const isJoined = connections.length > 0;
   const [menuOpen, setMenuOpen] = useState(false);
@@ -281,7 +281,33 @@ export function StudioNode({ id, data, selected }: NodeProps<StudioFlowNode>) {
         </p>
       ) : null}
 
-      {selected && configEntries.length > 0 ? (
+      {data.nodeType === "custom.code" ? (
+        <>
+          <div className="studio-node__divider" />
+          <div
+            className="studio-node__code"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <span className="studio-node__triggers-label">Your code</span>
+            <textarea
+              className="studio-node__code-editor nodrag nowheel"
+              value={String(data.config?.code ?? "")}
+              spellCheck={false}
+              rows={selected ? 8 : 3}
+              placeholder={
+                "# Runs in order between Monnify steps.\n# rows -> the data you pipe in; return values become outputs.\ntotal = sum(r[\"amount\"] for r in rows)"
+              }
+              onPointerDown={(event) => event.stopPropagation()}
+              onKeyDown={(event) => event.stopPropagation()}
+              onChange={(event) =>
+                updateNodeData(id, {
+                  config: { ...(data.config ?? {}), code: event.target.value },
+                })
+              }
+            />
+          </div>
+        </>
+      ) : selected && configEntries.length > 0 ? (
         <>
           <div className="studio-node__divider" />
           <div className="studio-node__triggers">

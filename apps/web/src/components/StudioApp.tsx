@@ -614,7 +614,20 @@ function CanvasInner() {
     ) {
       try {
         onStatus?.("Setting up your dashboard…");
-        await generateArtifact(result.workflowId, {});
+        // Seed the shop from what the seller already gave us (products + name)
+        // so the chat path never lands on the generic My Business default (#91).
+        const catalog = (profile?.products ?? [])
+          .map((p) => ({
+            name: (p.name ?? "").trim(),
+            price_ngn: Number(p.price_ngn) || 0,
+            image_url:
+              p.image_url && p.image_url.length > 8_000 ? null : p.image_url ?? null,
+          }))
+          .filter((p) => p.name.length > 0);
+        await generateArtifact(result.workflowId, {
+          ...(profile?.business_name ? { business_name: profile.business_name } : {}),
+          ...(catalog.length ? { catalog } : {}),
+        });
         const next = await putStudioProfile({
           path: "business",
           goal: profile?.goal ?? "other",
@@ -630,7 +643,7 @@ function CanvasInner() {
     return result;
   }
 
-  async function onProductsNext(products: ShopProduct[]) {
+  async function onProductsNext(products: ShopProduct[], businessName: string) {
     setProfileBusy(true);
     setProfileError(null);
     try {
@@ -655,12 +668,29 @@ function CanvasInner() {
         first && first.price_ngn != null && first.price_ngn !== ""
           ? Number(first.price_ngn)
           : NaN;
+      // The whole catalog, so the shop offers every item the seller typed - not
+      // just the first one collapsed onto the generic default (#91).
+      const catalog = products
+        .map((p) => ({
+          name: (p.name ?? "").trim(),
+          price_ngn: Number(p.price_ngn) || 0,
+          image_url:
+            p.image_url && p.image_url.length > 8_000 ? null : p.image_url ?? null,
+        }))
+        .filter((p) => p.name.length > 0);
       try {
-        const setup = await session.setupFromIntent("sell-online", {
-          business_name: "My Business",
-          ...(first?.name ? { product_name: first.name } : {}),
-          ...(Number.isNaN(priceNum) ? {} : { price_ngn: priceNum }),
-        });
+        const setup = await session.setupFromIntent(
+          "sell-online",
+          {
+            ...(first?.name ? { product_name: first.name } : {}),
+            ...(Number.isNaN(priceNum) ? {} : { price_ngn: priceNum }),
+          },
+          {
+            // Real name the seller typed + the full catalog win over defaults.
+            ...(businessName ? { business_name: businessName } : {}),
+            ...(catalog.length ? { catalog } : {}),
+          },
+        );
         const linked = await putStudioProfile({
           workflow_id: setup.workflowId,
           step: "dashboard",
@@ -996,9 +1026,12 @@ function CanvasInner() {
           {onboardingStep === "products" ? (
             <ProductsStep
               initial={profile?.products ?? []}
+              initialBusinessName={profile?.business_name ?? ""}
               busy={profileBusy}
               onBack={() => void onProductsBack()}
-              onNext={(products) => void onProductsNext(products)}
+              onNext={(products, businessName) =>
+                void onProductsNext(products, businessName)
+              }
             />
           ) : onboardingStep === "template" || onboardingStep === "intent" ? (
             <TemplatePicker

@@ -30,6 +30,9 @@ export function workflowToFlow(
         nodeType: irNode.type,
         category: (meta?.category ?? "application") as NodeCategory,
         title: meta?.title ?? irNode.type,
+        // Seed saved config into the node so an on-canvas editor (Code Block)
+        // rehydrates its text after compose/reload (#153).
+        config: irNode.config,
       },
     };
   });
@@ -73,7 +76,10 @@ export function flowToWorkflow(
       id: flowNode.id,
       type: flowNode.data.nodeType,
       label: flowNode.data.label,
-      config: previousNode?.config ?? {},
+      // Live on-canvas edits (a Code Block typed on the whiteboard) live in
+      // data.config and must win; base config fills any untouched key. For every
+      // other node type data.config mirrors base, so nothing changes (#153).
+      config: { ...(previousNode?.config ?? {}), ...(flowNode.data.config ?? {}) },
       inputs: previousNode?.inputs ?? {},
       extra_tags: previousNode?.extra_tags ?? [],
       position: { x: flowNode.position.x, y: flowNode.position.y },

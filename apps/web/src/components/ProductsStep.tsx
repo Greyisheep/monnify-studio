@@ -6,9 +6,11 @@ import type { ShopProduct } from "@/types";
 
 export interface ProductsStepProps {
   initial: ShopProduct[];
+  /** Pre-fill for the shop name (smart default from intent/goal when known). */
+  initialBusinessName?: string;
   busy: boolean;
   onBack: () => void;
-  onNext: (products: ShopProduct[]) => void;
+  onNext: (products: ShopProduct[], businessName: string) => void;
 }
 
 const MAX_IMAGE_BYTES = 400_000;
@@ -35,6 +37,7 @@ function readImageAsDataUrl(file: File): Promise<string> {
 
 export function ProductsStep({
   initial,
+  initialBusinessName = "",
   busy,
   onBack,
   onNext,
@@ -42,6 +45,7 @@ export function ProductsStep({
   const [rows, setRows] = useState<ShopProduct[]>(
     initial.length > 0 ? initial : [emptyRow()],
   );
+  const [businessName, setBusinessName] = useState(initialBusinessName);
   const [imageError, setImageError] = useState<string | null>(null);
 
   function updateRow(index: number, patch: Partial<ShopProduct>) {
@@ -87,6 +91,16 @@ export function ProductsStep({
           changes show up right away.
         </p>
       </header>
+
+      <label className="studio-onboard__bizname">
+        <span>Business name</span>
+        <input
+          placeholder="e.g. Ada's Kitchen"
+          value={businessName}
+          disabled={busy}
+          onChange={(event) => setBusinessName(event.target.value)}
+        />
+      </label>
 
       <div className="studio-onboard__products">
         {rows.map((row, index) => (
@@ -163,7 +177,7 @@ export function ProductsStep({
           type="button"
           className="studio-onboard__next"
           disabled={busy || cleaned.length === 0}
-          onClick={() => onNext(cleaned)}
+          onClick={() => onNext(cleaned, businessName.trim())}
         >
           Next
         </button>

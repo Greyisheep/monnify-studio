@@ -234,6 +234,9 @@ export function useStudioGraph({
                   title: catalog[normalized.type]?.title ?? normalized.type,
                   category: (catalog[normalized.type]?.category ??
                     node.data.category) as NodeCategory,
+                  // Mirror config into data so the canvas (Code Block editor)
+                  // and flowToWorkflow share one live source (#153).
+                  config: normalized.config,
                 },
               }
             : { ...node, selected: false },

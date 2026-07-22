@@ -33,6 +33,13 @@ export interface MonnifyCredentialInput {
 }
 
 /** Subset of ArtifactConfig the Seller form edits (#55, #61). */
+/** One sellable row for the storefront catalog (maps to API CatalogItem). */
+export interface ArtifactCatalogInput {
+  name: string;
+  price_ngn: number;
+  image_url?: string | null;
+}
+
 export interface ArtifactConfigInput {
   business_name?: string;
   product_name?: string;
@@ -40,6 +47,8 @@ export interface ArtifactConfigInput {
   accent_color?: string;
   tagline?: string;
   logo_url?: string;
+  /** Full product list; when present the shop offers every item (#91). */
+  catalog?: ArtifactCatalogInput[];
 }
 
 export interface GenerateArtifactResult {

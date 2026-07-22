@@ -1486,6 +1486,31 @@ body.is-resizing-sidebar iframe {
   text-align: center;
 }
 
+.studio-onboard__bizname {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  margin-bottom: 18px;
+}
+
+.studio-onboard__bizname > span {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.studio-onboard__bizname > input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-xs);
+  font-size: 0.95rem;
+  color: var(--ink);
+  background: var(--panel);
+}
+
 .studio-onboard__products {
   display: flex;
   flex-direction: column;
@@ -3291,6 +3316,43 @@ body.is-resizing-sidebar iframe {
   color: var(--ink-soft);
   background: var(--panel);
   cursor: default;
+}
+
+/* Editable Code Block on the whiteboard (#153) - a real, runnable code cell
+   right on the node, not a read-only field. */
+.studio-node__code {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+  padding-bottom: 8px;
+}
+
+.studio-node__code-editor {
+  width: 100%;
+  min-width: 15rem;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  line-height: 1.5;
+  padding: 8px 9px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: #0f1416;
+  color: #e8eee9;
+  resize: vertical;
+  tab-size: 2;
+  white-space: pre;
+  overflow: auto;
+}
+
+.studio-node__code-editor::placeholder {
+  color: #6b7a72;
+}
+
+.studio-node__code-editor:focus {
+  outline: none;
+  border-color: var(--accent, #12b76a);
+  box-shadow: 0 0 0 2px rgba(18, 183, 106, 0.25);
 }
 
 .studio-handle {

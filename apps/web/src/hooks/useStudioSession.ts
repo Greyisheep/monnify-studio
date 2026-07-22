@@ -468,6 +468,7 @@ export function useStudioSession({ setNodes, setEdges }: UseStudioSessionOptions
     async (
       templateId: string,
       config: IntentResult["config"] = {},
+      override: Partial<ArtifactConfigInput> = {},
     ): Promise<{
       workflowName: string;
       workflowId: string;
@@ -476,7 +477,10 @@ export function useStudioSession({ setNodes, setEdges }: UseStudioSessionOptions
     }> => {
       setBusy(true);
       setTypeError(null);
-      const seed = intentToArtifactConfig(config);
+      // Caller-supplied real values (business name typed in setup, the full
+      // product catalog) win over anything inferred from the chat text, so the
+      // shop renders the seller's own name and every item, not the defaults (#91).
+      const seed = { ...intentToArtifactConfig(config), ...override };
       try {
         const payload = await createFromTemplate(templateId);
         const [analysis, catalogResult] = await Promise.all([

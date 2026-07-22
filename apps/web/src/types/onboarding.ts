@@ -35,6 +35,8 @@ export interface StudioProfile {
   step: OnboardingStep;
   goal: BusinessGoal | null;
   products: ShopProduct[];
+  /** Seller's shop name, when captured, for the shop artifact + smart default. */
+  business_name?: string | null;
   /** Active Flow for Dashboard rehydration after reload (#169). */
   workflow_id?: string | null;
 }
