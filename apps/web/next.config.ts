@@ -2,7 +2,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { NextConfig } from "next";
 
-const apiOrigin = process.env.STUDIO_API_ORIGIN ?? "http://127.0.0.1:8010";
+// Resolved when `next build` bakes the routes manifest, so in Docker it must be
+// passed as a build ARG (see apps/web/Dockerfile). `||` so an empty string
+// (unset ARG) still falls back to the local-dev default.
+const apiOrigin = process.env.STUDIO_API_ORIGIN || "http://127.0.0.1:8010";
 const configDir = path.dirname(fileURLToPath(import.meta.url));
 
 const nextConfig: NextConfig = {

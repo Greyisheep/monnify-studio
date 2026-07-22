@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 from monnify_studio.ajo import ajo_store
 from monnify_studio.api.main import app
 from monnify_studio.notifications import notification_log
+import monnify_studio.api.main as api_main
 from monnify_studio.orders import orders_service
 
 client = TestClient(app)
@@ -28,9 +29,9 @@ def _ajo_artifact() -> str:
 
 def _contribute_and_verify(artifact_id: str, member: str) -> dict:
     """A member contributes and Monnify confirms it (scripted verifier)."""
-    ref = client.post(
-        f"/preview/{artifact_id}/contribute", json={"member": member}
-    ).json()["contribution_reference"]
+    ref = client.post(f"/preview/{artifact_id}/contribute", json={"member": member}).json()[
+        "contribution_reference"
+    ]
     orders_service.attach_payment(
         ref, payment_reference=f"PAY-{ref}", transaction_reference=f"TX-{ref}"
     )
@@ -58,10 +59,9 @@ def test_full_round_pays_out_to_beneficiary_and_rotates():
         "Bola": False,
     }
     assert state["beneficiary"] == "Ada"
-    nudges = [
-        n.text for n in notification_log.for_artifact(artifact_id) if "Nudge" in n.text
-    ]
-    assert any("Bola" in n for n in nudges)
+    nudges = [n for n in notification_log.for_artifact(artifact_id) if "nudge" in n.text.casefold()]
+    assert any("Bola" in n.text for n in nudges)
+    assert all(n.delivered is False for n in nudges)  # no Evolution config in this test
 
     # Bola pays: pot completes, Ada takes it, round 2 begins, turn rotates.
     assert _contribute_and_verify(artifact_id, "Bola")["status"] == "verified"
@@ -92,9 +92,7 @@ def test_payout_is_honest_money_out_in_totals():
 
 def test_unknown_contributor_joins_the_rotation():
     artifact_id = _ajo_artifact()
-    client.put(
-        f"/preview/{artifact_id}/ajo/members", json={"members": [{"name": "Ada"}]}
-    )
+    client.put(f"/preview/{artifact_id}/ajo/members", json={"members": [{"name": "Ada"}]})
     _contribute_and_verify(artifact_id, "Chika")
     names = [m["name"] for m in client.get(f"/preview/{artifact_id}/ajo").json()["members"]]
     assert names == ["Ada", "Chika"]
@@ -117,14 +115,10 @@ def test_simulate_advances_cycle_without_touching_money():
         json={"members": [{"name": "Ada"}, {"name": "Bola"}]},
     )
     # Simulate the next unpaid member twice: completes the pot, rotates.
-    first = client.post(
-        f"/preview/{artifact_id}/ajo/simulate-contribution", json={}
-    ).json()
+    first = client.post(f"/preview/{artifact_id}/ajo/simulate-contribution", json={}).json()
     assert first["simulated"]["member"] == "Ada"
     assert first["round"] == 1
-    second = client.post(
-        f"/preview/{artifact_id}/ajo/simulate-contribution", json={}
-    ).json()
+    second = client.post(f"/preview/{artifact_id}/ajo/simulate-contribution", json={}).json()
     assert second["round"] == 2  # rotated
     assert len(second["payouts"]) == 1
     # Money in stays zero: no Monnify order was ever verified by the simulation.
@@ -138,3 +132,45 @@ def test_simulate_requires_members():
     artifact_id = _ajo_artifact()
     res = client.post(f"/preview/{artifact_id}/ajo/simulate-contribution", json={})
     assert res.status_code == 400
+
+
+def test_adding_member_preserves_hidden_existing_whatsapp():
+    """The UI resubmits existing names without their server-only numbers (#193)."""
+    artifact_id = _ajo_artifact()
+    client.put(
+        f"/preview/{artifact_id}/ajo/members",
+        json={"members": [{"name": "Ada", "whatsapp": "08030000000"}]},
+    )
+    client.put(
+        f"/preview/{artifact_id}/ajo/members",
+        json={"members": [{"name": "Ada"}, {"name": "Bola", "whatsapp": "08031111111"}]},
+    )
+    group = ajo_store.group(artifact_id)
+    assert group is not None
+    assert {m.name: m.whatsapp for m in group.members} == {
+        "Ada": "08030000000",
+        "Bola": "08031111111",
+    }
+
+
+def test_nudge_status_reflects_delivery_result(monkeypatch):
+    artifact_id = _ajo_artifact()
+    client.put(
+        f"/preview/{artifact_id}/ajo/members",
+        json={
+            "members": [
+                {"name": "Ada", "whatsapp": "08030000000"},
+                {"name": "Bola", "whatsapp": "08031111111"},
+            ]
+        },
+    )
+    monkeypatch.setattr(api_main.whatsapp_notifier, "ajo_nudge", lambda **_kwargs: False)
+    client.post(f"/preview/{artifact_id}/ajo/simulate-contribution", json={"member": "Ada"})
+    failed = client.get(f"/preview/{artifact_id}/ajo").json()
+    bola = next(m for m in failed["members"] if m["name"] == "Bola")
+    assert bola["nudge_status"] == "failed"
+
+    monkeypatch.setattr(api_main.whatsapp_notifier, "ajo_nudge", lambda **_kwargs: True)
+    client.post(f"/preview/{artifact_id}/ajo/simulate-contribution", json={"member": "Bola"})
+    rotated = client.get(f"/preview/{artifact_id}/ajo").json()
+    assert all(m["nudge_status"] == "not_sent" for m in rotated["members"])

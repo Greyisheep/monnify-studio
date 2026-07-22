@@ -4,7 +4,7 @@
  */
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ReactFlowProvider,
   useEdgesState,
@@ -48,6 +48,7 @@ import { ConfigPanel } from "./ConfigPanel";
 import { InspectDocumentPanel } from "./InspectDocumentPanel";
 import { NodePalette } from "./NodePalette";
 import { OnboardingChrome } from "./OnboardingChrome";
+import { RunRecipientPrompt, type RunContact } from "./RunRecipientPrompt";
 import { OnboardingTour } from "./OnboardingTour";
 import { PathGate } from "./PathGate";
 import { ProductsStep } from "./ProductsStep";
@@ -199,6 +200,60 @@ function CanvasInner() {
     if (!session.workflow) return null;
     return flowToWorkflow(session.workflow, nodes, edges);
   }, [session.workflow, nodes, edges]);
+
+  // Run + "who gets the confirmation?" (#notify): a flow with a notify block
+  // asks the tester for their own WhatsApp/email so the confirmation lands on
+  // THEM, instead of silently falling back to a shared demo number.
+  const [runPromptOpen, setRunPromptOpen] = useState(false);
+  const [lastContact, setLastContact] = useState<RunContact>({});
+
+  const hasNotifyNode = useMemo(
+    () => (currentIr?.nodes ?? []).some((n) => n.type.startsWith("app.notify")),
+    [currentIr],
+  );
+
+  const doRun = useCallback(
+    (contact?: RunContact) => {
+      if (!currentIr) return;
+      let ir = currentIr;
+      const wa = contact?.whatsapp?.trim();
+      const em = contact?.email?.trim();
+      if (wa || em) {
+        setLastContact({ whatsapp: wa, email: em });
+        ir = {
+          ...currentIr,
+          nodes: currentIr.nodes.map((n) =>
+            n.type.startsWith("app.notify")
+              ? {
+                  ...n,
+                  config: {
+                    ...n.config,
+                    ...(wa ? { to: wa } : {}),
+                    ...(em ? { email: em } : {}),
+                  },
+                }
+              : n,
+          ),
+        };
+      }
+      setRightTab("preview");
+      void trace.runWorkflow(ir, executionAdapter);
+    },
+    [currentIr, executionAdapter, trace],
+  );
+
+  const requestRun = useCallback(
+    (opts?: { collapse?: boolean }) => {
+      if (!currentIr) return;
+      if (opts?.collapse) setPanelsCollapsed(false);
+      if (hasNotifyNode) {
+        setRunPromptOpen(true);
+        return;
+      }
+      doRun();
+    },
+    [currentIr, hasNotifyNode, doRun],
+  );
 
   const selectedFinding =
     session.selectedFindingIndex != null && session.report
@@ -615,7 +670,10 @@ function CanvasInner() {
   async function goBusinessDashboard() {
     if (profile?.path !== "business") return;
     setBusinessNav("dashboard");
-    if (profile.step === "dashboard" || profile.step === "done") return;
+    // Workflow uses `done` as its durable route. Persist dashboard on the way
+    // back too, otherwise a reload after visiting Workflow silently returns the
+    // owner to the whiteboard (#169, caught by the Flow 2 browser drive).
+    if (profile.step === "dashboard") return;
     try {
       const next = await putStudioProfile({ step: "dashboard" });
       setProfile(next);
@@ -692,6 +750,8 @@ function CanvasInner() {
       ? null
       : showBusinessDashboard
         ? ("business" as const)
+        : profile?.path === "business" && businessNav === "workflow"
+          ? ("business-workflow" as const)
         : profile?.path === "developer" && profile.step === "done"
           ? ("developer" as const)
           : null;
@@ -702,14 +762,16 @@ function CanvasInner() {
   // the dashboard too (#70), so it gets the tour like every other flow.
   const businessTourReady =
     tourPath === "business" && showBusinessDashboard;
-  const developerTourReady = tourPath === "developer";
+  const workflowTourReady =
+    (tourPath === "developer" || tourPath === "business-workflow") &&
+    Boolean(session.workflow);
   const tour = useOnboardingTour({
     path: tourPath,
     ready:
       Boolean(tourPath) &&
       profileReady &&
       session.ready &&
-      (tourPath === "business" ? businessTourReady : developerTourReady),
+      (tourPath === "business" ? businessTourReady : workflowTourReady),
   });
 
   async function askWhySelectedNode() {
@@ -871,6 +933,20 @@ function CanvasInner() {
       className={`studio-shell${panelsCollapsed ? " is-panels-collapsed" : ""}`}
       style={panelsCollapsed ? undefined : sidebars.shellStyle}
     >
+      {runPromptOpen && (
+        <RunRecipientPrompt
+          initial={lastContact}
+          onSend={(contact) => {
+            setRunPromptOpen(false);
+            doRun(contact);
+          }}
+          onSkip={() => {
+            setRunPromptOpen(false);
+            doRun();
+          }}
+          onCancel={() => setRunPromptOpen(false)}
+        />
+      )}
       {showOnboarding && (
         <OnboardingChrome active={onboardingStep}>
           {onboardingStep === "products" ? (
@@ -944,11 +1020,7 @@ function CanvasInner() {
             canAct={!!currentIr}
             busy={session.busy}
             executionAdapter={executionAdapter}
-            onRun={() => {
-              if (!currentIr) return;
-              setRightTab("preview");
-              void trace.runWorkflow(currentIr, executionAdapter);
-            }}
+            onRun={() => requestRun()}
             onToggleAdapter={toggleExecutionAdapter}
             onDeploy={() => undefined}
             deployDisabled
@@ -978,6 +1050,8 @@ function CanvasInner() {
             ) : selectedIrNode &&
               rightTab === "code" &&
               (selectedIrNode.type === "custom.code" ||
+                selectedIrNode.type === "app.data_rows" ||
+                selectedIrNode.type === "event.scheduled" ||
                 Object.keys(selectedNodeMeta?.request_template ?? {}).length > 0) ? (
               <ConfigPanel
                 node={selectedIrNode}
@@ -1066,14 +1140,10 @@ function CanvasInner() {
             onApplyAll={() => {
               if (currentIr) void session.applyFix(currentIr);
             }}
-            onRun={() => {
-              if (!currentIr) return;
-              setRightTab("preview");
-              void trace.runWorkflow(currentIr, executionAdapter);
-            }}
+            onRun={() => requestRun()}
           />
         ) : null}
-        <div className="studio-canvas-card">
+        <div className="studio-canvas-card" data-tour="biz-workflow-canvas">
           {panelsCollapsed ? (
             <StudioFloatingChrome
               workflowName={session.workflow?.name ?? "Workflow 1"}
@@ -1081,12 +1151,7 @@ function CanvasInner() {
               canAct={!!currentIr}
               busy={session.busy}
               onExpandPanels={() => setPanelsCollapsed(false)}
-              onRun={() => {
-                if (!currentIr) return;
-                setPanelsCollapsed(false);
-                setRightTab("preview");
-                void trace.runWorkflow(currentIr, executionAdapter);
-              }}
+              onRun={() => requestRun({ collapse: true })}
               onDeploy={() => undefined}
               deployDisabled
             />

@@ -75,6 +75,22 @@ function CategoryGlyph({ category, nodeType }: { category: string; nodeType: str
       </svg>
     );
   }
+  if (nodeType === "artifact.dashboard") {
+    return (
+      <svg {...common} aria-hidden>
+        <rect x="2.5" y="2.5" width="11" height="11" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
+        <path d="M5 10.8V8.5M8 10.8V5.5M11 10.8V7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  if (nodeType === "artifact.invoice") {
+    return (
+      <svg {...common} aria-hidden>
+        <path d="M4 2.5h6l2 2v9H4v-11Z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+        <path d="M6 7h4M6 9.4h4M6 11.8h2.5" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
+      </svg>
+    );
+  }
   switch (category) {
     case "safety":
       return (

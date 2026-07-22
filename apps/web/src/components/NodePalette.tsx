@@ -113,7 +113,9 @@ function displayCategory(meta: NodeMeta): string {
 
 function isFeatured(meta: NodeMeta): boolean {
   return (
-    meta.title.toLowerCase().includes("invoice") || meta.type === "custom.code"
+    meta.title.toLowerCase().includes("invoice") ||
+    meta.type === "custom.code" ||
+    meta.type === "artifact.dashboard"
   );
 }
 

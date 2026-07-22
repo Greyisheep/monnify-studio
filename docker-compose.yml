@@ -1,0 +1,54 @@
+# Monnify Studio - the whole product in one command:
+#
+#     docker compose up
+#
+# Opens the studio at http://localhost:3000. Works with ZERO keys (Moni routes
+# by keyword, orders run on the mock adapter). Drop keys into a .env file next
+# to this one (copy .env.example) to unlock real compose + the live Monnify
+# sandbox + real notifications. No database, no extra services - all in memory.
+services:
+  api:
+    build: ./apps/api
+    environment:
+      PORT: "8080"
+      STUDIO_ENV: development
+      ALLOW_PRODUCTION_EXECUTION: "false"   # sandbox only, always
+      STUDIO_SEED_DEMO: "1"                  # seed "Mama Nkechi Foods" so it is never empty
+      CORS_ORIGINS: "http://localhost:3000"
+      # --- all optional: absent = keyless fallback, present = live features ---
+      AI_PROVIDER: "${AI_PROVIDER:-anthropic}"
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+      GOOGLE_API_KEY: "${GOOGLE_API_KEY:-}"
+      MONNIFY_API_KEY: "${MONNIFY_API_KEY:-}"
+      MONNIFY_SECRET_KEY: "${MONNIFY_SECRET_KEY:-}"
+      MONNIFY_CONTRACT_CODE: "${MONNIFY_CONTRACT_CODE:-}"
+      MONNIFY_WALLET_ACCOUNT: "${MONNIFY_WALLET_ACCOUNT:-}"
+      ZEPTOMAIL_API_KEY: "${ZEPTOMAIL_API_KEY:-}"
+      ZEPTOMAIL_SENDER: "${ZEPTOMAIL_SENDER:-}"
+      ZEPTOMAIL_REPLY_TO: "${ZEPTOMAIL_REPLY_TO:-}"
+      EVOLUTION_API_URL: "${EVOLUTION_API_URL:-}"
+      EVOLUTION_API_KEY: "${EVOLUTION_API_KEY:-}"
+      EVOLUTION_INSTANCE: "${EVOLUTION_INSTANCE:-}"
+      STUDIO_NOTIFY_NUMBER: "${STUDIO_NOTIFY_NUMBER:-}"
+      STUDIO_NOTIFY_EMAIL: "${STUDIO_NOTIFY_EMAIL:-}"
+    ports:
+      - "8010:8080"   # bonus: raw API + OpenAPI docs at http://localhost:8010/docs
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./apps/web
+      args:
+        # Empty on purpose: the browser then calls the same-origin /studio-backend
+        # proxy, keeping the onboarding session cookie first-party.
+        NEXT_PUBLIC_API_URL: ""
+        # Baked into the /studio-backend rewrite -> the api container.
+        STUDIO_API_ORIGIN: "http://api:8080"
+    environment:
+      PORT: "8080"
+    ports:
+      - "3000:8080"
+    depends_on:
+      - api
+    restart: unless-stopped

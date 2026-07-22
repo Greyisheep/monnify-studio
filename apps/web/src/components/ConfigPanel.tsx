@@ -91,6 +91,50 @@ export function ConfigPanel({
     onChange({ ...node, config: { ...node.config, [key]: value } });
   }
 
+  // The Employee List / sheet (app.data_rows): a table of people the flow pays.
+  type SheetRow = Record<string, string>;
+  function sheetRows(): SheetRow[] {
+    const rows = node?.config?.rows;
+    return Array.isArray(rows) ? (rows as SheetRow[]) : [];
+  }
+  function writeRows(rows: SheetRow[]) {
+    if (!node) return;
+    onChange({ ...node, config: { ...node.config, rows } });
+  }
+  function updateRowCell(index: number, key: string, value: string) {
+    const rows = sheetRows().map((r) => ({ ...r }));
+    if (!rows[index]) return;
+    rows[index][key] = value;
+    writeRows(rows);
+  }
+  function addRow() {
+    writeRows([
+      ...sheetRows(),
+      { name: "", phone: "", account_number: "", bank_code: "", amount: "" },
+    ]);
+  }
+  function removeRow(index: number) {
+    writeRows(sheetRows().filter((_, i) => i !== index));
+  }
+
+  // Scheduled trigger (event.scheduled): let the dev pick when it runs.
+  function sched(key: string): string {
+    const v = node?.config?.[key];
+    return typeof v === "string" ? v : "";
+  }
+  function setSched(key: string, value: string) {
+    if (!node) return;
+    onChange({ ...node, config: { ...node.config, [key]: value } });
+  }
+  function scheduleSummary(): string {
+    const cadence = sched("cadence") || "monthly";
+    const at = sched("at") || "09:00";
+    if (cadence === "daily") return `Every day at ${at}.`;
+    if (cadence === "weekly")
+      return `Every ${sched("weekday") || "Monday"} at ${at}.`;
+    return `On day ${sched("day") || "1"} of each month at ${at}.`;
+  }
+
   function updateDeclaredOutput(
     previousKey: string | null,
     key: string,
@@ -284,6 +328,141 @@ export function ConfigPanel({
                 </button>
               </div>
             </>
+          ) : null}
+          {node.type === "app.data_rows" ? (
+            <div className="studio-sheet">
+              <div className="studio-sheet__head">
+                <h4>Employee list</h4>
+                <p className="muted">
+                  Add the people this flow pays. A Run pays and (if a notify
+                  block is wired) messages each one.
+                </p>
+              </div>
+              {sheetRows().length > 0 ? (
+                <div className="studio-sheet__grid" role="table">
+                  <div className="studio-sheet__row studio-sheet__row--header" role="row">
+                    <span>Name</span>
+                    <span>WhatsApp</span>
+                    <span>Account no.</span>
+                    <span>Bank code</span>
+                    <span>Amount (₦)</span>
+                    <span aria-hidden />
+                  </div>
+                  {sheetRows().map((row, index) => (
+                    <div className="studio-sheet__row" role="row" key={index}>
+                      <input
+                        aria-label={`Name ${index + 1}`}
+                        placeholder="Ada Obi"
+                        value={row.name ?? ""}
+                        onChange={(e) => updateRowCell(index, "name", e.target.value)}
+                      />
+                      <input
+                        aria-label={`WhatsApp ${index + 1}`}
+                        placeholder="0803…"
+                        value={row.phone ?? ""}
+                        onChange={(e) => updateRowCell(index, "phone", e.target.value)}
+                      />
+                      <input
+                        aria-label={`Account number ${index + 1}`}
+                        placeholder="0123456789"
+                        value={row.account_number ?? ""}
+                        onChange={(e) =>
+                          updateRowCell(index, "account_number", e.target.value)
+                        }
+                      />
+                      <input
+                        aria-label={`Bank code ${index + 1}`}
+                        placeholder="058"
+                        value={row.bank_code ?? ""}
+                        onChange={(e) => updateRowCell(index, "bank_code", e.target.value)}
+                      />
+                      <input
+                        aria-label={`Amount ${index + 1}`}
+                        inputMode="decimal"
+                        placeholder="150000"
+                        value={row.amount ?? ""}
+                        onChange={(e) => updateRowCell(index, "amount", e.target.value)}
+                      />
+                      <button
+                        type="button"
+                        className="ghost-btn"
+                        aria-label={`Remove row ${index + 1}`}
+                        onClick={() => removeRow(index)}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="muted studio-sheet__empty">
+                  No employees yet. Add your first row below.
+                </p>
+              )}
+              <button type="button" className="ghost-btn" onClick={addRow}>
+                + Add employee
+              </button>
+            </div>
+          ) : null}
+          {node.type === "event.scheduled" ? (
+            <div className="studio-schedule">
+              <h4>Schedule</h4>
+              <label>
+                Runs
+                <select
+                  value={sched("cadence") || "monthly"}
+                  onChange={(e) => setSched("cadence", e.target.value)}
+                >
+                  <option value="daily">Every day</option>
+                  <option value="weekly">Every week</option>
+                  <option value="monthly">Every month</option>
+                </select>
+              </label>
+              {sched("cadence") === "weekly" ? (
+                <label>
+                  On
+                  <select
+                    value={sched("weekday") || "Monday"}
+                    onChange={(e) => setSched("weekday", e.target.value)}
+                  >
+                    {[
+                      "Monday",
+                      "Tuesday",
+                      "Wednesday",
+                      "Thursday",
+                      "Friday",
+                      "Saturday",
+                      "Sunday",
+                    ].map((d) => (
+                      <option key={d} value={d}>
+                        {d}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
+              {(sched("cadence") || "monthly") === "monthly" ? (
+                <label>
+                  Day of month
+                  <input
+                    type="number"
+                    min={1}
+                    max={28}
+                    value={sched("day") || "1"}
+                    onChange={(e) => setSched("day", e.target.value)}
+                  />
+                </label>
+              ) : null}
+              <label>
+                Time
+                <input
+                  type="time"
+                  value={sched("at") || "09:00"}
+                  onChange={(e) => setSched("at", e.target.value)}
+                />
+              </label>
+              <p className="muted">{scheduleSummary()}</p>
+            </div>
           ) : null}
           {meta?.description && <p className="muted">{meta.description}</p>}
           {(meta?.inputs?.length ?? 0) > 0 && (

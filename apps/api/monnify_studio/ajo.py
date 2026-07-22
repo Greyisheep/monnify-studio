@@ -17,6 +17,8 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from decimal import Decimal
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 from .money import money
@@ -28,6 +30,9 @@ log = get_logger("ajo")
 class AjoMember(BaseModel):
     name: str
     whatsapp: str = ""  # optional; nudges only go where a number exists
+    # Truthful UI state (#234): having a number is not proof that Evolution
+    # accepted a message. Reset at the beginning of each round.
+    nudge_status: Literal["not_sent", "delivered", "failed"] = "not_sent"
 
 
 class AjoPayout(BaseModel):
@@ -96,6 +101,7 @@ class AjoStore:
         already paid this round stay paid; the beneficiary pointer is kept
         in range."""
         group = self.ensure(artifact_id)
+        existing = {_key(m.name): m for m in group.members}
         seen: set[str] = set()
         deduped: list[AjoMember] = []
         for m in members:
@@ -103,15 +109,35 @@ class AjoStore:
             if not k or k in seen:
                 continue
             seen.add(k)
-            deduped.append(AjoMember(name=m.name.strip(), whatsapp=m.whatsapp.strip()))
+            previous = existing.get(k)
+            # The browser intentionally does not receive phone numbers. When it
+            # submits the existing roster while adding someone, blank therefore
+            # means "keep the stored number", not "erase it" (#193/#234).
+            whatsapp = m.whatsapp.strip() or (previous.whatsapp if previous else "")
+            deduped.append(
+                AjoMember(
+                    name=m.name.strip(),
+                    whatsapp=whatsapp,
+                    nudge_status=previous.nudge_status if previous else "not_sent",
+                )
+            )
         group.members = deduped
-        group.paid_this_round = {
-            k: v for k, v in group.paid_this_round.items() if k in seen
-        }
+        group.paid_this_round = {k: v for k, v in group.paid_this_round.items() if k in seen}
         if group.members:
             group.beneficiary_index %= len(group.members)
         log.info("ajo.members.set", artifact=artifact_id, count=len(deduped))
         return group
+
+    def record_nudge(self, artifact_id: str, member_name: str, delivered: bool) -> None:
+        """Record Evolution's actual result without exposing the phone number."""
+        group = self.group(artifact_id)
+        if group is None:
+            return
+        key = _key(member_name)
+        for member in group.members:
+            if _key(member.name) == key:
+                member.nudge_status = "delivered" if delivered else "failed"
+                return
 
     def record_contribution(
         self,
@@ -159,6 +185,8 @@ class AjoStore:
             group.round += 1
             group.beneficiary_index = (group.beneficiary_index + 1) % len(group.members)
             group.paid_this_round = {}
+            for member in group.members:
+                member.nudge_status = "not_sent"
 
         result = ContributionResult(
             member=name,

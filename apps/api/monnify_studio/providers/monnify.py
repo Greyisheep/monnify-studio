@@ -207,6 +207,8 @@ _REQUEST_TEMPLATES: dict[str, dict] = {
             "contractCode": "<your-contract-code>",
             "customerEmail": "customer@example.com",
             "customerName": "John Doe",
+            "bvn": "<member-bvn-or-use-nin>",
+            "nin": "<member-nin-or-use-bvn>",
             "getAllAvailableBanks": True,
         },
     },

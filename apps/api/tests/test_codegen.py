@@ -84,3 +84,42 @@ def test_code_endpoint_404_and_bad_lang():
     assert client.get("/workflows/nope/code").status_code == 404
     wf = client.post("/workflows/from-template/invoice").json()["workflow"]
     assert client.get(f"/workflows/{wf['id']}/code?lang=cobol").status_code == 400
+
+
+def test_employee_sheet_bakes_into_a_real_batch():
+    """The roster a dev typed becomes a runnable transactionList + batch body."""
+    wf = Workflow(
+        id="pr", name="Payroll", provider="monnify", entrypoint="rows",
+        nodes=[
+            Node(id="rows", type="app.data_rows", label="Employees", config={"rows": [
+                {"name": "Ada Obi", "account_number": "0123456789", "bank_code": "058", "amount": "150000"},
+            ]}),
+            Node(id="bulk", type="monnify.bulk_transfer", label="Pay"),
+        ],
+        edges=[Edge(source="rows", target="bulk")],
+    )
+    src = generate_python(wf)
+    compile(src, "<pr>", "exec")
+    assert 'ctx["transactionList"] = [' in src
+    assert '"destinationAccountNumber": \'0123456789\'' in src
+    assert "/api/v2/disbursements/batch" in src
+    assert '"transactionList": ctx.get("transactionList", [])' in src
+
+
+def test_webhook_is_a_separate_handler_not_run_inline():
+    """A webhook island becomes handle_*(payload), never called inside run()."""
+    wf = Workflow(
+        id="wh", name="Card", provider="monnify", entrypoint="init",
+        nodes=[
+            Node(id="init", type="monnify.initialize_transaction", label="Init"),
+            Node(id="hook", type="event.payment_webhook", label="Webhook"),
+            Node(id="verify", type="monnify.verify_transaction", label="Verify"),
+        ],
+        edges=[Edge(source="hook", target="verify", kind="event")],
+    )
+    src = generate_python(wf)
+    compile(src, "<wh>", "exec")
+    assert "def handle_hook(payload: dict)" in src
+    # run() must not call the webhook handler inline
+    run_block = src.split("def run()")[1].split("def handle_")[0]
+    assert "hook(ctx" not in run_block

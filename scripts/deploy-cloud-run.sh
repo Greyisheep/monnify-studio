@@ -35,7 +35,10 @@ trap 'rm -f "$ENV_FILE"' EXIT
   echo "studio_env: production"
   echo "allow_production_execution: \"false\""   # sandbox-only, always
   echo "cors_origins: \"*\""                       # tightened after web deploys, below
-  echo "STUDIO_SEED_DEMO: \"1\""                  # boot seeds a demo business (#116)
+  # No boot seed: testers start on a clean slate and only ever see what they
+  # create, so nobody is confused by data they did not add. Set STUDIO_SEED_DEMO=1
+  # in the environment if you want the sample "Mama Nkechi Foods" business back.
+  echo "STUDIO_SEED_DEMO: \"${STUDIO_SEED_DEMO:-0}\""
 } > "$ENV_FILE"
 
 # Forward only known keys — never print values. A real exported env var wins
@@ -48,6 +51,7 @@ for key in CLAUDE_API_KEY ANTHROPIC_API_KEY OPENAI_API_KEY GOOGLE_API_KEY \
            MONNIFY_API_KEY MONNIFY_SECRET_KEY MONNIFY_CONTRACT_CODE \
            MONNIFY_WALLET_ACCOUNT \
            EVOLUTION_API_URL EVOLUTION_API_KEY EVOLUTION_INSTANCE \
+           STUDIO_NOTIFY_NUMBER STUDIO_NOTIFY_EMAIL \
            ZEPTOMAIL_API_KEY ZEPTOMAIL_SENDER ZEPTOMAIL_REPLY_TO; do
   value="${!key:-}"
   if [ -z "$value" ] && [ -f "$ROOT/.env" ]; then
