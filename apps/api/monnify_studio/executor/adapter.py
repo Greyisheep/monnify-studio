@@ -86,6 +86,23 @@ def _amount_in(inputs: dict[str, Any], config: dict[str, Any]) -> str:
     return str(money(_DEFAULT_AMOUNT))
 
 
+def _run_payment_reference(context: dict[str, Any]) -> str | None:
+    """The real payment_reference an initialize minted earlier in THIS run.
+
+    A card->webhook->verify->notify flow wires verify off the webhook island, so
+    the direct edges never carry the initialize's reference. Rather than dead-end
+    at 'no reference' (which reads as a failed run and starves downstream notify),
+    fall back to the one real reference the run already produced: there is a
+    single payment per run, so querying it is exactly right and still hits real
+    Monnify for the authoritative status (the whole thesis holds)."""
+    outputs = context.get("outputs") or {}
+    for node_outputs in reversed(list(outputs.values())):
+        ref = (node_outputs or {}).get("payment_reference")
+        if isinstance(ref, str) and ref.strip():
+            return ref.strip()
+    return None
+
+
 def _code_block_outputs(inputs: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
     """What a custom.code node contributes downstream (#147, #69).
 
@@ -287,8 +304,10 @@ class SandboxAdapter:
                     transaction_reference=tx["transaction_reference"],
                 )
             elif node.type in ("monnify.verify_transaction", "monnify.query_transaction"):
-                payment_ref = inputs.get("payment_reference") or _cfg(
-                    config, "paymentReference", "payment_reference"
+                payment_ref = (
+                    inputs.get("payment_reference")
+                    or _cfg(config, "paymentReference", "payment_reference")
+                    or _run_payment_reference(context)
                 )
                 if not payment_ref:
                     return self._failed(node, "no payment_reference reached verify (wire it from initialize)")
