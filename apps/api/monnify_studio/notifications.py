@@ -63,7 +63,15 @@ class WhatsAppNotifier:
     def enabled(self) -> bool:
         return self.client.configured
 
-    def _send_and_record(self, artifact_id: str, number: str, text: str, feed_text: str) -> bool:
+    def _send_and_record(
+        self,
+        artifact_id: str,
+        number: str,
+        text: str,
+        feed_text: str,
+        *,
+        failed_feed_text: str | None = None,
+    ) -> bool:
         delivered = False
         if number and self.client.configured:
             try:
@@ -75,7 +83,11 @@ class WhatsAppNotifier:
             except Exception as exc:  # a failed send must not break the product
                 log.warning("whatsapp.send_failed", error=str(exc))
         notification_log.add(
-            Notification(artifact_id=artifact_id, text=feed_text, delivered=delivered)
+            Notification(
+                artifact_id=artifact_id,
+                text=feed_text if delivered else (failed_feed_text or feed_text),
+                delivered=delivered,
+            )
         )
         return delivered
 
@@ -124,7 +136,10 @@ class WhatsAppNotifier:
             f"{beneficiary}'s pot can complete."
         )
         feed = f"Nudge sent to {member} on WhatsApp ({paid_count}/{member_count} paid)"
-        return self._send_and_record(artifact_id, number, text, feed)
+        failed_feed = (
+            f"WhatsApp nudge to {member} could not be delivered ({paid_count}/{member_count} paid)"
+        )
+        return self._send_and_record(artifact_id, number, text, feed, failed_feed_text=failed_feed)
 
     def ajo_payout(
         self,
@@ -155,7 +170,9 @@ class EmailNotifier:
     def enabled(self) -> bool:
         return self.client.configured
 
-    def _send_and_record(self, artifact_id: str, to: str, subject: str, html: str, feed_text: str) -> bool:
+    def _send_and_record(
+        self, artifact_id: str, to: str, subject: str, html: str, feed_text: str
+    ) -> bool:
         delivered = False
         if to and self.client.configured:
             try:
@@ -164,12 +181,18 @@ class EmailNotifier:
             except Exception as exc:  # a failed send must not break the product
                 log.warning("email.send_failed", error=str(exc))
         notification_log.add(
-            Notification(artifact_id=artifact_id, channel="email", text=feed_text, delivered=delivered)
+            Notification(
+                artifact_id=artifact_id, channel="email", text=feed_text, delivered=delivered
+            )
         )
         return delivered
 
     def notify(
-        self, *, to: str, text: str, subject: str = "Monnify Studio notification",
+        self,
+        *,
+        to: str,
+        text: str,
+        subject: str = "Monnify Studio notification",
         artifact_id: str = "studio-run",
     ) -> bool:
         """Generic email send for a flow's app.notify node during a run (#231):

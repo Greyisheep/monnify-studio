@@ -49,6 +49,13 @@ describe("tour dismiss persistence (#103)", () => {
   afterEach(() => {
     window.localStorage.removeItem(tourDismissKey("business"));
     window.localStorage.removeItem(tourDismissKey("developer"));
+    window.localStorage.removeItem(tourDismissKey("business-workflow"));
+  });
+
+  it("does not let dashboard dismissal suppress the business workflow tour (#233)", () => {
+    persistTourDismissed("business");
+    expect(isTourDismissed("business")).toBe(true);
+    expect(isTourDismissed("business-workflow")).toBe(false);
   });
 
   it("starts undismissed then persists skip __AC7", () => {

@@ -78,7 +78,9 @@ def test_production_base_url_is_refused():
 
 def test_monnify_error_on_unsuccessful_response():
     def bad(_request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, json={"requestSuccessful": False, "responseMessage": "bad creds"})
+        return httpx.Response(
+            200, json={"requestSuccessful": False, "responseMessage": "bad creds"}
+        )
 
     with pytest.raises(MonnifyError, match="bad creds"), _client(bad) as client:
         client.authenticate()
@@ -94,3 +96,92 @@ def test_secrets_never_appear_in_logs():
     logged = buf.getvalue()
     for secret in ("APIKEY123", "SECRET456", "TOKENXYZ"):
         assert secret not in logged
+
+
+def test_create_reserved_account_uses_kyc_and_returns_first_bank_account():
+    def reserved(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/auth/login"):
+            return httpx.Response(
+                200,
+                json={"requestSuccessful": True, "responseBody": {"accessToken": "TOKENXYZ"}},
+            )
+        assert request.url.path.endswith("/api/v2/bank-transfer/reserved-accounts")
+        assert request.headers["Authorization"] == "Bearer TOKENXYZ"
+        body = json.loads(request.content)
+        assert body == {
+            "accountReference": "ajo-ada-1",
+            "accountName": "Ada Ajo Account",
+            "currencyCode": "NGN",
+            "contractCode": "CONTRACT789",
+            "customerEmail": "ada@example.com",
+            "customerName": "Ada",
+            "getAllAvailableBanks": True,
+            "bvn": "21212121212",
+        }
+        return httpx.Response(
+            200,
+            json={
+                "requestSuccessful": True,
+                "responseBody": {
+                    "accountReference": "ajo-ada-1",
+                    "reservationReference": "RES-1",
+                    "status": "ACTIVE",
+                    "accounts": [
+                        {
+                            "bankCode": "50515",
+                            "bankName": "Moniepoint Microfinance Bank",
+                            "accountNumber": "6254727989",
+                            "accountName": "Ada Ajo Account",
+                        }
+                    ],
+                },
+            },
+        )
+
+    with _client(reserved) as client:
+        result = client.create_reserved_account(
+            account_reference="ajo-ada-1",
+            account_name="Ada Ajo Account",
+            customer_email="ada@example.com",
+            customer_name="Ada",
+            bvn="21212121212",
+        )
+    assert result["account_number"] == "6254727989"
+    assert result["bank"] == "Moniepoint Microfinance Bank"
+    assert result["status"] == "ACTIVE"
+
+
+def test_create_reserved_account_requires_kyc_before_network_call():
+    with pytest.raises(MonnifyError, match="BVN or NIN"), _client() as client:
+        client.create_reserved_account(
+            account_reference="ajo-ada-1",
+            account_name="Ada Ajo Account",
+            customer_email="ada@example.com",
+            customer_name="Ada",
+        )
+
+
+def test_reserved_account_provider_503_remains_a_clear_monnify_error():
+    def unavailable(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/auth/login"):
+            return httpx.Response(
+                200,
+                json={"requestSuccessful": True, "responseBody": {"accessToken": "TOKENXYZ"}},
+            )
+        return httpx.Response(
+            503,
+            json={
+                "requestSuccessful": False,
+                "responseCode": "99",
+                "responseMessage": "Service unavailable",
+            },
+        )
+
+    with pytest.raises(MonnifyError, match="Service unavailable"), _client(unavailable) as client:
+        client.create_reserved_account(
+            account_reference="ajo-ada-1",
+            account_name="Ada Ajo Account",
+            customer_email="ada@example.com",
+            customer_name="Ada",
+            nin="12345678901",
+        )

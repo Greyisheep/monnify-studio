@@ -55,11 +55,7 @@ def test_event_seq_is_contiguous():
 def test_mock_walk_covers_parallel_roots():
     """Unsafe hero has webhook + confirm islands; both must appear in the trace."""
     run = run_workflow(unsafe_marketplace(), adapter=MockAdapter())
-    node_ids = {
-        event.node_id
-        for event in execution_store.list_events(run.id)
-        if event.node_id
-    }
+    node_ids = {event.node_id for event in execution_store.list_events(run.id) if event.node_id}
     assert {"init", "webhook", "confirm", "fulfil", "payout"} <= node_ids
 
 
@@ -73,9 +69,7 @@ def test_safe_marketplace_completes_cleanly():
 def test_mock_adapter_redacts_sensitive_keys():
     run = run_workflow(unsafe_marketplace(), adapter=MockAdapter())
     events = execution_store.list_events(run.id)
-    completed = [
-        event for event in events if event.type == ExecutionEventType.NODE_COMPLETED
-    ]
+    completed = [event for event in events if event.type == ExecutionEventType.NODE_COMPLETED]
     assert completed
     for event in completed:
         if event.response and isinstance(event.response.get("body"), dict):
@@ -84,9 +78,7 @@ def test_mock_adapter_redacts_sensitive_keys():
 
 def test_api_start_execution_and_fetch_events():
     workflow = client.get("/workflows/marketplace-unsafe").json()["workflow"]
-    started = client.post(
-        "/executions", json={"workflow": workflow, "adapter": "mock"}
-    ).json()
+    started = client.post("/executions", json={"workflow": workflow, "adapter": "mock"}).json()
     run_id = started["run"]["id"]
     assert started["event_count"] > 0
     assert started["run"]["status"] == "completed"
@@ -123,9 +115,7 @@ def test_monnify_adapter_requires_credentials(monkeypatch):
     from monnify_studio.config import Settings
 
     empty = Settings(monnify_api_key="", monnify_secret_key="", monnify_contract_code="")
-    monkeypatch.setattr(
-        api_main.credential_store, "settings_for", lambda _wid: empty
-    )
+    monkeypatch.setattr(api_main.credential_store, "settings_for", lambda _wid: empty)
     workflow = client.get("/workflows/marketplace-unsafe").json()["workflow"]
     res = client.post("/executions", json={"workflow": workflow, "adapter": "monnify"})
     assert res.status_code == 422
@@ -148,9 +138,70 @@ def test_cfg_prefers_edited_camelcase_and_skips_placeholders():
     # Snake_case still works when that is what is present.
     assert _cfg({"customer_name": "Bola"}, "customerName", "customer_name", default="X") == "Bola"
     # An untouched template placeholder is treated as unset -> default.
-    assert _cfg({"paymentReference": "<unique-reference>"}, "paymentReference", default="gen") == "gen"
+    assert (
+        _cfg({"paymentReference": "<unique-reference>"}, "paymentReference", default="gen") == "gen"
+    )
     # Nothing set -> default.
     assert _cfg({}, "narration", default="Payout") == "Payout"
+
+
+def test_cfg_bool_handles_text_backed_request_fields():
+    from monnify_studio.executor.adapter import _cfg_bool
+
+    assert (
+        _cfg_bool({"getAllAvailableBanks": "false"}, "getAllAvailableBanks", default=True) is False
+    )
+    assert (
+        _cfg_bool({"getAllAvailableBanks": "true"}, "getAllAvailableBanks", default=False) is True
+    )
+
+
+def test_live_reserved_account_node_calls_client_and_surfaces_real_account(monkeypatch):
+    from monnify_studio.config import Settings
+    from monnify_studio.executor.adapter import SandboxAdapter
+    from monnify_studio.ir.models import Node
+
+    class FakeClient:
+        def create_reserved_account(self, **kwargs):
+            assert kwargs["account_reference"] == "ajo-ada-1"
+            assert kwargs["bvn"] == "21212121212"
+            assert kwargs["get_all_available_banks"] is False
+            return {
+                "account_reference": "ajo-ada-1",
+                "reservation_reference": "RES-1",
+                "account_number": "6254727989",
+                "account_name": "Ada Ajo Account",
+                "bank": "Moniepoint Microfinance Bank",
+                "bank_code": "50515",
+                "status": "ACTIVE",
+            }
+
+    adapter = SandboxAdapter(
+        Settings(
+            monnify_api_key="key",
+            monnify_secret_key="secret",
+            monnify_contract_code="contract",
+        )
+    )
+    monkeypatch.setattr(adapter, "_c", lambda: FakeClient())
+    result = adapter.invoke(
+        Node(
+            id="account",
+            type="monnify.create_reserved_account",
+            config={
+                "accountReference": "ajo-ada-1",
+                "accountName": "Ada Ajo Account",
+                "customerName": "Ada",
+                "customerEmail": "ada@example.com",
+                "bvn": "21212121212",
+                "getAllAvailableBanks": "false",
+            },
+        ),
+        {"inputs": {}},
+    )
+    assert result.ok is True
+    assert result.outputs["account_number"] == "6254727989"
+    assert result.outputs["status"] == "ACTIVE"
 
 
 def test_notify_node_simulated_in_practice_and_recorded_live():

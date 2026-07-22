@@ -4358,6 +4358,18 @@ body.is-resizing-sidebar iframe {
 .biz-ajo__kind {
   color: #a3a3a3;
 }
+.biz-ajo__sim {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.biz-ajo__sim-note {
+  flex: 1 1 360px;
+  color: #737373;
+  font-size: 12px;
+  line-height: 1.45;
+}
 .biz-ajo__add {
   display: flex;
   flex-direction: column;

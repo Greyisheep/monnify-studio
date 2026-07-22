@@ -104,7 +104,15 @@ export function AjoPanel({ artifactId }: AjoPanelProps) {
                   {m.is_beneficiary ? " (receives this round)" : ""}
                 </span>
                 <span className="biz-ajo__flag">
-                  {m.paid ? "Paid" : m.has_whatsapp ? "Nudged on WhatsApp" : "Not paid"}
+                  {m.paid
+                    ? "Paid"
+                    : m.nudge_status === "delivered"
+                      ? "Nudged on WhatsApp"
+                      : m.nudge_status === "failed"
+                        ? "WhatsApp nudge failed"
+                        : m.has_whatsapp
+                          ? "Not nudged yet"
+                          : "Not paid"}
                 </span>
               </li>
             ))}

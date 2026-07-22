@@ -61,8 +61,12 @@ def _shop_artifact() -> str:
     wf = client.post("/workflows/from-template/invoice").json()["workflow"]
     res = client.post(
         f"/workflows/{wf['id']}/generate",
-        json={"config": {"business_name": "Kunle Designs",
-                         "catalog": [{"id": "logo", "name": "Logo design", "price_ngn": 25000}]}},
+        json={
+            "config": {
+                "business_name": "Kunle Designs",
+                "catalog": [{"id": "logo", "name": "Logo design", "price_ngn": 25000}],
+            }
+        },
     )
     return res.json()["artifact_id"]
 
@@ -77,8 +81,11 @@ def test_normalize_ng():
 def test_unconfigured_notifier_records_but_does_not_deliver():
     n = WhatsAppNotifier(client=FakeEvo(configured=False))
     ok = n.invoice_ready(
-        artifact_id="art_x", number="08011112222", business="Ada",
-        amount=Decimal("5000"), url="http://x/i",
+        artifact_id="art_x",
+        number="08011112222",
+        business="Ada",
+        amount=Decimal("5000"),
+        url="http://x/i",
     )
     assert ok is False
     recorded = notification_log.for_artifact("art_x")
@@ -95,12 +102,33 @@ def test_configured_notifier_sends():
     assert fake.sent and "Thank you" in fake.sent[0][1]
 
 
+def test_ajo_activity_does_not_claim_an_undelivered_nudge_was_sent():
+    notifier = WhatsAppNotifier(client=FakeEvo(configured=False))
+    delivered = notifier.ajo_nudge(
+        artifact_id="art_ajo_failed",
+        number="08031111111",
+        member="Bola",
+        paid_count=1,
+        member_count=2,
+        beneficiary="Ada",
+        who_paid="Ada",
+    )
+    assert delivered is False
+    note = notification_log.for_artifact("art_ajo_failed")[0]
+    assert note.delivered is False
+    assert "could not be delivered" in note.text
+    assert "Nudge sent" not in note.text
+
+
 def test_shop_invoice_messages_the_buyer_on_whatsapp(fake_evo):
     artifact_id = _shop_artifact()
     res = client.post(
         f"/preview/{artifact_id}/shop/invoice",
-        json={"customer": "Chidi", "customer_whatsapp": "08055556666",
-              "selections": [{"id": "logo", "qty": 1}]},
+        json={
+            "customer": "Chidi",
+            "customer_whatsapp": "08055556666",
+            "selections": [{"id": "logo", "qty": 1}],
+        },
     )
     assert res.status_code == 200
     # A message was actually sent, to the normalized number, with the invoice link.
@@ -118,8 +146,12 @@ def test_shop_invoice_messages_the_buyer_on_whatsapp(fake_evo):
 def test_thank_you_fires_when_payment_is_verified(fake_evo):
     artifact_id = _shop_artifact()
     inv = orders_service.create(
-        reference="INV-WA1", artifact_id=artifact_id, product="Logo",
-        amount=Decimal("25000"), kind="invoice", customer="Chidi",
+        reference="INV-WA1",
+        artifact_id=artifact_id,
+        product="Logo",
+        amount=Decimal("25000"),
+        kind="invoice",
+        customer="Chidi",
         customer_whatsapp="08055556666",
     )
     orders_service.attach_payment("INV-WA1", payment_reference="PAY-1")
@@ -141,8 +173,11 @@ def test_whatsapp_node_is_on_the_canvas():
 def test_unconfigured_email_notifier_records_but_does_not_deliver():
     n = EmailNotifier(client=FakeZepto(configured=False))
     ok = n.invoice_ready(
-        artifact_id="art_e1", to="chidi@example.com", business="Ada",
-        amount=Decimal("5000"), url="http://x/i",
+        artifact_id="art_e1",
+        to="chidi@example.com",
+        business="Ada",
+        amount=Decimal("5000"),
+        url="http://x/i",
     )
     assert ok is False
     recorded = notification_log.for_artifact("art_e1")
@@ -164,8 +199,11 @@ def test_shop_invoice_messages_the_buyer_by_email(fake_zepto):
     artifact_id = _shop_artifact()
     res = client.post(
         f"/preview/{artifact_id}/shop/invoice",
-        json={"customer": "Chidi", "customer_email": "chidi@example.com",
-              "selections": [{"id": "logo", "qty": 1}]},
+        json={
+            "customer": "Chidi",
+            "customer_email": "chidi@example.com",
+            "selections": [{"id": "logo", "qty": 1}],
+        },
     )
     assert res.status_code == 200
     assert fake_zepto.sent
@@ -179,8 +217,12 @@ def test_shop_invoice_messages_the_buyer_by_email(fake_zepto):
 def test_thank_you_by_email_fires_when_payment_is_verified(fake_zepto):
     artifact_id = _shop_artifact()
     inv = orders_service.create(
-        reference="INV-EM1", artifact_id=artifact_id, product="Logo",
-        amount=Decimal("25000"), kind="invoice", customer="Chidi",
+        reference="INV-EM1",
+        artifact_id=artifact_id,
+        product="Logo",
+        amount=Decimal("25000"),
+        kind="invoice",
+        customer="Chidi",
         customer_email="chidi@example.com",
     )
     orders_service.attach_payment("INV-EM1", payment_reference="PAY-2")
@@ -197,9 +239,12 @@ def test_buyer_can_give_both_whatsapp_and_email(fake_evo, fake_zepto):
     artifact_id = _shop_artifact()
     res = client.post(
         f"/preview/{artifact_id}/shop/invoice",
-        json={"customer": "Chidi", "customer_whatsapp": "08055556666",
-              "customer_email": "chidi@example.com",
-              "selections": [{"id": "logo", "qty": 1}]},
+        json={
+            "customer": "Chidi",
+            "customer_whatsapp": "08055556666",
+            "customer_email": "chidi@example.com",
+            "selections": [{"id": "logo", "qty": 1}],
+        },
     )
     assert res.status_code == 200
     assert fake_evo.sent and fake_zepto.sent

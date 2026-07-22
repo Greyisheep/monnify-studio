@@ -132,9 +132,7 @@ def _cors_allow_origins() -> list[str]:
         return configured
     # Local Next hops ports; never 400 a browser preflight during the demo.
     extras = [
-        f"http://{host}:{port}"
-        for host in ("localhost", "127.0.0.1")
-        for port in range(3000, 3011)
+        f"http://{host}:{port}" for host in ("localhost", "127.0.0.1") for port in range(3000, 3011)
     ]
     return list(dict.fromkeys([*configured, *extras]))
 
@@ -254,15 +252,11 @@ def _meta_from_def(defn) -> NodeMeta:
         path=getattr(defn, "path", ""),
         request_template=getattr(defn, "request_template", {}) or {},
         inputs=[
-            PortMeta(
-                name=p.name, type=p.type.value, required=p.required, description=p.description
-            )
+            PortMeta(name=p.name, type=p.type.value, required=p.required, description=p.description)
             for p in defn.inputs
         ],
         outputs=[
-            PortMeta(
-                name=p.name, type=p.type.value, required=p.required, description=p.description
-            )
+            PortMeta(name=p.name, type=p.type.value, required=p.required, description=p.description)
             for p in defn.outputs
         ],
     )
@@ -276,9 +270,7 @@ def _enrich(workflow: Workflow) -> WorkflowPayload:
     metas = _catalog_metas()
     for node in workflow.nodes:
         if node.type not in metas:
-            metas[node.type] = NodeMeta(
-                type=node.type, category="application", title=node.type
-            )
+            metas[node.type] = NodeMeta(type=node.type, category="application", title=node.type)
     return WorkflowPayload(workflow=workflow, node_types=metas)
 
 
@@ -428,8 +420,7 @@ def assistant_compose(body: AssistantRequest) -> ComposeResponse:
             # Tried, but could not make it verifiably safe within the round budget.
             raise HTTPException(
                 status_code=422,
-                detail="Moni could not produce a verifiably safe flow: "
-                + "; ".join(exc.errors),
+                detail="Moni could not produce a verifiably safe flow: " + "; ".join(exc.errors),
             ) from None
         except HTTPException:
             raise
@@ -475,9 +466,7 @@ def assistant_refine(body: RefineRequest) -> ComposeResponse:
     with correlation(request_id=new_id("moni")):
         current = store.get(body.workflow_id)
         if current is None:
-            raise HTTPException(
-                status_code=404, detail=f"unknown workflow: {body.workflow_id}"
-            )
+            raise HTTPException(status_code=404, detail=f"unknown workflow: {body.workflow_id}")
         try:
             outcome = refine_flow(current, body.message, provider=body.provider)
         except ComposeUnavailable as exc:
@@ -489,8 +478,7 @@ def assistant_refine(body: RefineRequest) -> ComposeResponse:
         except ComposeError as exc:
             raise HTTPException(
                 status_code=422,
-                detail="Moni could not make that change verifiably safe: "
-                + "; ".join(exc.errors),
+                detail="Moni could not make that change verifiably safe: " + "; ".join(exc.errors),
             ) from None
         except Exception as exc:  # noqa: BLE001 - typed 500 keeps CORS (#106)
             log.info("assistant.refine.unexpected", error=type(exc).__name__)
@@ -551,9 +539,7 @@ def assistant_explain(body: ExplainRequest) -> ExplainResponse:
                 status_code=404, detail=f"unknown node type: {body.node_type}"
             ) from None
         log.info("assistant.explain", node=body.node_type, provider=provider_used)
-        return ExplainResponse(
-            answer=result.answer, sources=result.sources, provider=provider_used
-        )
+        return ExplainResponse(answer=result.answer, sources=result.sources, provider=provider_used)
 
 
 @app.get("/templates", response_model=list[TemplateInfo])
@@ -572,9 +558,7 @@ def create_from_template(template_id: str) -> WorkflowPayload:
     try:
         wf = build_template(template_id)
     except KeyError:
-        raise HTTPException(
-            status_code=404, detail=f"unknown template: {template_id}"
-        ) from None
+        raise HTTPException(status_code=404, detail=f"unknown template: {template_id}") from None
     wf.id = f"{template_id}-{new_id('wf').split('_')[1]}"
     saved = store.save(wf)
     log.info("api.template.instantiated", template=template_id, workflow=saved.id)
@@ -876,9 +860,7 @@ def shop_qr(artifact_id: str, request: Request) -> Response:
     base = str(request.base_url).rstrip("/")
     url = f"{base}/preview/{artifact_id}/shop"
     buf = io.BytesIO()
-    segno.make(url, error="m").save(
-        buf, kind="svg", scale=5, border=2, dark="#0f6b57"
-    )
+    segno.make(url, error="m").save(buf, kind="svg", scale=5, border=2, dark="#0f6b57")
     return Response(content=buf.getvalue(), media_type="image/svg+xml")
 
 
@@ -983,6 +965,7 @@ def ajo_state(artifact_id: str) -> dict:
                 "name": m.name,
                 "paid": m.name.strip().casefold() in paid_keys,
                 "has_whatsapp": bool(m.whatsapp),
+                "nudge_status": m.nudge_status,
                 "is_beneficiary": m.name == group.beneficiary,
             }
             for m in group.members
@@ -1036,9 +1019,7 @@ def ajo_simulate_contribution(artifact_id: str, body: AjoSimulateRequest) -> dic
     artifact = _artifact_or_404(artifact_id)
     group = ajo_store.group(artifact_id)
     if group is None or not group.members:
-        raise HTTPException(
-            status_code=400, detail="register ajo members before simulating"
-        )
+        raise HTTPException(status_code=400, detail="register ajo members before simulating")
     member = body.member.strip()
     if not member:
         paid = set(group.paid_this_round)
@@ -1047,9 +1028,7 @@ def ajo_simulate_contribution(artifact_id: str, body: AjoSimulateRequest) -> dic
             raise HTTPException(status_code=400, detail="everyone has paid this round")
         member = unpaid[0].name
     amount = money(artifact.config.price_ngn)
-    result = ajo_store.record_contribution(
-        artifact_id, member, amount, simulated=True
-    )
+    result = ajo_store.record_contribution(artifact_id, member, amount, simulated=True)
     if result is not None:
         _ajo_notify(artifact_id, result)
     log.info("ajo.simulated_contribution", artifact_id=artifact_id, member=member)
@@ -1083,9 +1062,7 @@ def shop_invoice(artifact_id: str, body: ShopInvoiceRequest, request: Request) -
         item = prices.get(sel.id)
         if item is None:
             raise HTTPException(status_code=400, detail=f"unknown item: {sel.id}")
-        line_items.append(
-            LineItem(name=item.name, qty=sel.qty, unit_amount=item.price_ngn)
-        )
+        line_items.append(LineItem(name=item.name, qty=sel.qty, unit_amount=item.price_ngn))
     reference = f"INV-{uuid4().hex[:6].upper()}"
     summary = ", ".join(f"{li.qty}x {li.name}" for li in line_items)
     inv = orders_service.create(
@@ -1174,7 +1151,7 @@ def _ajo_notify(artifact_id: str, result) -> None:
         )
         return
     for member in result.unpaid:
-        whatsapp_notifier.ajo_nudge(
+        delivered = whatsapp_notifier.ajo_nudge(
             artifact_id=artifact_id,
             number=member.whatsapp,
             member=member.name,
@@ -1183,6 +1160,7 @@ def _ajo_notify(artifact_id: str, result) -> None:
             beneficiary=result.next_beneficiary,
             who_paid=result.member,
         )
+        ajo_store.record_nudge(artifact_id, member.name, delivered)
 
 
 def _ajo_on_verified(order: Order) -> None:
@@ -1193,9 +1171,7 @@ def _ajo_on_verified(order: Order) -> None:
     whoever has not paid, and when the pot completes, record the payout and
     rotate the turn.
     """
-    result = ajo_store.record_contribution(
-        order.artifact_id, order.customer, order.amount
-    )
+    result = ajo_store.record_contribution(order.artifact_id, order.customer, order.amount)
     if result is not None:
         _ajo_notify(order.artifact_id, result)
 
@@ -1313,9 +1289,7 @@ def artifact_activity(artifact_id: str) -> list[ActivityItem]:
                     )
                 )
     for note in notification_log.for_artifact(artifact_id):
-        items.append(
-            ActivityItem(ts=note.ts.isoformat(), kind="notification", text=note.text)
-        )
+        items.append(ActivityItem(ts=note.ts.isoformat(), kind="notification", text=note.text))
     items.sort(key=lambda i: i.ts, reverse=True)
     return items[:50]
 
@@ -1455,9 +1429,7 @@ def verify_order(artifact_id: str, reference: str) -> Order:
         try:
             return orders_service.verify(reference)
         except MonnifyError as exc:
-            raise HTTPException(
-                status_code=502, detail=f"Monnify sandbox error: {exc}"
-            ) from None
+            raise HTTPException(status_code=502, detail=f"Monnify sandbox error: {exc}") from None
 
 
 @app.post("/monnify/webhook")
@@ -1492,9 +1464,7 @@ async def monnify_webhook(request: Request) -> dict:
     order = orders_service.find_by_payment_reference(payment_reference)
     secrets = [credential_store.settings_for(None).monnify_secret_key]
     if order is not None:
-        secrets.append(
-            credential_store.settings_for(order.workflow_id).monnify_secret_key
-        )
+        secrets.append(credential_store.settings_for(order.workflow_id).monnify_secret_key)
     if not any(_matches(s) for s in secrets):
         log.warning("webhook.bad_signature", payment_reference=payment_reference)
         raise HTTPException(status_code=401, detail="invalid signature")
@@ -1508,9 +1478,7 @@ async def monnify_webhook(request: Request) -> dict:
             verified = orders_service.verify(order.reference)
         except MonnifyError as exc:
             # 5xx so Monnify retries later; the auto-poll may win meanwhile.
-            raise HTTPException(
-                status_code=502, detail=f"verify failed: {exc}"
-            ) from None
+            raise HTTPException(status_code=502, detail=f"verify failed: {exc}") from None
         log.info(
             "webhook.processed",
             order=order.reference,

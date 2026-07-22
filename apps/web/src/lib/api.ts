@@ -310,6 +310,7 @@ export interface AjoStateDto {
     name: string;
     paid: boolean;
     has_whatsapp: boolean;
+    nudge_status: "not_sent" | "delivered" | "failed";
     is_beneficiary: boolean;
   }>;
   round: number;

@@ -2,7 +2,7 @@
  * Post-door walkthrough steps (#103) — Figma Onboarding Tour (business 7-step).
  * Card chrome: https://www.figma.com/design/jj9fKZamdwfNDVD5rGQI9G/…?node-id=189-6968
  */
-export type TourPath = "business" | "developer";
+export type TourPath = "business" | "business-workflow" | "developer";
 
 export type TourChrome = "dashboard" | "hover";
 export type TourPlacement = "auto" | "center" | "above" | "below" | "right";
@@ -110,8 +110,37 @@ export const DEVELOPER_TOUR_STEPS: TourStep[] = [
   },
 ];
 
+/** A business owner deliberately opened the technical view (#233).
+ * Keep the language task-oriented and give this tour its own dismissal key so
+ * completing the dashboard tour never suppresses it. */
+export const BUSINESS_WORKFLOW_TOUR_STEPS: TourStep[] = [
+  {
+    id: "canvas",
+    target: "biz-workflow-canvas",
+    title: "This is how your business works",
+    body: "Each card is one step in collecting, checking, or moving money. You can move the cards without writing code.",
+    chrome: "hover",
+  },
+  {
+    id: "catalog",
+    target: "dev-catalog",
+    title: "Add another step",
+    body: "Choose a Monnify building block here and add it to your workflow when your business needs more.",
+    chrome: "hover",
+  },
+  {
+    id: "run",
+    target: "dev-run",
+    title: "Test before customers use it",
+    body: "Run the workflow with practice money first, then review what happened before making a live change.",
+    chrome: "hover",
+  },
+];
+
 export function tourStepsFor(path: TourPath): TourStep[] {
-  return path === "business" ? BUSINESS_TOUR_STEPS : DEVELOPER_TOUR_STEPS;
+  if (path === "business") return BUSINESS_TOUR_STEPS;
+  if (path === "business-workflow") return BUSINESS_WORKFLOW_TOUR_STEPS;
+  return DEVELOPER_TOUR_STEPS;
 }
 
 export function tourDismissKey(path: TourPath): string {
