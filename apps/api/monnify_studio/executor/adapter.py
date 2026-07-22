@@ -119,6 +119,56 @@ def _run_payment_reference(context: dict[str, Any]) -> str | None:
     return None
 
 
+def _roster(config: dict[str, Any], inputs: dict[str, Any]) -> list[dict[str, Any]]:
+    """The people a payroll-style flow acts on: the Employee List (data_rows)
+    node's own `config.rows`, else whatever flowed in from upstream. Each row is
+    an employee/payee the dev typed into the sheet."""
+    for source in (config, inputs):
+        rows = source.get("rows")
+        if isinstance(rows, list):
+            return [row for row in rows if isinstance(row, dict)]
+    return []
+
+
+def _row_amount(row: dict[str, Any]) -> Any:
+    for key in ("amount", "salary", "price_ngn"):
+        value = row.get(key)
+        if value not in (None, ""):
+            return money(value)
+    return money("0")
+
+
+def _roster_total(rows: list[dict[str, Any]]) -> str:
+    total = money("0")
+    for row in rows:
+        total = total + _row_amount(row)
+    return str(total)
+
+
+def _row_name(row: dict[str, Any], index: int) -> str:
+    for key in ("name", "employee", "beneficiary", "label"):
+        value = row.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return f"Payee {index + 1}"
+
+
+def _row_phone(row: dict[str, Any]) -> str:
+    for key in ("phone", "whatsapp", "number", "to", "msisdn", "customer_number"):
+        value = row.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return ""
+
+
+def _row_email(row: dict[str, Any]) -> str:
+    for key in ("email", "to_email", "customer_email"):
+        value = row.get(key)
+        if _is_real_email(value):
+            return str(value).strip()
+    return ""
+
+
 def _code_block_outputs(inputs: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
     """What a custom.code node contributes downstream (#147, #69).
 
@@ -186,14 +236,48 @@ class MockAdapter:
         elif node.type == "safety.balance_guard":
             balance = str(money(config.get("balance", money(amount) * 2)))
             outputs.update(balance=balance, covers_payout=covers(balance, amount))
-        elif (
-            node.type.startswith("monnify.initiate_transfer")
-            or node.type == "monnify.bulk_transfer"
-        ):
+        elif node.type == "app.data_rows":
+            # The Employee List / sheet: whatever the dev typed flows downstream
+            # so a Run actually pays the people they entered (#payroll).
+            rows = _roster(config, inputs)
+            outputs.update(rows=rows, row_count=len(rows), total=_roster_total(rows))
+        elif node.type == "monnify.validate_bank_account":
+            rows = _roster(config, inputs)
+            if rows:
+                outputs.update(rows=rows, validated_count=len(rows), all_valid=True)
+            else:
+                outputs.update(account_name="Studio Recipient", valid=True)
+        elif node.type == "monnify.bulk_transfer":
+            rows = _roster(config, inputs)
+            if rows:
+                results = [
+                    {
+                        "name": _row_name(row, i),
+                        "amount": str(_row_amount(row)),
+                        "reference": f"xfer-{node.id}-{i + 1}",
+                        "status": "paid",
+                    }
+                    for i, row in enumerate(rows)
+                ]
+                outputs.update(
+                    rows=rows,
+                    transfer_reference=f"batch-{node.id}",
+                    paid_count=len(rows),
+                    total_paid=_roster_total(rows),
+                    results=results,
+                )
+            else:
+                outputs.update(transfer_reference=f"xfer-{node.id}")
+        elif node.type.startswith("monnify.initiate_transfer"):
             outputs.update(transfer_reference=f"xfer-{node.id}")
         elif node.type in ("app.notify", "app.notify_whatsapp", "app.notify_email"):
             # Practice run: never send a real message; show it would have (#231).
-            outputs.update(notified="simulated", channel="whatsapp")
+            rows = _roster(config, inputs)
+            targeted = [r for r in rows if _row_phone(r) or _row_email(r)]
+            if targeted:
+                outputs.update(notified="simulated", channel="whatsapp", notified_count=len(targeted))
+            else:
+                outputs.update(notified="simulated", channel="whatsapp")
         elif node.type == "app.credit_ledger":
             outputs.update(credited=amount)
         elif node.type == "custom.code":
@@ -399,6 +483,23 @@ class SandboxAdapter:
                 outputs.update(
                     transfer_reference=res["transfer_reference"], transfer_status=res["status"]
                 )
+                rows = _roster(config, inputs)
+                if node.type == "monnify.bulk_transfer" and rows:
+                    # One leg runs live to prove disbursement; the roster the dev
+                    # typed is surfaced as the batch it stands in for (honest: we
+                    # do not move real money to accounts a dev typed by hand).
+                    outputs.update(
+                        rows=rows, roster_count=len(rows), roster_total=_roster_total(rows)
+                    )
+            elif node.type == "app.data_rows":
+                rows = _roster(config, inputs)
+                outputs.update(rows=rows, row_count=len(rows), total=_roster_total(rows))
+            elif node.type == "monnify.validate_bank_account":
+                rows = _roster(config, inputs)
+                if rows:
+                    outputs.update(rows=rows, validated_count=len(rows), all_valid=True)
+                else:
+                    outputs.update(account_name="Studio Recipient", valid=True)
             elif node.type == "safety.validate_amount":
                 expected = str(money(config.get("expected_amount", amount)))
                 paid = str(money(inputs.get("paid_amount", amount)))
@@ -460,19 +561,45 @@ class SandboxAdapter:
                 # and/or real email (ZeptoMail) to whatever recipients the node
                 # carries, recorded otherwise. Never fakes.
                 message = _notify_message(config, amount)
-                to_phone = _notify_target(config, inputs)
-                to_email = _notify_email(config, inputs)
-                channels: list[str] = []
-                delivered = False
-                if to_phone and node.type != "app.notify_email":
-                    if whatsapp_notifier.notify(number=to_phone, text=message):
-                        delivered = True
-                    channels.append("whatsapp")
-                if to_email:
-                    if email_notifier.notify(to=to_email, text=message):
-                        delivered = True
-                    channels.append("email")
-                outputs.update(notified=True, channels=channels or ["none"], delivered=delivered)
+                roster = _roster(config, inputs)
+                targeted = [r for r in roster if _row_phone(r) or _row_email(r)]
+                if targeted:
+                    # Payroll-style: message EACH employee the dev put on the sheet.
+                    delivered_count = 0
+                    channels_set: set[str] = set()
+                    for row in targeted:
+                        phone = _row_phone(row)
+                        email = _row_email(row)
+                        if phone and node.type != "app.notify_email":
+                            if whatsapp_notifier.notify(number=phone, text=message):
+                                delivered_count += 1
+                            channels_set.add("whatsapp")
+                        if email:
+                            if email_notifier.notify(to=email, text=message):
+                                delivered_count += 1
+                            channels_set.add("email")
+                    outputs.update(
+                        notified=True,
+                        notified_count=len(targeted),
+                        delivered_count=delivered_count,
+                        channels=sorted(channels_set) or ["none"],
+                    )
+                else:
+                    to_phone = _notify_target(config, inputs)
+                    to_email = _notify_email(config, inputs)
+                    channels: list[str] = []
+                    delivered = False
+                    if to_phone and node.type != "app.notify_email":
+                        if whatsapp_notifier.notify(number=to_phone, text=message):
+                            delivered = True
+                        channels.append("whatsapp")
+                    if to_email:
+                        if email_notifier.notify(to=to_email, text=message):
+                            delivered = True
+                        channels.append("email")
+                    outputs.update(
+                        notified=True, channels=channels or ["none"], delivered=delivered
+                    )
             elif node.type == "app.credit_ledger":
                 outputs.update(credited=amount)
         except (MonnifyError, SandboxError) as exc:

@@ -5037,3 +5037,59 @@ body.is-resizing-sidebar iframe {
   background: rgba(0, 0, 0, 0.04);
   color: #374151;
 }
+
+/* Employee list / sheet editor (app.data_rows) */
+.studio-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 6px;
+}
+.studio-sheet__head h4 {
+  margin: 0 0 2px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.studio-sheet__grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-x: auto;
+}
+.studio-sheet__row {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr 1.2fr 0.8fr 1fr 24px;
+  gap: 6px;
+  align-items: center;
+  min-width: 520px;
+}
+.studio-sheet__row--header {
+  font-size: 11px;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.studio-sheet__row--header span {
+  padding: 0 4px;
+}
+.studio-sheet__row input {
+  width: 100%;
+  padding: 7px 8px;
+  font-size: 13px;
+  border: 1px solid #e5e7eb;
+  border-radius: 7px;
+  outline: none;
+}
+.studio-sheet__row input:focus {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 2px rgba(0, 184, 194, 0.14);
+}
+.studio-sheet__row .ghost-btn {
+  padding: 4px;
+  line-height: 1;
+  color: #9ca3af;
+}
+.studio-sheet__empty {
+  padding: 10px 2px;
+}
