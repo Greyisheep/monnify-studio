@@ -49,12 +49,47 @@ def _notify_target(config: dict[str, Any], inputs: dict[str, Any]) -> str:
     return _DEMO_NOTIFY_NUMBER
 
 
-def _notify_message(config: dict[str, Any], amount: str) -> str:
+def _ngn(amount: str) -> str:
+    """Human money: NGN 150,000.00 -> 'NGN 150,000'."""
+    try:
+        value = money(amount)
+    except Exception:
+        return f"NGN {amount}"
+    whole = value.quantize(money("1"))
+    return f"NGN {whole:,}" if value == whole else f"NGN {value:,}"
+
+
+def _notify_message(
+    config: dict[str, Any], amount: str, *, roster: list[dict[str, Any]] | None = None
+) -> str:
+    """The message a notify block sends. A dev's own copy on the node always
+    wins; otherwise we compose a warm, specific default from what the flow just
+    did, because a bland 'your flow ran' is a wasted moment (#notify)."""
     for key in ("message", "text", "body"):
         value = config.get(key)
         if isinstance(value, str) and value.strip():
             return value.strip()
-    return f"Monnify Studio: your payment flow ran and confirmed NGN {amount}."
+    if roster:
+        count = len(roster)
+        who = "1 person" if count == 1 else f"{count} people"
+        total = _ngn(_roster_total(roster))
+        return (
+            f"Payroll run complete. {who} paid, {total} disbursed. "
+            "Every account was verified before payout. Sent from Monnify Studio."
+        )
+    return (
+        f"Payment confirmed: {_ngn(amount)} received and verified with Monnify. "
+        "Thank you! Sent from Monnify Studio."
+    )
+
+
+def _employee_message(name: str, amount: str) -> str:
+    """The nice note an individual employee gets when payroll runs."""
+    greeting = f"Hi {name}, " if name else "Hi, "
+    return (
+        f"{greeting}you have been paid {_ngn(amount)}. It is on its way to your "
+        "account now. Sent from Monnify Studio."
+    )
 
 
 def _notify_email(config: dict[str, Any], inputs: dict[str, Any]) -> str:
@@ -274,10 +309,13 @@ class MockAdapter:
             # Practice run: never send a real message; show it would have (#231).
             rows = _roster(config, inputs)
             targeted = [r for r in rows if _row_phone(r) or _row_email(r)]
-            if targeted:
-                outputs.update(notified="simulated", channel="whatsapp", notified_count=len(targeted))
-            else:
-                outputs.update(notified="simulated", channel="whatsapp")
+            # +1 for the summary that goes to whoever asked to be notified.
+            recipients = len(targeted) + (
+                1 if _notify_target(config, inputs) or _notify_email(config, inputs) else 0
+            )
+            outputs.update(
+                notified="simulated", channel="whatsapp", recipients=max(recipients, 1)
+            )
         elif node.type == "app.credit_ledger":
             outputs.update(credited=amount)
         elif node.type == "custom.code":
@@ -558,48 +596,43 @@ class SandboxAdapter:
                 outputs.update(_code_block_outputs(inputs, config))
             elif node.type in ("app.notify", "app.notify_whatsapp", "app.notify_email"):
                 # A live run actually notifies (#231): real WhatsApp (Evolution)
-                # and/or real email (ZeptoMail) to whatever recipients the node
-                # carries, recorded otherwise. Never fakes.
-                message = _notify_message(config, amount)
+                # and/or real email (ZeptoMail). Never fakes.
+                allow_wa = node.type != "app.notify_email"
                 roster = _roster(config, inputs)
-                targeted = [r for r in roster if _row_phone(r) or _row_email(r)]
-                if targeted:
-                    # Payroll-style: message EACH employee the dev put on the sheet.
-                    delivered_count = 0
-                    channels_set: set[str] = set()
-                    for row in targeted:
-                        phone = _row_phone(row)
-                        email = _row_email(row)
-                        if phone and node.type != "app.notify_email":
-                            if whatsapp_notifier.notify(number=phone, text=message):
-                                delivered_count += 1
-                            channels_set.add("whatsapp")
-                        if email:
-                            if email_notifier.notify(to=email, text=message):
-                                delivered_count += 1
-                            channels_set.add("email")
-                    outputs.update(
-                        notified=True,
-                        notified_count=len(targeted),
-                        delivered_count=delivered_count,
-                        channels=sorted(channels_set) or ["none"],
+                summary = _notify_message(config, amount, roster=roster or None)
+                channels_set: set[str] = set()
+                delivered = 0
+                sent = 0
+
+                def _send(phone: str, email: str, text: str) -> None:
+                    nonlocal delivered, sent
+                    if phone and allow_wa:
+                        sent += 1
+                        channels_set.add("whatsapp")
+                        if whatsapp_notifier.notify(number=phone, text=text):
+                            delivered += 1
+                    if email:
+                        sent += 1
+                        channels_set.add("email")
+                        if email_notifier.notify(to=email, text=text):
+                            delivered += 1
+
+                # The person who asked to be notified (the pre-run prompt / node
+                # config) always gets the summary, so a test always lands.
+                _send(_notify_target(config, inputs), _notify_email(config, inputs), summary)
+                # Plus a warm, personal note to each employee on the sheet.
+                for i, row in enumerate(roster):
+                    _send(
+                        _row_phone(row),
+                        _row_email(row),
+                        _employee_message(_row_name(row, i), str(_row_amount(row))),
                     )
-                else:
-                    to_phone = _notify_target(config, inputs)
-                    to_email = _notify_email(config, inputs)
-                    channels: list[str] = []
-                    delivered = False
-                    if to_phone and node.type != "app.notify_email":
-                        if whatsapp_notifier.notify(number=to_phone, text=message):
-                            delivered = True
-                        channels.append("whatsapp")
-                    if to_email:
-                        if email_notifier.notify(to=to_email, text=message):
-                            delivered = True
-                        channels.append("email")
-                    outputs.update(
-                        notified=True, channels=channels or ["none"], delivered=delivered
-                    )
+                outputs.update(
+                    notified=True,
+                    sent_count=sent,
+                    delivered_count=delivered,
+                    channels=sorted(channels_set) or ["none"],
+                )
             elif node.type == "app.credit_ledger":
                 outputs.update(credited=amount)
         except (MonnifyError, SandboxError) as exc:
