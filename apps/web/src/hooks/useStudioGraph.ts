@@ -280,12 +280,37 @@ export function useStudioGraph({
     ],
   );
 
+  // Merge a config patch into one node's data.config, keyed by id. Writes to the
+  // app's own nodes state (the controlled source) - React Flow's updateNodeData
+  // targets its internal store, which the controlled `nodes` prop overwrites on
+  // the next render, so an on-canvas editor (Code Block) never persisted (#153).
+  const updateNodeConfig = useCallback(
+    (nodeId: string, patch: Record<string, unknown>) => {
+      setNodes((currentNodes) =>
+        currentNodes.map((node) =>
+          node.id === nodeId
+            ? {
+                ...node,
+                data: {
+                  ...node.data,
+                  config: { ...(node.data.config ?? {}), ...patch },
+                },
+              }
+            : node,
+        ),
+      );
+      setDirty(true);
+    },
+    [setNodes, setDirty],
+  );
+
   return {
     onConnect,
     onSelectionChange,
     addNode,
     deleteSelected,
     updateSelectedNode,
+    updateNodeConfig,
     connectionFeedback,
   };
 }

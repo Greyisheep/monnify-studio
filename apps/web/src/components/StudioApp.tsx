@@ -312,12 +312,21 @@ function CanvasInner() {
       const config = configById.get(node.id);
       const meta =
         session.catalog[node.data.nodeType] ?? session.nodeTypesMeta[node.data.nodeType];
+      // Prefer the analyzed IR config, but fall back to the node's own live
+      // data.config so an on-canvas edit (Code Block) survives even before a
+      // workflow is composed - when currentIr is null there is no IR config (#153).
+      const effectiveConfig =
+        config && Object.keys(config).length > 0
+          ? config
+          : node.data.config && Object.keys(node.data.config).length > 0
+            ? node.data.config
+            : undefined;
       return {
         ...node,
         data: {
           ...node.data,
           runIo: io ?? null,
-          config: config && Object.keys(config).length > 0 ? config : undefined,
+          config: effectiveConfig,
           inputs: meta?.inputs,
         },
       };
@@ -1265,6 +1274,7 @@ function CanvasInner() {
             onSelectionChange={graph.onSelectionChange}
             onGraphDirty={() => session.setDirty(true)}
             onDropNode={(typeKey, flow) => graph.addNode(typeKey, flow)}
+            updateNodeConfig={graph.updateNodeConfig}
           />
         </div>
       </main>

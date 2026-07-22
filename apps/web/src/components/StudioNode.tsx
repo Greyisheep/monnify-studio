@@ -23,6 +23,8 @@ import {
 
 import type { StudioNodeData } from "@/types";
 
+import { useCanvasNode } from "./canvasNodeContext";
+
 export type StudioFlowNode = FlowNode<StudioNodeData, "studio">;
 
 const CATEGORY_CLASS: Record<string, string> = {
@@ -158,7 +160,8 @@ function CategoryGlyph({ category, nodeType }: { category: string; nodeType: str
 export function StudioNode({ id, data, selected }: NodeProps<StudioFlowNode>) {
   const categoryClass = CATEGORY_CLASS[data.category] ?? "cat-application";
   const runIo = data.runIo;
-  const { getNode, addNodes, deleteElements, updateNodeData } = useReactFlow();
+  const { getNode, addNodes, deleteElements } = useReactFlow();
+  const canvasNode = useCanvasNode();
   const connections = useNodeConnections({ id });
   const isJoined = connections.length > 0;
   const [menuOpen, setMenuOpen] = useState(false);
@@ -300,9 +303,7 @@ export function StudioNode({ id, data, selected }: NodeProps<StudioFlowNode>) {
               onPointerDown={(event) => event.stopPropagation()}
               onKeyDown={(event) => event.stopPropagation()}
               onChange={(event) =>
-                updateNodeData(id, {
-                  config: { ...(data.config ?? {}), code: event.target.value },
-                })
+                canvasNode?.updateNodeConfig(id, { code: event.target.value })
               }
             />
           </div>

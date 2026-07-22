@@ -24,6 +24,7 @@ import "@xyflow/react/dist/style.css";
 import type { ConnectionFeedback } from "@/hooks/useStudioGraph";
 import { readDragNodeType } from "@/lib/studioDnd";
 import type { StudioNodeData } from "@/types";
+import { CanvasNodeContext, type UpdateNodeConfig } from "./canvasNodeContext";
 import { StudioNode } from "./StudioNode";
 import { StudioZoomControls } from "./StudioZoomControls";
 
@@ -47,6 +48,8 @@ export interface WorkflowCanvasProps {
   onGraphDirty: () => void;
   /** Palette → canvas drop (flow coords = intended top-left). */
   onDropNode?: (typeKey: string, flow: { x: number; y: number }) => void;
+  /** Let a custom node (Code Block) write config into the controlled state (#153). */
+  updateNodeConfig: UpdateNodeConfig;
 }
 
 function FitViewOnLayout({ layoutNonce }: { layoutNonce: number }) {
@@ -79,6 +82,7 @@ export function WorkflowCanvas({
   onSelectionChange,
   onGraphDirty,
   onDropNode,
+  updateNodeConfig,
 }: WorkflowCanvasProps) {
   const { screenToFlowPosition } = useReactFlow();
   const connectionStroke =
@@ -106,6 +110,7 @@ export function WorkflowCanvas({
       {diffNote && !typeError && connectionFeedback !== "valid" && (
         <div className="studio-banner studio-banner--ok">{diffNote}</div>
       )}
+      <CanvasNodeContext.Provider value={{ updateNodeConfig }}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -147,6 +152,7 @@ export function WorkflowCanvas({
         <StudioZoomControls />
         {showMiniMap ? <MiniMap pannable zoomable /> : null}
       </ReactFlow>
+      </CanvasNodeContext.Provider>
     </div>
   );
 }
