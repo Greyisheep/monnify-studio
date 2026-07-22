@@ -5165,3 +5165,69 @@ body.is-resizing-sidebar iframe {
 @media (prefers-reduced-motion: reduce) {
   .studio-rail__btn.is-nudging { animation: none; }
 }
+
+/* Shared roster table (payroll employees, ajo members) - RosterTable.tsx */
+.roster {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+.roster__grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 320px;
+  overflow: auto;
+  padding-right: 2px;
+}
+.roster__row {
+  display: grid;
+  gap: 6px;
+  align-items: center;
+  min-width: 420px;
+}
+.roster__row--head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--surface, #fff);
+  padding-bottom: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.roster__row--head span {
+  padding: 0 4px;
+}
+.roster__row input {
+  width: 100%;
+  padding: 8px 9px;
+  font-size: 13px;
+  border: 1px solid #e5e7eb;
+  border-radius: 7px;
+  outline: none;
+  background: #fff;
+}
+.roster__row input:focus {
+  border-color: var(--brand, #00b8c2);
+  box-shadow: 0 0 0 2px rgba(0, 184, 194, 0.16);
+}
+.roster__remove {
+  border: none;
+  background: transparent;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 4px;
+  line-height: 1;
+  border-radius: 6px;
+}
+.roster__remove:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: #ef4444;
+}
+.roster__empty {
+  padding: 8px 2px;
+}
