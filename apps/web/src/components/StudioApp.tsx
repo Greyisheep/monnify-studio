@@ -1172,6 +1172,7 @@ function CanvasInner() {
             reviewOpen={rightTab === "review"}
             traceOpen={!!trace.run || trace.events.length > 0}
             running={trace.running}
+            executionAdapter={executionAdapter}
             onTogglePalette={() => setLeftTab("api")}
             onToggleReview={() => setRightTab("review")}
             onToggleTrace={() => setRightTab("preview")}

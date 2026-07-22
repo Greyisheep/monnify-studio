@@ -5,7 +5,14 @@
  */
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
 
 import {
   fetchAjoState,
@@ -19,17 +26,45 @@ interface AjoPanelProps {
   artifactId: string;
 }
 
+export interface AjoPanelHandle {
+  addMember: () => void;
+}
+
 function naira(value: string): string {
   const n = Number(value);
   if (Number.isNaN(n)) return `NGN ${value}`;
   return `NGN ${n.toLocaleString("en-NG", { minimumFractionDigits: 2 })}`;
 }
 
-export function AjoPanel({ artifactId }: AjoPanelProps) {
+export const AjoPanel = forwardRef<AjoPanelHandle, AjoPanelProps>(function AjoPanel(
+  { artifactId },
+  ref,
+) {
   const [state, setState] = useState<AjoStateDto | null>(null);
   const [newMembers, setNewMembers] = useState<RosterRow[]>([]);
   const [saving, setSaving] = useState(false);
   const [simulating, setSimulating] = useState(false);
+  const addSectionRef = useRef<HTMLDivElement>(null);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      addMember() {
+        setNewMembers((rows) => [...rows, { name: "", whatsapp: "" }]);
+        window.requestAnimationFrame(() => {
+          addSectionRef.current?.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+          });
+          const inputs = addSectionRef.current?.querySelectorAll<HTMLInputElement>(
+            ".roster__row input",
+          );
+          inputs?.[inputs.length - 2]?.focus();
+        });
+      },
+    }),
+    [],
+  );
 
   const load = useCallback(async () => {
     const next = await fetchAjoState(artifactId);
@@ -155,7 +190,7 @@ export function AjoPanel({ artifactId }: AjoPanelProps) {
         </p>
       )}
 
-      <div className="biz-ajo__add">
+      <div className="biz-ajo__add" ref={addSectionRef}>
         <label>Add members (or paste a list)</label>
         <RosterTable
           columns={[
@@ -178,4 +213,4 @@ export function AjoPanel({ artifactId }: AjoPanelProps) {
       </div>
     </div>
   );
-}
+});
