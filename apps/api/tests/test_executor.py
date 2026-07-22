@@ -17,6 +17,7 @@ from monnify_studio.executor import (
     run_workflow,
 )
 from monnify_studio.fixtures import safe_marketplace, unsafe_marketplace
+from monnify_studio.ir.models import Node, Workflow
 from monnify_studio.observability.redaction import REDACTED
 
 client = TestClient(app)
@@ -151,3 +152,35 @@ def test_cfg_prefers_edited_camelcase_and_skips_placeholders():
     assert _cfg({"paymentReference": "<unique-reference>"}, "paymentReference", default="gen") == "gen"
     # Nothing set -> default.
     assert _cfg({}, "narration", default="Payout") == "Payout"
+
+
+def test_notification_nodes_complete_with_an_explicit_delivery_outcome(monkeypatch):
+    """Notification delivery is best-effort: no gateway must never stop a Run."""
+    import monnify_studio.executor.adapter as adapter_module
+
+    monkeypatch.setattr(
+        adapter_module.whatsapp_notifier,
+        "client",
+        type("DisabledWhatsApp", (), {"configured": False})(),
+    )
+    workflow = Workflow(
+        id="notify",
+        name="Notify",
+        nodes=[
+            Node(id="local", type="app.notify", label="Run complete"),
+            Node(
+                id="whatsapp",
+                type="app.notify_whatsapp",
+                label="WhatsApp",
+                config={"recipient": "08012345678", "message": "Done"},
+            ),
+        ],
+        edges=[],
+        entrypoint="local",
+    )
+    run = run_workflow(workflow, adapter=MockAdapter())
+    events = execution_store.list_events(run.id)
+    completed = {event.node_id: event.outputs for event in events if event.type == ExecutionEventType.NODE_COMPLETED}
+    assert run.status.value == "completed"
+    assert completed["local"]["notification"]["delivered"] is True
+    assert completed["whatsapp"]["notification"]["reason"] == "not_configured"

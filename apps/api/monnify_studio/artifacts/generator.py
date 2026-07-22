@@ -48,7 +48,7 @@ def flow_features(workflow: Workflow) -> FlowFeatures:
         tags = catalog.effective_tags(node)
         if node.type in _COLLECTING_TYPES:
             features.collects = True
-        if node.type == "monnify.create_invoice":
+        if node.type in {"monnify.create_invoice", "artifact.invoice"}:
             features.has_invoices = True
         if T.MUTATES_LEDGER in tags:
             features.has_ledger = True

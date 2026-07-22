@@ -14,6 +14,7 @@ from ..config import Settings
 from ..integrations.monnify import MonnifyError, MonnifySandboxClient
 from ..ir.models import Node
 from ..money import covers, money
+from ..notifications import whatsapp_notifier
 from ..observability.redaction import redact
 from .sandbox import SandboxError, run_user_code
 
@@ -65,6 +66,30 @@ def _code_block_outputs(inputs: dict[str, Any], config: dict[str, Any]) -> dict[
         # read or override them.
         return run_user_code(code, {**inputs, **declared})
     return declared
+
+
+def _notification_outputs(node: Node, inputs: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
+    """Best-effort notification outcome: messaging never fails a money run."""
+    message = str(inputs.get("message") or config.get("message") or node.label or "Studio run update")
+    if node.type == "app.notify":
+        return {
+            "notification": {
+                "channel": "local",
+                "attempted": True,
+                "delivered": True,
+                "message": message,
+            }
+        }
+    recipient = str(inputs.get("recipient") or config.get("recipient") or "").strip()
+    if not recipient:
+        return {"notification": {"channel": "whatsapp", "attempted": False, "delivered": False, "reason": "missing_recipient"}}
+    if not whatsapp_notifier.enabled:
+        return {"notification": {"channel": "whatsapp", "attempted": False, "delivered": False, "reason": "not_configured"}}
+    try:
+        whatsapp_notifier.client.send_text(recipient, message)
+    except Exception:  # the trace says delivery failed; execution continues safely
+        return {"notification": {"channel": "whatsapp", "attempted": True, "delivered": False, "reason": "send_failed"}}
+    return {"notification": {"channel": "whatsapp", "attempted": True, "delivered": True}}
 
 
 class MockAdapter:
@@ -137,6 +162,8 @@ class MockAdapter:
                     ),
                     error=str(exc),
                 )
+        elif node.type.startswith("app.notify"):
+            outputs.update(_notification_outputs(node, inputs, config))
 
         response = redact(
             {
@@ -298,6 +325,8 @@ class SandboxAdapter:
             elif node.type == "custom.code":
                 # Real sandboxed execution (#147, #69); SandboxError -> _failed.
                 outputs.update(_code_block_outputs(inputs, config))
+            elif node.type.startswith("app.notify"):
+                outputs.update(_notification_outputs(node, inputs, config))
             elif node.type == "app.credit_ledger":
                 outputs.update(credited=amount)
         except (MonnifyError, SandboxError) as exc:

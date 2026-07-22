@@ -158,7 +158,7 @@ CORE_NODE_TYPES: list[NodeTypeDef] = [
         type="app.notify",
         category=C.APPLICATION,
         title="Send Notification",
-        description="Non-financial side effect (email/SMS/push).",
+        description="Send a non-financial run notification. Message comes from config.message.",
     ),
     NodeTypeDef(
         type="app.notify_whatsapp",
@@ -166,7 +166,10 @@ CORE_NODE_TYPES: list[NodeTypeDef] = [
         title="Send WhatsApp",
         description="Message a person on WhatsApp (via Evolution API) - e.g. send the "
         "invoice link, or a thank-you once payment is confirmed (#99).",
-        inputs=[PortSpec(name="recipient", type=D.ANY, required=False)],
+        inputs=[
+            PortSpec(name="recipient", type=D.ANY, required=False),
+            PortSpec(name="message", type=D.ANY, required=False),
+        ],
     ),
     NodeTypeDef(
         type="custom.code",
@@ -192,5 +195,17 @@ CORE_NODE_TYPES: list[NodeTypeDef] = [
         description="Rows from an uploaded CSV or spreadsheet-shaped source (e.g. employees). "
         "Canvas + mock execution only for now (#54, D17 tier-1 logic).",
         outputs=[PortSpec(name="rows", type=D.ANY)],
+    ),
+    NodeTypeDef(
+        type="artifact.dashboard",
+        category=C.APPLICATION,
+        title="Dashboard",
+        description="Publish the workflow's existing business dashboard artifact.",
+    ),
+    NodeTypeDef(
+        type="artifact.invoice",
+        category=C.APPLICATION,
+        title="Invoice",
+        description="Enable invoice creation and the hosted invoice surface for this workflow.",
     ),
 ]

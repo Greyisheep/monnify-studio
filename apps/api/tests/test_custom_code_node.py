@@ -68,3 +68,9 @@ def test_code_block_between_safe_flow_stays_clean():
     )
     report = analyze(wf, default_catalog())
     assert report.findings == [], [f.rule_id for f in report.findings]
+
+
+def test_product_artifact_blocks_are_catalogued():
+    catalog = default_catalog()
+    assert catalog.resolve("artifact.dashboard").title == "Dashboard"
+    assert catalog.resolve("artifact.invoice").title == "Invoice"
