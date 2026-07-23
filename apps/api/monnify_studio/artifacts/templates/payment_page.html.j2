@@ -93,10 +93,13 @@
         if (!res.ok) throw new Error((await res.json()).detail || "checkout failed");
         const data = await res.json();
         orderRef = data.order_reference;
-        status.textContent = "Opening Monnify checkout (order " + orderRef + "). This page confirms itself once Monnify sees your payment.";
+        status.textContent = "Taking you to Monnify checkout (order " + orderRef + "). You will be brought back here after payment.";
         claim.hidden = false;
-        window.open(data.checkout_url, "_blank", "noopener");
-        pollUntilConfirmed();
+        // Same-tab handoff (#redirect-back): Monnify's redirectUrl brings the
+        // buyer straight back to this page, where the on-load poll confirms.
+        // A new tab strands the original page (and popups die in WhatsApp's
+        // in-app browser).
+        window.location.href = data.checkout_url;
       } catch (err) {
         status.textContent = "Could not start checkout: " + err.message;
       } finally {
@@ -119,6 +122,16 @@
         claim.disabled = false;
       }
     });
+
+    // Returning from checkout (#redirect-back): Monnify appends our
+    // paymentReference to the redirect URL. Pick it up, confirm automatically.
+    const returnedRef = new URLSearchParams(window.location.search).get("paymentReference");
+    if (returnedRef) {
+      orderRef = returnedRef;
+      claim.hidden = false;
+      status.textContent = "Welcome back! Confirming your payment with Monnify...";
+      pollUntilConfirmed();
+    }
   </script>
 </body>
 </html>

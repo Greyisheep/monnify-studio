@@ -11,6 +11,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { ShopProduct } from "@/types";
 
+import {
+  absoluteApiUrl,
+  createArtifactInvoice,
+  listArtifactInvoices,
+  type ArtifactInvoice,
+} from "@/lib/api";
+
 import { AjoPanel, type AjoPanelHandle } from "./AjoPanel";
 
 type ProductTab = "sell" | "invoice" | "ajo";
@@ -339,12 +346,85 @@ export function BusinessDashboard({
     const t = window.setTimeout(() => setPreviewNudge(false), 6000);
     return () => window.clearTimeout(t);
   }, [shopUrl, previewNudge]);
+
+  const invoiceUrl = (reference: string) =>
+    artifactId ? absoluteApiUrl(`/preview/${artifactId}/invoice/${reference}`) : "";
+
+  async function onCreateInvoice() {
+    if (!artifactId) return;
+    const amount = Number(invAmount);
+    if (!invCustomer.trim() || !invDescription.trim() || !(amount >= 100)) {
+      setInvError("Add the customer, what it is for, and an amount of at least NGN 100.");
+      return;
+    }
+    setInvBusy(true);
+    setInvError(null);
+    try {
+      const created = await createArtifactInvoice(artifactId, {
+        customer: invCustomer.trim(),
+        description: invDescription.trim(),
+        amount,
+      });
+      setInvoices((current) => [
+        created,
+        ...current.filter((row) => row.reference !== created.reference),
+      ]);
+      setInvCreatedRef(created.reference);
+      setInvFormOpen(false);
+      setInvCustomer("");
+      setInvDescription("");
+      setInvAmount("");
+    } catch (error) {
+      setInvError(
+        error instanceof Error ? error.message : "Could not create the invoice",
+      );
+    } finally {
+      setInvBusy(false);
+    }
+  }
+
+  function copyInvoiceLink(reference: string) {
+    const url = invoiceUrl(reference);
+    if (!url) return;
+    void navigator.clipboard.writeText(url).then(() => {
+      setInvCopiedRef(reference);
+      window.setTimeout(() => setInvCopiedRef(null), 1400);
+    });
+  }
   const isContribution = shareLabel.toLowerCase().includes("contribution");
   const shareInvite = isContribution
     ? "Pay your contribution securely"
     : "Order from my shop and pay securely";
   const [collapsed, setCollapsed] = useState(false);
   const [productTab, setProductTab] = useState<ProductTab>(initialProductTab);
+  // Invoice manager (#85): create + share per-invoice links right in the tab,
+  // instead of bouncing the owner back through the template picker.
+  const [invoices, setInvoices] = useState<ArtifactInvoice[]>([]);
+  const [invFormOpen, setInvFormOpen] = useState(false);
+  const [invCustomer, setInvCustomer] = useState("");
+  const [invDescription, setInvDescription] = useState("");
+  const [invAmount, setInvAmount] = useState("");
+  const [invBusy, setInvBusy] = useState(false);
+  const [invError, setInvError] = useState<string | null>(null);
+  const [invCreatedRef, setInvCreatedRef] = useState<string | null>(null);
+  const [invCopiedRef, setInvCopiedRef] = useState<string | null>(null);
+  // Load (and poll) the invoice list while the Invoice tab is open, so a
+  // customer paying shows up as "verified" without a manual refresh.
+  useEffect(() => {
+    if (productTab !== "invoice" || !artifactId) return;
+    let cancelled = false;
+    const load = () => {
+      void listArtifactInvoices(artifactId).then((rows) => {
+        if (!cancelled) setInvoices(rows);
+      });
+    };
+    load();
+    const timer = window.setInterval(load, 6000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [productTab, artifactId]);
   const [direction, setDirection] = useState<"inflow" | "outflow">("inflow");
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | TxnStatus>("all");
@@ -659,22 +739,20 @@ export function BusinessDashboard({
               <header className="biz-product-panel__head">
                 <div>
                   <h2>Invoice</h2>
-                  <p>Share your invoice link so customers can pay you</p>
+                  <p>Send a customer an invoice they can pay online</p>
                 </div>
-                {/* Once the invoice flow exists, "Create Invoice" used to reopen
-                    the template picker, which looped the owner with no way to
-                    actually get a link. Now it opens the invoice page; the setup
-                    picker only shows when nothing is set up yet (#invoice-loop). */}
-                {shopUrl ? (
-                  <a
+                {artifactId ? (
+                  <button
+                    type="button"
                     className="biz-product-panel__cta"
-                    href={shopUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => setPreviewNudge(false)}
+                    onClick={() => {
+                      setInvFormOpen((open) => !open);
+                      setInvCreatedRef(null);
+                      setInvError(null);
+                    }}
                   >
-                    Open invoice
-                  </a>
+                    {invFormOpen ? "Close" : "New Invoice"}
+                  </button>
                 ) : (
                   <button
                     type="button"
@@ -685,53 +763,131 @@ export function BusinessDashboard({
                   </button>
                 )}
               </header>
-              {shopUrl ? (
+
+              {invFormOpen && artifactId ? (
+                <div className="biz-invoice-form">
+                  <label>
+                    <span>Customer</span>
+                    <input
+                      placeholder="e.g. Ada Obi"
+                      value={invCustomer}
+                      disabled={invBusy}
+                      onChange={(e) => setInvCustomer(e.target.value)}
+                    />
+                  </label>
+                  <label>
+                    <span>What is it for?</span>
+                    <input
+                      placeholder="e.g. Catering for Saturday"
+                      value={invDescription}
+                      disabled={invBusy}
+                      onChange={(e) => setInvDescription(e.target.value)}
+                    />
+                  </label>
+                  <label>
+                    <span>Amount (NGN)</span>
+                    <input
+                      type="number"
+                      min={100}
+                      step={1}
+                      placeholder="25000"
+                      value={invAmount}
+                      disabled={invBusy}
+                      onChange={(e) => setInvAmount(e.target.value)}
+                    />
+                  </label>
+                  {invError ? (
+                    <p className="biz-invoice-form__error">{invError}</p>
+                  ) : null}
+                  <button
+                    type="button"
+                    className="biz-product-panel__cta"
+                    disabled={invBusy}
+                    onClick={() => void onCreateInvoice()}
+                  >
+                    {invBusy ? "Creating…" : "Create & get link"}
+                  </button>
+                </div>
+              ) : null}
+
+              {invCreatedRef ? (
                 <div className="biz-shoplink">
                   <div className="biz-shoplink__text">
-                    <span>Your invoice link</span>
-                    <code>{shopUrl.replace(/^https?:\/\//, "")}</code>
+                    <span>Invoice {invCreatedRef} is ready, share it</span>
+                    <code>
+                      {invoiceUrl(invCreatedRef).replace(/^https?:\/\//, "")}
+                    </code>
                   </div>
                   <div className="biz-shoplink__actions">
                     <a
-                      className={`biz-shoplink__preview${previewNudge ? " is-nudge" : ""}`}
-                      href={shopUrl}
+                      className="biz-shoplink__preview"
+                      href={invoiceUrl(invCreatedRef)}
                       target="_blank"
                       rel="noopener noreferrer"
-                      onClick={() => setPreviewNudge(false)}
-                      onMouseEnter={() => setPreviewNudge(false)}
                     >
                       Preview
                     </a>
                     <button
                       type="button"
                       className="biz-shoplink__copy"
-                      onClick={() => {
-                        setPreviewNudge(false);
-                        void navigator.clipboard.writeText(shopUrl).then(() => {
-                          setCopied(true);
-                          window.setTimeout(() => setCopied(false), 1400);
-                        });
-                      }}
+                      onClick={() => copyInvoiceLink(invCreatedRef)}
                     >
-                      {copied ? "Copied" : "Copy Link"}
+                      {invCopiedRef === invCreatedRef ? "Copied" : "Copy Link"}
                     </button>
                     <a
                       className="biz-shoplink__share"
                       href={`https://wa.me/?text=${encodeURIComponent(
-                        `${shareInvite}: ${shopUrl}`,
+                        `Please pay invoice ${invCreatedRef} securely here: ${invoiceUrl(invCreatedRef)}`,
                       )}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      onClick={() => setPreviewNudge(false)}
                     >
                       Share on Whatsapp
                     </a>
                   </div>
                 </div>
               ) : null}
-              <p className="biz-product-panel__hint">
-                Invoices you send show up in Recent transaction once a customer pays.
-              </p>
+
+              {invoices.length > 0 ? (
+                <ul className="biz-invoice-list">
+                  {invoices.map((inv) => (
+                    <li key={inv.reference} className="biz-invoice-row">
+                      <div className="biz-invoice-row__main">
+                        <strong>{inv.reference}</strong>
+                        <span className="biz-invoice-row__who">
+                          {inv.customer || inv.description}
+                        </span>
+                      </div>
+                      <span className="biz-invoice-row__amount">
+                        ₦{Number(inv.amount).toLocaleString()}
+                      </span>
+                      <span className={`biz-invoice-row__status is-${inv.status}`}>
+                        {inv.status}
+                      </span>
+                      <div className="biz-invoice-row__actions">
+                        <button
+                          type="button"
+                          onClick={() => copyInvoiceLink(inv.reference)}
+                        >
+                          {invCopiedRef === inv.reference ? "Copied" : "Copy"}
+                        </button>
+                        <a
+                          href={invoiceUrl(inv.reference)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          Open
+                        </a>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="biz-product-panel__hint">
+                  No invoices yet. Create one and share the link; it flips to
+                  verified once your customer pays.
+                </p>
+              )}
             </>
           )}
           {productTab === "ajo" && (

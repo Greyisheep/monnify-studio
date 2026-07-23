@@ -374,4 +374,32 @@ export async function fetchWorkflowDashboard(
   return getOptional<WorkflowDashboardDto>(`/workflows/${workflowId}/dashboard`);
 }
 
+/** One merchant-created invoice (#85): an order created BEFORE payment, with a
+ *  customer and a description on its face. Amount is exact money (Decimal
+ *  serialized as string, D21). */
+export interface ArtifactInvoice {
+  reference: string;
+  amount: string;
+  status: string;
+  kind: string;
+  customer: string;
+  description: string;
+  created_at?: string;
+}
+
+export async function createArtifactInvoice(
+  artifactId: string,
+  body: { customer: string; description: string; amount: number },
+): Promise<ArtifactInvoice> {
+  return postJson<ArtifactInvoice>(`/preview/${artifactId}/invoices`, body);
+}
+
+export async function listArtifactInvoices(
+  artifactId: string,
+): Promise<ArtifactInvoice[]> {
+  return (
+    (await getOptional<ArtifactInvoice[]>(`/preview/${artifactId}/invoices`)) ?? []
+  );
+}
+
 export { API_BASE, absoluteApiUrl, ApiError } from "./http";

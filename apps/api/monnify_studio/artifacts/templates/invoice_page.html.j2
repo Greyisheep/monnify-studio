@@ -204,9 +204,11 @@
           { method: "POST" });
         if (!res.ok) throw new Error(await res.text());
         const data = await res.json();
-        window.open(data.checkout_url, "_blank");
-        status.textContent = "Checkout opened in a new tab. This page confirms itself once Monnify sees your payment.";
-        pollUntilConfirmed();
+        // Same-tab handoff (#redirect-back): Monnify redirects back to this
+        // invoice, where the on-load poll confirms. A new tab strands this page
+        // (and popups die in WhatsApp's in-app browser).
+        status.textContent = "Taking you to secure checkout. You will be brought back to this invoice after payment.";
+        window.location.href = data.checkout_url;
       } catch (e) {
         status.textContent = "Could not start checkout. Try again.";
       } finally { pay.disabled = false; }
@@ -218,6 +220,13 @@
         if (outcome !== true) status.textContent = outcome;
       } catch { status.textContent = "Could not check right now. Try again."; }
     });
+
+    // Returning from checkout (#redirect-back): Monnify appends paymentReference
+    // to the redirect URL. Confirm automatically, no tap needed.
+    if (new URLSearchParams(window.location.search).get("paymentReference")) {
+      status.textContent = "Welcome back! Confirming your payment with Monnify...";
+      pollUntilConfirmed();
+    }
     {% if invoice.payment_reference %}
     // A checkout was already started for this invoice in an earlier visit
     // (e.g. the member paid, closed the tab, and came back): resume polling.
