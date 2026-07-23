@@ -659,12 +659,76 @@ export function BusinessDashboard({
               <header className="biz-product-panel__head">
                 <div>
                   <h2>Invoice</h2>
-                  <p>Create invoices to share with customers</p>
+                  <p>Share your invoice link so customers can pay you</p>
                 </div>
-                <button type="button" className="biz-product-panel__cta" onClick={onNew}>
-                  Create Invoice
-                </button>
+                {/* Once the invoice flow exists, "Create Invoice" used to reopen
+                    the template picker, which looped the owner with no way to
+                    actually get a link. Now it opens the invoice page; the setup
+                    picker only shows when nothing is set up yet (#invoice-loop). */}
+                {shopUrl ? (
+                  <a
+                    className="biz-product-panel__cta"
+                    href={shopUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => setPreviewNudge(false)}
+                  >
+                    Open invoice
+                  </a>
+                ) : (
+                  <button
+                    type="button"
+                    className="biz-product-panel__cta"
+                    onClick={onNew}
+                  >
+                    Create Invoice
+                  </button>
+                )}
               </header>
+              {shopUrl ? (
+                <div className="biz-shoplink">
+                  <div className="biz-shoplink__text">
+                    <span>Your invoice link</span>
+                    <code>{shopUrl.replace(/^https?:\/\//, "")}</code>
+                  </div>
+                  <div className="biz-shoplink__actions">
+                    <a
+                      className={`biz-shoplink__preview${previewNudge ? " is-nudge" : ""}`}
+                      href={shopUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => setPreviewNudge(false)}
+                      onMouseEnter={() => setPreviewNudge(false)}
+                    >
+                      Preview
+                    </a>
+                    <button
+                      type="button"
+                      className="biz-shoplink__copy"
+                      onClick={() => {
+                        setPreviewNudge(false);
+                        void navigator.clipboard.writeText(shopUrl).then(() => {
+                          setCopied(true);
+                          window.setTimeout(() => setCopied(false), 1400);
+                        });
+                      }}
+                    >
+                      {copied ? "Copied" : "Copy Link"}
+                    </button>
+                    <a
+                      className="biz-shoplink__share"
+                      href={`https://wa.me/?text=${encodeURIComponent(
+                        `${shareInvite}: ${shopUrl}`,
+                      )}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => setPreviewNudge(false)}
+                    >
+                      Share on Whatsapp
+                    </a>
+                  </div>
+                </div>
+              ) : null}
               <p className="biz-product-panel__hint">
                 Invoices you send show up in Recent transaction once a customer pays.
               </p>
