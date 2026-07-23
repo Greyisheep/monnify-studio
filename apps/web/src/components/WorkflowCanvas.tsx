@@ -50,6 +50,10 @@ export interface WorkflowCanvasProps {
   onDropNode?: (typeKey: string, flow: { x: number; y: number }) => void;
   /** Let a custom node (Code Block) write config into the controlled state (#153). */
   updateNodeConfig: UpdateNodeConfig;
+  /** Run the flow from a control on the node itself. */
+  onRun?: () => void;
+  /** True while a run is in flight. */
+  running?: boolean;
 }
 
 function FitViewOnLayout({ layoutNonce }: { layoutNonce: number }) {
@@ -83,6 +87,8 @@ export function WorkflowCanvas({
   onGraphDirty,
   onDropNode,
   updateNodeConfig,
+  onRun,
+  running,
 }: WorkflowCanvasProps) {
   const { screenToFlowPosition } = useReactFlow();
   const connectionStroke =
@@ -110,7 +116,7 @@ export function WorkflowCanvas({
       {diffNote && !typeError && connectionFeedback !== "valid" && (
         <div className="studio-banner studio-banner--ok">{diffNote}</div>
       )}
-      <CanvasNodeContext.Provider value={{ updateNodeConfig }}>
+      <CanvasNodeContext.Provider value={{ updateNodeConfig, onRun, running }}>
       <ReactFlow
         nodes={nodes}
         edges={edges}

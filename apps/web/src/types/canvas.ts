@@ -9,6 +9,10 @@ export interface StudioNodeRunIo {
   outputsSummary: string;
   status?: "running" | "waiting" | "completed" | "failed";
   failed?: boolean;
+  /** Captured print() output from a Code Block run, shown on the node (#153). */
+  stdout?: string | null;
+  /** Error message when the node failed, shown on the node. */
+  error?: string | null;
 }
 
 export interface StudioNodeData extends Record<string, unknown> {

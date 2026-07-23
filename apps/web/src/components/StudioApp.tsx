@@ -1291,6 +1291,8 @@ function CanvasInner() {
             onGraphDirty={() => session.setDirty(true)}
             onDropNode={(typeKey, flow) => graph.addNode(typeKey, flow)}
             updateNodeConfig={graph.updateNodeConfig}
+            onRun={() => requestRun()}
+            running={trace.running}
           />
         </div>
       </main>

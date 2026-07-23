@@ -12,6 +12,10 @@ export type UpdateNodeConfig = (
 
 export const CanvasNodeContext = createContext<{
   updateNodeConfig: UpdateNodeConfig;
+  /** Run the current flow from a control on the node itself (#153). */
+  onRun?: () => void;
+  /** True while a run is in flight, to disable the node Run button. */
+  running?: boolean;
 } | null>(null);
 
 export function useCanvasNode() {

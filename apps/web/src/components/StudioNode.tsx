@@ -296,7 +296,23 @@ export function StudioNode({ id, data, selected }: NodeProps<StudioFlowNode>) {
             className="studio-node__code"
             onClick={(event) => event.stopPropagation()}
           >
-            <span className="studio-node__triggers-label">Your code</span>
+            <div className="studio-node__code-head">
+              <span className="studio-node__triggers-label">Your code</span>
+              {canvasNode?.onRun ? (
+                <button
+                  type="button"
+                  className="studio-node__code-run"
+                  disabled={canvasNode.running}
+                  onPointerDown={(event) => event.stopPropagation()}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    canvasNode.onRun?.();
+                  }}
+                >
+                  {canvasNode.running ? "Running…" : "▶ Run"}
+                </button>
+              ) : null}
+            </div>
             <textarea
               className="studio-node__code-editor nodrag nowheel"
               value={String(data.config?.code ?? "")}
@@ -311,6 +327,16 @@ export function StudioNode({ id, data, selected }: NodeProps<StudioFlowNode>) {
                 canvasNode?.updateNodeConfig(id, { code: event.target.value })
               }
             />
+            {runIo && (runIo.stdout || runIo.error) ? (
+              <div
+                className={`studio-node__code-output${runIo.error ? " is-error" : ""}`}
+              >
+                <span className="studio-node__code-output-label">
+                  {runIo.error ? "Error" : "Output"}
+                </span>
+                <pre>{runIo.error ? runIo.error : runIo.stdout}</pre>
+              </div>
+            ) : null}
           </div>
         </>
       ) : selected && configEntries.length > 0 ? (

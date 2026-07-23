@@ -44,6 +44,8 @@ export function latestRunIoByNode(
     outputsSummary: string;
     status: "running" | "waiting" | "completed" | "failed";
     failed?: boolean;
+    stdout?: string | null;
+    error?: string | null;
   }
 > {
   const map: Record<
@@ -53,6 +55,8 @@ export function latestRunIoByNode(
       outputsSummary: string;
       status: "running" | "waiting" | "completed" | "failed";
       failed?: boolean;
+      stdout?: string | null;
+      error?: string | null;
     }
   > = {};
   for (const event of events) {
@@ -73,11 +77,16 @@ export function latestRunIoByNode(
           : event.type === "node.failed"
             ? "failed"
             : "completed";
+    const outputs = event.outputs as Record<string, unknown> | null | undefined;
+    const stdout =
+      outputs && typeof outputs.stdout === "string" ? outputs.stdout : null;
     map[event.node_id] = {
       inputsSummary: summarizeRecord(event.inputs ?? undefined),
       outputsSummary: summarizeRecord(event.outputs ?? undefined),
       status,
       failed: status === "failed",
+      stdout,
+      error: status === "failed" ? (event.error ?? event.message ?? "Run failed") : null,
     };
   }
   return map;
