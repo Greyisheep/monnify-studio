@@ -83,6 +83,13 @@ from decimal import Decimal
 _ALLOWED = {sorted(_ALLOWED_BUILTINS)!r}
 payload = json.loads(sys.stdin.read())
 safe = {{n: getattr(builtins, n) for n in _ALLOWED if hasattr(builtins, n)}}
+# print is the first thing anyone types, so support it - but capture it to a
+# buffer, never the real stdout (which carries our JSON result). The captured
+# text is surfaced as the node's "stdout" output so the run trace shows it.
+_out_lines = []
+def _print(*args, sep=' ', end='\\n', **_kwargs):
+    _out_lines.append(sep.join(str(a) for a in args) + end)
+safe["print"] = _print
 ctx = dict(payload["ctx"])
 g = {{"__builtins__": safe, "ctx": ctx, "Decimal": Decimal}}
 try:
@@ -90,6 +97,8 @@ try:
     out = g.get("ctx", ctx)
     if not isinstance(out, dict):
         out = {{"result": out}}
+    if _out_lines:
+        out = {{**out, "stdout": "".join(_out_lines).rstrip("\\n")}}
     sys.stdout.write(json.dumps({{"ok": True, "ctx": out}}, default=str))
 except Exception as exc:
     sys.stdout.write(json.dumps({{"ok": False, "error": f"{{type(exc).__name__}}: {{exc}}"}}))

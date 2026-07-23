@@ -303,7 +303,7 @@ export function StudioNode({ id, data, selected }: NodeProps<StudioFlowNode>) {
               spellCheck={false}
               rows={selected ? 8 : 3}
               placeholder={
-                "# Runs in order between Monnify steps.\n# rows -> the data you pipe in; return values become outputs.\ntotal = sum(r[\"amount\"] for r in rows)"
+                "# Runs for real in a safe sandbox. print() works;\n# set ctx[\"name\"] to pass values to the next block.\nprint(\"Hello from Monnify Studio\")\nctx[\"total\"] = sum([1500, 2300, 900])"
               }
               onPointerDown={(event) => event.stopPropagation()}
               onKeyDown={(event) => event.stopPropagation()}
