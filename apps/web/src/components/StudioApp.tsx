@@ -287,10 +287,12 @@ function CanvasInner() {
   );
 
   const requestRun = useCallback(
-    (opts?: { collapse?: boolean }) => {
+    (opts?: { collapse?: boolean; skipNotify?: boolean }) => {
       if (!currentIr) return;
       if (opts?.collapse) setPanelsCollapsed(false);
-      if (hasNotifyNode) {
+      // skipNotify: a quick code-block test should just run, never nag for a
+      // phone number even if some other node in the flow can notify (#153).
+      if (hasNotifyNode && !opts?.skipNotify) {
         setRunPromptOpen(true);
         return;
       }
@@ -1291,7 +1293,7 @@ function CanvasInner() {
             onGraphDirty={() => session.setDirty(true)}
             onDropNode={(typeKey, flow) => graph.addNode(typeKey, flow)}
             updateNodeConfig={graph.updateNodeConfig}
-            onRun={() => requestRun()}
+            onRun={() => requestRun({ skipNotify: true })}
             running={trace.running}
           />
         </div>
