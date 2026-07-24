@@ -60,7 +60,11 @@ def _ngn(amount: str) -> str:
 
 
 def _notify_message(
-    config: dict[str, Any], amount: str, *, roster: list[dict[str, Any]] | None = None
+    config: dict[str, Any],
+    amount: str,
+    *,
+    roster: list[dict[str, Any]] | None = None,
+    bound: bool = True,
 ) -> str:
     """The message a notify block sends. A dev's own copy on the node always
     wins; otherwise we compose a warm, specific default from what the flow just
@@ -76,6 +80,15 @@ def _notify_message(
         return (
             f"Payroll run complete. {who} paid, {total} disbursed. "
             "Every account was verified before payout. Sent from Monnify Studio."
+        )
+    if not bound:
+        # No real amount anywhere in this run - never invent one. A notification
+        # claiming money moved when it did not is exactly the lie this product
+        # exists to kill (a 200 is not correctness).
+        return (
+            "Your flow ran end to end and every safety check passed. "
+            "Add an amount on a node (or run from a real payment) to see it here. "
+            "Sent from Monnify Studio."
         )
     return (
         f"Payment confirmed: {_ngn(amount)} received and verified with Monnify. "
@@ -135,6 +148,20 @@ def _amount_in(inputs: dict[str, Any], config: dict[str, Any]) -> str:
             if value not in (None, ""):
                 return str(money(value))
     return str(money(_DEFAULT_AMOUNT))
+
+
+def _amount_is_real(inputs: dict[str, Any], config: dict[str, Any]) -> bool:
+    """Whether the amount traces back to something REAL: typed on a node, rows
+    on a sheet, or a provider response - vs the visible practice default. The
+    flag rides the run via outputs["amount_bound"], because the default would
+    otherwise launder itself through node outputs and read as a real number
+    downstream. Notifications must never claim money moved when it did not."""
+    if any(
+        config.get(key) not in (None, "")
+        for key in ("amount", "paid_amount", "expected_amount", "price_ngn")
+    ):
+        return True
+    return bool(inputs.get("amount_bound"))
 
 
 def _run_payment_reference(context: dict[str, Any]) -> str | None:
@@ -238,6 +265,7 @@ class MockAdapter:
         config: dict[str, Any] = node.config or {}
         is_wait = node.type.startswith("event.")
         amount = _amount_in(inputs, config)
+        bound = _amount_is_real(inputs, config)
 
         # Config genuinely drives the request body (#145, dev item 4): what a
         # dev edits on the node is what the "API" is called with.
@@ -250,7 +278,7 @@ class MockAdapter:
         )
 
         # Derived, not canned: every branch passes the flowing values forward.
-        outputs: dict[str, Any] = {"status": "ok", "amount": amount}
+        outputs: dict[str, Any] = {"status": "ok", "amount": amount, "amount_bound": bound}
         if node.type.startswith("monnify.initialize") or node.type == "monnify.create_invoice":
             outputs.update(
                 checkout_url="https://sandbox.monnify.com/checkout/mock",
@@ -276,6 +304,8 @@ class MockAdapter:
             # so a Run actually pays the people they entered (#payroll).
             rows = _roster(config, inputs)
             outputs.update(rows=rows, row_count=len(rows), total=_roster_total(rows))
+            if rows:
+                outputs["amount_bound"] = True  # sheet amounts are user-typed, real
         elif node.type == "monnify.validate_bank_account":
             rows = _roster(config, inputs)
             if rows:
@@ -437,9 +467,10 @@ class SandboxAdapter:
         inputs: dict[str, Any] = context.get("inputs", {}) or {}
         config: dict[str, Any] = node.config or {}
         amount = _amount_in(inputs, config)
+        bound = _amount_is_real(inputs, config)
         ref = f"run-{node.id[:8]}-{uuid4().hex[:8]}"
         request: dict[str, Any] = {"method": "LIVE", "path": f"/sandbox/{node.type}", "body": {}}
-        outputs: dict[str, Any] = {"status": "ok", "amount": amount}
+        outputs: dict[str, Any] = {"status": "ok", "amount": amount, "amount_bound": bound}
         is_wait = node.type.startswith("event.")
 
         try:
@@ -487,6 +518,8 @@ class SandboxAdapter:
                     payment_status=res["status"],
                     paid_amount=str(money(res["amount_paid"])),
                     payment_reference=payment_ref,
+                    # Monnify's own answer: this amount is provider truth.
+                    amount_bound=True,
                 )
             elif node.type in ("monnify.initiate_transfer", "monnify.bulk_transfer"):
                 if not self._wallet:
@@ -532,6 +565,8 @@ class SandboxAdapter:
             elif node.type == "app.data_rows":
                 rows = _roster(config, inputs)
                 outputs.update(rows=rows, row_count=len(rows), total=_roster_total(rows))
+                if rows:
+                    outputs["amount_bound"] = True  # sheet amounts are user-typed, real
             elif node.type == "monnify.validate_bank_account":
                 rows = _roster(config, inputs)
                 if rows:
@@ -599,7 +634,7 @@ class SandboxAdapter:
                 # and/or real email (ZeptoMail). Never fakes.
                 allow_wa = node.type != "app.notify_email"
                 roster = _roster(config, inputs)
-                summary = _notify_message(config, amount, roster=roster or None)
+                summary = _notify_message(config, amount, roster=roster or None, bound=bound)
                 channels_set: set[str] = set()
                 delivered = 0
                 sent = 0
