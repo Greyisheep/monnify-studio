@@ -133,7 +133,7 @@ monnify-studio/
 ├── apps/
 │   ├── api/   # FastAPI: IR · providers (Monnify pack) · analysis · remediation · ai (Moni) · artifacts
 │   └── web/   # Next.js + React Flow canvas, Architecture Review, Moni chat, trace
-├── docs/      # BUILD_PLAN · ENGINEERING_STANDARDS · MONI_ARCHITECTURE
+├── docs/      # DOMAINS (the map) · BUILD_PLAN · ENGINEERING_STANDARDS · MONI_ARCHITECTURE
 └── scripts/   # deploy-cloud-run.sh + apps/api/scripts demos
 ```
 
