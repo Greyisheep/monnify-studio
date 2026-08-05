@@ -1,6 +1,6 @@
 # Monnify Studio
 
-[![CI](https://github.com/Greyisheep/monnify-studio/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Greyisheep/monnify-studio/actions/workflows/ci.yml)
+[![CI](https://github.com/Greyisheep/monnify-studio/actions/workflows/ci.yml/badge.svg)](https://github.com/Greyisheep/monnify-studio/actions/workflows/ci.yml)
 
 **Describe a payment product in plain language. Get a visual, typed, safety-checked workflow that becomes a real Monnify product.**
 
