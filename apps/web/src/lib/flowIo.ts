@@ -67,8 +67,9 @@ export function flowToWorkflow(
   nodes: Node<StudioNodeData>[],
   edges: Edge[],
 ): Workflow {
+  const baseNodesById = new Map(base.nodes.map((baseNode) => [baseNode.id, baseNode]));
   const irNodes: IrNode[] = nodes.map((flowNode) => {
-    const previousNode = base.nodes.find((baseNode) => baseNode.id === flowNode.id);
+    const previousNode = baseNodesById.get(flowNode.id);
     return {
       id: flowNode.id,
       type: flowNode.data.nodeType,

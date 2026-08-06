@@ -15,6 +15,7 @@ import {
 
 import type {
   StudioNodeData,
+  Workflow,
 } from "@/types";
 import { useExecutionTrace } from "@/hooks/useExecutionTrace";
 import { useOnboardingTour } from "@/hooks/useOnboardingTour";
@@ -196,10 +197,43 @@ function CanvasInner() {
     };
   }, []);
 
+  const structuralKey = useMemo(
+    () =>
+      JSON.stringify({
+        workflow: session.workflow,
+        nodes: nodes.map((node) => ({ id: node.id, data: node.data })),
+        edges: edges.map((edge) => ({
+          source: edge.source,
+          target: edge.target,
+          animated: edge.animated,
+          label: edge.label,
+          kind: (edge.data as { kind?: string } | undefined)?.kind,
+        })),
+      }),
+    [session.workflow, nodes, edges],
+  );
+
   const currentIr = useMemo(() => {
     if (!session.workflow) return null;
     return flowToWorkflow(session.workflow, nodes, edges);
-  }, [session.workflow, nodes, edges]);
+    // Node positions are not semantics: the IR is recomputed when structure
+    // changes, and current canvas positions are merged in at save/run time.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [structuralKey]);
+
+  function withCurrentPositions(
+    ir: Workflow,
+    flowNodes: Node<StudioNodeData>[],
+  ): Workflow {
+    const positions = new Map(flowNodes.map((node) => [node.id, node.position]));
+    return {
+      ...ir,
+      nodes: ir.nodes.map((node) => ({
+        ...node,
+        position: positions.get(node.id) ?? node.position,
+      })),
+    };
+  }
 
   // Nudge the Dashboard when a run on a money-out flow finishes, so the owner
   // knows to click there and see the outflow (#outflow).
@@ -243,7 +277,7 @@ function CanvasInner() {
   const doRun = useCallback(
     (contact?: RunContact) => {
       if (!currentIr) return;
-      let ir = currentIr;
+      let ir = withCurrentPositions(currentIr, nodes);
       const wa = contact?.whatsapp?.trim();
       const em = contact?.email?.trim();
       if (wa || em) {
@@ -267,7 +301,7 @@ function CanvasInner() {
       setRightTab("preview");
       void trace.runWorkflow(ir, executionAdapter);
     },
-    [currentIr, executionAdapter, trace],
+    [currentIr, executionAdapter, trace, nodes],
   );
 
   const requestRun = useCallback(
@@ -401,7 +435,7 @@ function CanvasInner() {
     const debounceTimer = window.setTimeout(() => {
       void (async () => {
         try {
-          await saveWorkflow(currentIr);
+          await saveWorkflow(withCurrentPositions(currentIr, nodes));
           if (controller.signal.aborted) return;
           const generated = await fetchWorkflowCode(
             currentIr.id,
@@ -430,7 +464,7 @@ function CanvasInner() {
       controller.abort();
       window.clearTimeout(debounceTimer);
     };
-  }, [rightTab, codeFormat, currentIr]);
+  }, [rightTab, codeFormat, currentIr, nodes]);
 
   async function onPathContinue(path: StudioPath) {
     setProfileBusy(true);
@@ -1081,7 +1115,9 @@ function CanvasInner() {
                 selectedFindingIndex={session.selectedFindingIndex}
                 onSelectFinding={session.setSelectedFindingIndex}
                 onApplyFix={(ruleId) => {
-                  if (currentIr) void session.applyFix(currentIr, ruleId);
+                  if (currentIr) {
+                    void session.applyFix(withCurrentPositions(currentIr, nodes), ruleId);
+                  }
                 }}
                 onClose={() => setRightTab("preview")}
               />
@@ -1181,10 +1217,10 @@ function CanvasInner() {
               if (currentIr) void session.runAnalyze(currentIr);
             }}
             onSave={() => {
-              if (currentIr) void session.save(currentIr);
+              if (currentIr) void session.save(withCurrentPositions(currentIr, nodes));
             }}
             onApplyAll={() => {
-              if (currentIr) void session.applyFix(currentIr);
+              if (currentIr) void session.applyFix(withCurrentPositions(currentIr, nodes));
             }}
             onRun={() => requestRun()}
           />
