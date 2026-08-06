@@ -11,7 +11,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import {
   Handle,
   Position,
@@ -155,7 +155,7 @@ function CategoryGlyph({ category, nodeType }: { category: string; nodeType: str
   }
 }
 
-export function StudioNode({ id, data, selected }: NodeProps<StudioFlowNode>) {
+function StudioNodeView({ id, data, selected }: NodeProps<StudioFlowNode>) {
   const categoryClass = CATEGORY_CLASS[data.category] ?? "cat-application";
   const runIo = data.runIo;
   const { getNode, addNodes, deleteElements } = useReactFlow();
@@ -306,3 +306,5 @@ export function StudioNode({ id, data, selected }: NodeProps<StudioFlowNode>) {
     </div>
   );
 }
+
+export const StudioNode = memo(StudioNodeView);
