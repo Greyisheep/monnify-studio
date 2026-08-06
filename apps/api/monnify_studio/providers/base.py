@@ -14,7 +14,7 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 
 from ..ir.models import Node
-from ..ir.types import CapabilityTag, DomainType, NodeCategory
+from ..ir.types import SELF_DECLARABLE_TAGS, CapabilityTag, DomainType, NodeCategory
 
 
 class PortSpec(BaseModel):
@@ -84,7 +84,16 @@ class Catalog:
 
     def effective_tags(self, node: Node) -> set[CapabilityTag]:
         """Tags the analyzer sees for a node: its type's defaults plus any the
-        specific node adds. The single source of truth for correctness reasoning."""
+        specific node adds. The single source of truth for correctness reasoning.
+
+        The two halves are not equally trusted (#270). `default_tags` come from a
+        pack we authored; `extra_tags` ride on the workflow document, which
+        round-trips through the browser and arrives back as request input. So a
+        node may describe itself, but it may not claim a guard: only the catalog
+        gets to say "this step verifies with the provider". Otherwise a document
+        could talk the analyzer out of its own findings, and the check that is
+        the whole product would certify exactly what it exists to catch.
+        """
         d = self.get(node.type)
         base = set(d.default_tags) if d else set()
-        return base | set(node.extra_tags)
+        return base | (set(node.extra_tags) & SELF_DECLARABLE_TAGS)
