@@ -147,6 +147,51 @@ assert *which* MON rules fire on a flow, so a refactor does not churn the suite.
 
 ---
 
+## Showing your work
+
+We are not going to ask you to screenshot your terminal or prove you set the project up.
+That proves one thing, once, on one machine, and then it rots. Here is what we ask instead,
+and why.
+
+**Fixing a bug? Write the failing test first.**
+
+This is the one real requirement, and the order matters. A test that fails *before* your fix
+and passes after it proves two things at once: the bug was real, and your change is what
+addresses it. Nothing else does that, and unlike a screenshot it keeps proving it on every
+commit for as long as the project lives.
+
+If you are not sure how to write it, say so in the PR and we will write it with you. That is
+not a failure mode, it is a normal part of review.
+
+**Tell us how you checked it. One line is enough.**
+
+Somewhere in the PR description, say what you actually ran or clicked. Not a form to fill
+in, not a gate. Something like:
+
+> Ran the API suite locally, added a case for the empty-catalog path. Did not run the
+> frontend, no Node on this machine.
+
+That second sentence is the valuable one. Knowing what you could not check tells us where to
+look, and it is genuinely more useful to us than a claim that everything was verified.
+
+**Changing something visual? Show a before and after.**
+
+Layout, spacing, copy, colour, empty states. None of that is testable, and an image is
+simply the right tool. Phone width too, if it is a page a customer sees.
+
+**You are not expected to be able to run everything.**
+
+You do not need a single API key to contribute. The whole test suite passes without one, on
+purpose. If a change touches a part of the stack you cannot run, say so and open the PR
+anyway. CI runs the API suite with `ruff` and `pytest`, and the web suite with typecheck,
+`vitest`, and lint, on every push. Between that and review, plenty gets caught without you
+owning the whole stack.
+
+What we will not do is accept a fix for a bug nobody has reproduced. That one is on us, not
+you: if we cannot reproduce it, we will say so and work out why with you before merging.
+
+---
+
 ## What "done" looks like
 
 A change is done when it closes a specific issue, holds or reduces complexity, documents
