@@ -32,7 +32,7 @@
     "eslint-config-next": "15.1.0",
     "postcss": "^8.5.23",
     "tailwindcss": "^3.4.1",
-    "typescript": "^5",
+    "typescript": "^7",
     "vitest": "^4.1.11"
   },
   "overrides": {
