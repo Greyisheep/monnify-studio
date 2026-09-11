@@ -1,0 +1,34 @@
+# Dependabot security + patch PRs merge themselves once CI is green
+# (#300 follow-up). Anything bigger (minor/major) still waits for a human.
+# Requires "Allow auto-merge" in repo settings; until that is on, this only
+# approves and the merge button stays manual.
+name: Dependabot auto-merge
+
+on:
+  pull_request:
+    branches: [dev]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  automerge:
+    if: github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - id: metadata
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Patch bumps only. Merge is still gated on the required CI checks by
+      # branch protection, so a red suite never lands.
+      - name: Approve and enable auto-merge
+        if: steps.metadata.outputs.update-type == 'version-update:semver-patch'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          gh pr review --approve "$PR_URL"
+          gh pr merge --auto --squash "$PR_URL"
