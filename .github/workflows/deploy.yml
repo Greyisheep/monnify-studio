@@ -24,7 +24,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # Deploy exactly the commit CI validated (workflow_run carries its sha).
           ref: ${{ github.event.workflow_run.head_sha || github.ref }}
