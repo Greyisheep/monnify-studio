@@ -27,6 +27,13 @@ jobs:
           cache-dependency-glob: apps/api/uv.lock
       - name: Sync dependencies
         run: uv sync --frozen --all-extras
+      - name: Audit dependencies (pip-audit)
+        # Security gate (#300 follow-up): a known-vulnerable pin in uv.lock
+        # fails CI, so it can never ride a feature PR into dev/main again.
+        # Pins are exact (uv export), so no pip resolution is needed.
+        run: |
+          uv export --frozen --all-extras --no-hashes --no-emit-project -o /tmp/requirements.txt
+          uvx pip-audit --disable-pip --no-deps -r /tmp/requirements.txt
       - name: Lint (ruff)
         run: uv run ruff check monnify_studio tests
       - name: Tests (pytest)
@@ -49,6 +56,10 @@ jobs:
           cache-dependency-path: apps/web/package-lock.json
       - name: Install
         run: npm ci
+      - name: Audit dependencies (npm audit)
+        # Security gate (#300 follow-up): high/critical advisories in the
+        # lockfile fail CI. Moderate-and-below still surface in the log.
+        run: npm audit --audit-level=high
       - name: Typecheck
         run: npm run typecheck
       - name: Tests (vitest)
