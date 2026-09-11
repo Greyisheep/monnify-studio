@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import pytest
 from fastapi.testclient import TestClient
 
 from monnify_studio.analysis import analyze
@@ -12,9 +13,11 @@ from monnify_studio.templates import build_template, list_templates
 client = TestClient(app)
 
 
-def test_sell_online_analyzes_clean():
-    # The whole D17 promise: the seller's flow ships with zero findings.
-    report = analyze(build_template("sell-online"), default_catalog())
+@pytest.mark.parametrize("template_id", sorted(info.id for info in list_templates()))
+def test_templates_analyze_clean(template_id):
+    # The D17 promise generalized (#258): every shipped template ships with
+    # zero findings, not just sell-online.
+    report = analyze(build_template(template_id), default_catalog())
     assert report.findings == [], [f.rule_id for f in report.findings]
 
 

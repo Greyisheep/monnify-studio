@@ -1,0 +1,75 @@
+# Both protected branches require signed commits, so every tip should carry a
+# valid signature. This checks that the rule is actually holding, rather than
+# trusting that it was configured once and never changed.
+#
+# It exists because of 2026-08-08: the malicious commits set the repository
+# owner's name and email as author, which is free text and trivially forged.
+# They were unsigned, and nothing was checking. A signature is the one part of
+# commit metadata an attacker cannot fake (#285).
+name: Branch tip integrity
+
+on:
+  schedule:
+    # Hourly, off the top of the hour to avoid the scheduler pile-up.
+    - cron: "17 * * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Every protected tip must carry a valid signature
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          failed=""
+
+          for branch in main dev; do
+            api="repos/${GITHUB_REPOSITORY}/commits/${branch}"
+            verified=$(gh api "$api" --jq '.commit.verification.verified')
+            reason=$(gh api "$api" --jq '.commit.verification.reason')
+            sha=$(gh api "$api" --jq '.sha[0:7]')
+            committer=$(gh api "$api" --jq '.commit.committer.name')
+
+            if [ "$verified" = "true" ]; then
+              echo "OK    ${branch} ${sha} signed (${reason}, committer ${committer})"
+            else
+              echo "::error::${branch} tip ${sha} is UNSIGNED (${reason}, committer ${committer})"
+              failed="${failed}| \`${branch}\` | \`${sha}\` | ${reason} | ${committer} |"$'\n'
+            fi
+          done
+
+          if [ -n "$failed" ]; then
+            gh issue create \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "SECURITY: unsigned commit on a protected branch" \
+              --label "security" \
+              --assignee Greyisheep \
+              --body "$(printf '%s\n' \
+                "A protected branch tip is not carrying a valid signature. Both \`main\` and" \
+                "\`dev\` require signed commits, so this means either the protection was" \
+                "removed or something landed around it." \
+                "" \
+                "| Branch | Tip | Reason | Committer |" \
+                "|---|---|---|---|" \
+                "${failed}" \
+                "**Check the committer name carefully.** On 2026-08-08 the malicious commits" \
+                "used author \`Claret Ibeawuchi\` but committer \`Claret\`, in timezone -0700" \
+                "rather than +0100. Genuine merges are committed by \`GitHub\`." \
+                "" \
+                "Verify branch protection is still in place:" \
+                "" \
+                '```bash' \
+                "gh api repos/${GITHUB_REPOSITORY}/branches/main/protection/required_signatures" \
+                "gh api repos/${GITHUB_REPOSITORY}/branches/dev/protection/required_signatures" \
+                '```' \
+              )"
+            exit 1
+          fi
+
+          echo "All protected tips are signed."

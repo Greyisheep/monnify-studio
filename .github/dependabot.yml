@@ -1,0 +1,42 @@
+# Dependency hygiene (#300 follow-up): Dependabot was only firing security
+# PRs against a drifting lockfile. This makes it proactive: weekly grouped
+# version bumps for every ecosystem we ship, targeting dev like CI does.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /apps/web
+    target-branch: dev
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    groups:
+      web-minor-and-patch:
+        update-types: [minor, patch]
+    labels: [dependencies, web]
+    commit-message:
+      prefix: "chore(deps)"
+
+  - package-ecosystem: uv
+    directory: /apps/api
+    target-branch: dev
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    groups:
+      api-minor-and-patch:
+        update-types: [minor, patch]
+    labels: [dependencies, api]
+    commit-message:
+      prefix: "chore(deps)"
+
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: dev
+    schedule:
+      interval: weekly
+      day: monday
+    labels: [dependencies, ci]
+    commit-message:
+      prefix: "chore(ci)"

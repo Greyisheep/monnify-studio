@@ -1,0 +1,82 @@
+# The alarm that was missing.
+#
+# On 2026-08-08 a compromised collaborator account force-pushed a malicious
+# commit to `main` and 59 other refs in 27 seconds. CI went green on it, the
+# deploy gate opened, and the payload executed in Cloud Build. Nothing alerted
+# us; we found out because the account owner sent a message (#285).
+#
+# A forced push to `main` or `dev` should now be impossible: both branches block
+# it. So if this ever fires, it means one of exactly two things happened, and
+# both are worth waking up for:
+#   1. someone used an admin override (enforce_admins is deliberately false), or
+#   2. branch protection was removed first, which is itself the attack.
+name: Force-push alert
+
+on:
+  push:
+    branches: [main, dev]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  alert:
+    # Ordinary merges skip in about a second. Only a rewrite is interesting.
+    if: github.event.forced
+    runs-on: ubuntu-latest
+    steps:
+      - name: Raise a security issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: ${{ github.ref_name }}
+          ACTOR: ${{ github.actor }}
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.event.after }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          cat > "${RUNNER_TEMP}/alert.md" <<EOF
+          A **forced push** rewrote \`${BRANCH}\`. Both protected branches block force
+          pushes, so this should not be possible without an admin override.
+
+          | | |
+          |---|---|
+          | Branch | \`${BRANCH}\` |
+          | Pushed by | \`${ACTOR}\` |
+          | Was | \`${BEFORE}\` |
+          | Now | \`${AFTER}\` |
+          | Run | ${RUN_URL} |
+
+          **If this was not you, treat it as an active compromise.**
+
+          The previous tip is recorded above, so recovery does not depend on anyone's
+          reflog this time. To inspect what changed:
+
+          \`\`\`bash
+          git fetch origin
+          git diff ${BEFORE} ${AFTER}
+          \`\`\`
+
+          Watch for a diff that looks trivial. The 2026-08-08 payload hid after ~500
+          spaces on an existing line and rendered as a one-line change.
+
+          To restore:
+
+          \`\`\`bash
+          git push --force-with-lease origin ${BEFORE}:refs/heads/${BRANCH}
+          \`\`\`
+
+          Close this issue once you have confirmed the push was intentional.
+          EOF
+
+          gh issue create \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "SECURITY: forced push to ${BRANCH} by ${ACTOR}" \
+            --label "security" \
+            --assignee Greyisheep \
+            --body-file "${RUNNER_TEMP}/alert.md"
+
+      - name: Fail the run so the branch shows red
+        run: |
+          echo "::error::Forced push to ${{ github.ref_name }} by ${{ github.actor }}"
+          exit 1

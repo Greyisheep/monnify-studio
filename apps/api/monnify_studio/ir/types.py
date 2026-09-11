@@ -61,6 +61,51 @@ class CapabilityTag(str, Enum):
     SECRET_BOUNDARY = "secret_boundary"
 
 
+# Which tags may an untrusted source declare about itself? (#270)
+#
+# A workflow document round-trips through the browser, so `Node.extra_tags` is
+# input, not authorship: only the catalog is ours. The tags below are safe for
+# anything to claim because they can only ever ADD findings - they mark a node
+# as a source of untrust (a callback), as an effect worth guarding (a payout),
+# or as hygiene the rules do not read. Claiming one cannot talk the analyzer
+# out of a warning.
+#
+# Every other tag is a guard: it appears in a rule's `is_guard` position, or it
+# decides whether a rule fires at all, so asserting it can SILENCE a finding.
+# Those may come only from a `NodeTypeDef` in the catalog.
+#
+# This is an allowlist on purpose. A tag added to `CapabilityTag` tomorrow is
+# untrusted until someone deliberately lists it here, because the two failure
+# directions are not symmetric: a wrongly-trusted guard is a silent false
+# negative on a payment safety check, while a wrongly-distrusted descriptor is
+# a visible missing tag. Fail towards the noisy one.
+#
+# The generalisation of the `custom.code` rule (opaque on purpose, EXTERNAL_CALL
+# only) from one node to any untrusted contributor, including future provider
+# packs. Enforced in `providers.base.Catalog.effective_tags`, and held by a
+# property test that injects each of these into every node of the unsafe hero
+# and asserts no finding disappears.
+SELF_DECLARABLE_TAGS: frozenset[CapabilityTag] = frozenset(
+    {
+        # sources of untrust: declaring one gives the rules more to worry about
+        CapabilityTag.CLIENT_CALLBACK,
+        CapabilityTag.WEBHOOK_EVENT,
+        CapabilityTag.WAIT_EVENT,
+        # effects: declaring one makes a node a target the rules guard, not a guard
+        CapabilityTag.FINANCIAL_FULFILMENT,
+        CapabilityTag.MUTATES_LEDGER,
+        CapabilityTag.MONEY_MOVEMENT,
+        CapabilityTag.BENEFICIARY_TRANSFER,
+        # hygiene: no rule reads these
+        CapabilityTag.RECONCILIATION,
+        CapabilityTag.AUDIT,
+        CapabilityTag.RETRY,
+        CapabilityTag.EXTERNAL_CALL,
+        CapabilityTag.SECRET_BOUNDARY,
+    }
+)
+
+
 class DomainType(str, Enum):
     """Types that flow along data connections, enabling typed wiring (D9 / §7.3).
 
