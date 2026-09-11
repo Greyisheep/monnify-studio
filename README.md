@@ -1,6 +1,6 @@
 # Monnify Studio
 
-[![CI](https://github.com/Greyisheep/monnify-studio/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Greyisheep/monnify-studio/actions/workflows/ci.yml)
+[![CI](https://github.com/Greyisheep/monnify-studio/actions/workflows/ci.yml/badge.svg)](https://github.com/Greyisheep/monnify-studio/actions/workflows/ci.yml)
 
 **Describe a payment product in plain language. Get a visual, typed, safety-checked workflow that becomes a real Monnify product.**
 
@@ -41,7 +41,7 @@ Needs Python 3.11+ and Node 20+.
 # Terminal 1 - backend (analyzer + Moni + product API)
 cd apps/api
 uv sync --all-extras
-uv run pytest -q                                   # 240+ tests, no keys needed
+uv run pytest -q                                   # 268 tests, no keys needed
 uv run uvicorn monnify_studio.api.main:app --port 8010 --host 127.0.0.1
 
 # Terminal 2 - frontend canvas
@@ -61,7 +61,7 @@ The thesis, in one line: **AI proposes, the analyzer disposes. Correctness never
 
 ## The two demos
 
-**Developer:** open the app → *"I'm a developer"* → in Chat, type *"Take a card payment, and when the payment webhook arrives, verify the transaction with Monnify and then send the customer a WhatsApp confirmation."* → **Run**. It hits the **real** Monnify sandbox, shows the honest `PENDING` status (not a fake success), completes the flow, and — after asking where to send it — fires a **real WhatsApp + email** confirmation to your own phone and inbox.
+**Developer:** open the app → *"I'm a developer"* → in Chat, type *"Take a card payment, and when the payment webhook arrives, verify the transaction with Monnify and then send the customer a WhatsApp confirmation."* → **Run**. It hits the **real** Monnify sandbox, shows the honest `PENDING` status (not a fake success), completes the flow, and (after asking where to send it) fires a **real WhatsApp + email** confirmation to your own phone and inbox.
 
 **Business owner:** open the app → *"I'm a business owner"* → pick a template (Ajo, or Sell online) → get a **dashboard** (money in/out), a **shop link** + QR to share on WhatsApp, and a **branded invoice**. A buyer opens the link, picks items, and pays - and it is only marked *paid* once Monnify confirms it, which defeats fake-transfer-screenshot fraud.
 
@@ -70,7 +70,7 @@ The thesis, in one line: **AI proposes, the analyzer disposes. Correctness never
 ### 🧑‍💻 Engineer
 - The heart is a typed, event-driven **IR** (a node graph) + a **static analyzer** with deterministic tag-reachability rules - *no LLM in the correctness path* (see the rules table below).
 - Moni's compose is a **deterministic generate → verify → refine → refuse loop**: she proposes, our code runs the analyzer and Apply-Fix, and returns only a clean flow or refuses honestly.
-- **240 backend + 56 frontend tests**, gated in CI on every PR - and the suite runs **keyless**, so green also proves the no-API-key fallbacks carry the product.
+- **268 backend + 57 frontend tests**, gated in CI on every PR - and the suite runs **keyless**, so green also proves the no-API-key fallbacks carry the product.
 - Money is exact `Decimal` to the kobo, never `float`. Start at [`docs/MONI_ARCHITECTURE.md`](docs/MONI_ARCHITECTURE.md) and [`apps/api/monnify_studio/ai/composer.py`](apps/api/monnify_studio/ai/composer.py).
 
 ### 🧑‍💼 Product / business
@@ -133,11 +133,15 @@ monnify-studio/
 ├── apps/
 │   ├── api/   # FastAPI: IR · providers (Monnify pack) · analysis · remediation · ai (Moni) · artifacts
 │   └── web/   # Next.js + React Flow canvas, Architecture Review, Moni chat, trace
-├── docs/      # BUILD_PLAN · ENGINEERING_STANDARDS · MONI_ARCHITECTURE
+├── docs/      # DOMAINS (the map) · BUILD_PLAN · ENGINEERING_STANDARDS · MONI_ARCHITECTURE
 └── scripts/   # deploy-cloud-run.sh + apps/api/scripts demos
 ```
 
 The product model in plain words lives in [issue #105](https://github.com/Greyisheep/monnify-studio/issues/105). Build plan and locked decisions: [`docs/BUILD_PLAN.md`](docs/BUILD_PLAN.md).
+
+## Contributing
+
+We are building this in the open, and you do not have to write Python to help - code, docs, design, and testing all have a way in. Start at [`CONTRIBUTING.md`](CONTRIBUTING.md), or go straight to the [good first issues](https://github.com/Greyisheep/monnify-studio/labels/good%20first%20issue). Each one names the files to touch, and the whole test suite runs without a single API key.
 
 ## License
 

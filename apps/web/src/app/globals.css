@@ -5134,3 +5134,100 @@ body.is-resizing-sidebar iframe {
 .studio-schedule p.muted {
   margin: 2px 0 0;
 }
+
+/* Dashboard nudge (#outflow): a run moved money out - draw the eye to the rail. */
+@keyframes studio-rail-nudge {
+  0%, 60%, 100% { transform: translateX(0) rotate(0); }
+  65% { transform: translateX(-2px) rotate(-6deg); }
+  72% { transform: translateX(2px) rotate(6deg); }
+  79% { transform: translateX(-2px) rotate(-4deg); }
+  86% { transform: translateX(2px) rotate(4deg); }
+  93% { transform: translateX(0) rotate(0); }
+}
+.studio-rail__btn.is-nudging {
+  animation: studio-rail-nudge 2.4s ease-in-out infinite;
+  color: var(--brand, #00b8c2);
+  box-shadow: 0 0 0 2px rgba(0, 184, 194, 0.35), 0 0 12px rgba(0, 184, 194, 0.45);
+  border-radius: 8px;
+  position: relative;
+}
+.studio-rail__btn.is-nudging::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ef4444;
+  box-shadow: 0 0 0 2px #fff;
+}
+@media (prefers-reduced-motion: reduce) {
+  .studio-rail__btn.is-nudging { animation: none; }
+}
+
+/* Shared roster table (payroll employees, ajo members) - RosterTable.tsx */
+.roster {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+.roster__grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 320px;
+  overflow: auto;
+  padding-right: 2px;
+}
+.roster__row {
+  display: grid;
+  gap: 6px;
+  align-items: center;
+  min-width: 420px;
+}
+.roster__row--head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--surface, #fff);
+  padding-bottom: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.roster__row--head span {
+  padding: 0 4px;
+}
+.roster__row input {
+  width: 100%;
+  padding: 8px 9px;
+  font-size: 13px;
+  border: 1px solid #e5e7eb;
+  border-radius: 7px;
+  outline: none;
+  background: #fff;
+}
+.roster__row input:focus {
+  border-color: var(--brand, #00b8c2);
+  box-shadow: 0 0 0 2px rgba(0, 184, 194, 0.16);
+}
+.roster__remove {
+  border: none;
+  background: transparent;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 4px;
+  line-height: 1;
+  border-radius: 6px;
+}
+.roster__remove:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: #ef4444;
+}
+.roster__empty {
+  padding: 8px 2px;
+}

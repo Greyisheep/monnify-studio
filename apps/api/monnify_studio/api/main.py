@@ -1332,6 +1332,60 @@ def artifact_totals(artifact_id: str, period: str = "week") -> DashboardTotals:
     return DashboardTotals(period=period, **totals)
 
 
+class PayoutItem(BaseModel):
+    """One line of money going OUT (a payroll/vendor disbursement), derived from
+    real run events so the Dashboard's outflow is truth, never a claim."""
+
+    name: str
+    amount: Decimal
+    status: str
+    ts: str
+    reference: str = ""
+
+
+_PAYOUT_NODE_TYPES = ("monnify.bulk_transfer", "monnify.initiate_transfer")
+
+
+def _run_payouts(workflow_id: str) -> tuple[list[PayoutItem], Decimal]:
+    """Money this flow paid out, read straight from its execution events: a
+    payroll batch becomes one line per employee, a single transfer one line."""
+    payouts: list[PayoutItem] = []
+    total = money("0")
+    for run in execution_store.list_runs(workflow_id):
+        for ev in execution_store.list_events(run.id):
+            if ev.type.value != "node.completed" or ev.node_type not in _PAYOUT_NODE_TYPES:
+                continue
+            outputs = ev.outputs or {}
+            results = outputs.get("results")
+            if isinstance(results, list) and results:
+                for row in results:
+                    amount = money(row.get("amount", "0"))
+                    total = total + amount
+                    payouts.append(
+                        PayoutItem(
+                            name=str(row.get("name") or "Payee"),
+                            amount=amount,
+                            status=str(row.get("status") or "paid"),
+                            ts=ev.ts.isoformat(),
+                            reference=str(row.get("reference") or ""),
+                        )
+                    )
+            else:
+                amount = money(outputs.get("total_paid") or outputs.get("amount") or "0")
+                total = total + amount
+                payouts.append(
+                    PayoutItem(
+                        name="Payout",
+                        amount=amount,
+                        status=str(outputs.get("transfer_status") or "paid"),
+                        ts=ev.ts.isoformat(),
+                        reference=str(outputs.get("transfer_reference") or ""),
+                    )
+                )
+    payouts.sort(key=lambda p: p.ts, reverse=True)
+    return payouts[:50], total
+
+
 class DashboardData(BaseModel):
     """Everything the business Dashboard needs, keyed by workflow id so the UI
     never has to thread an artifact id through onboarding (#135)."""
@@ -1346,6 +1400,8 @@ class DashboardData(BaseModel):
     business_name: str = ""
     totals: DashboardTotals | None = None
     invoices: list[Order] = Field(default_factory=list)
+    # Money out (payroll / vendor disbursements), derived from real runs (#outflow).
+    payouts: list[PayoutItem] = Field(default_factory=list)
     activity: list[ActivityItem] = Field(default_factory=list)
 
 
@@ -1370,11 +1426,37 @@ def workflow_dashboard(workflow_id: str, period: str = "all") -> DashboardData:
     """The business Dashboard's data for a workflow: money totals, invoices,
     activity, and the goal-aware share link (#135, #160). Empty (but 200) until
     a product exists."""
+    payouts, payouts_total = _run_payouts(workflow_id)
     artifact = artifact_store.latest_for_workflow(workflow_id)
+
     if artifact is None:
-        return DashboardData()
+        # No customer-facing product, but the flow may still have paid money out
+        # (payroll is the case). Show that outflow so the owner can review it.
+        if not payouts:
+            return DashboardData()
+        workflow = store.get(workflow_id)
+        return DashboardData(
+            business_name=(workflow.name if workflow else "Your business"),
+            totals=DashboardTotals(
+                period=period,
+                money_in=money("0"),
+                money_out=payouts_total,
+                profit=money("0") - payouts_total,
+                orders_total=0,
+                verified=0,
+                needs_attention=0,
+                rejected=0,
+            ),
+            payouts=payouts,
+        )
+
     aid = artifact.artifact_id
     kind, label, path = _share_surface(workflow_id, aid)
+    totals = artifact_totals(aid, period)
+    # Fold this flow's real disbursements into money out / profit (#outflow).
+    if payouts_total:
+        totals.money_out = money(totals.money_out) + payouts_total
+        totals.profit = money(totals.money_in) - totals.money_out
     return DashboardData(
         artifact_id=aid,
         shop_path=path if kind == "shop" else None,
@@ -1382,8 +1464,9 @@ def workflow_dashboard(workflow_id: str, period: str = "all") -> DashboardData:
         share_label=label,
         share_path=path,
         business_name=artifact.config.business_name,
-        totals=artifact_totals(aid, period),
+        totals=totals,
         invoices=orders_service.for_artifact(aid),
+        payouts=payouts,
         activity=artifact_activity(aid),
     )
 

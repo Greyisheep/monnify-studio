@@ -6,6 +6,7 @@
 import { useEffect, useState, type ChangeEvent } from "react";
 
 import type { Finding, IrNode, NodeMeta } from "@/types";
+import { RosterTable, type RosterRow } from "./RosterTable";
 
 export interface ConfigPanelProps {
   node: IrNode | null;
@@ -92,29 +93,14 @@ export function ConfigPanel({
   }
 
   // The Employee List / sheet (app.data_rows): a table of people the flow pays.
-  type SheetRow = Record<string, string>;
-  function sheetRows(): SheetRow[] {
+  // The table UI (add/remove/paste) lives in the shared RosterTable.
+  function sheetRows(): RosterRow[] {
     const rows = node?.config?.rows;
-    return Array.isArray(rows) ? (rows as SheetRow[]) : [];
+    return Array.isArray(rows) ? (rows as RosterRow[]) : [];
   }
-  function writeRows(rows: SheetRow[]) {
+  function writeRows(rows: RosterRow[]) {
     if (!node) return;
     onChange({ ...node, config: { ...node.config, rows } });
-  }
-  function updateRowCell(index: number, key: string, value: string) {
-    const rows = sheetRows().map((r) => ({ ...r }));
-    if (!rows[index]) return;
-    rows[index][key] = value;
-    writeRows(rows);
-  }
-  function addRow() {
-    writeRows([
-      ...sheetRows(),
-      { name: "", phone: "", account_number: "", bank_code: "", amount: "" },
-    ]);
-  }
-  function removeRow(index: number) {
-    writeRows(sheetRows().filter((_, i) => i !== index));
   }
 
   // Scheduled trigger (event.scheduled): let the dev pick when it runs.
@@ -334,74 +320,23 @@ export function ConfigPanel({
               <div className="studio-sheet__head">
                 <h4>Employee list</h4>
                 <p className="muted">
-                  Add the people this flow pays. A Run pays and (if a notify
-                  block is wired) messages each one.
+                  Add the people this flow pays (or paste a CSV). A Run pays and
+                  (if a notify block is wired) messages each one.
                 </p>
               </div>
-              {sheetRows().length > 0 ? (
-                <div className="studio-sheet__grid" role="table">
-                  <div className="studio-sheet__row studio-sheet__row--header" role="row">
-                    <span>Name</span>
-                    <span>WhatsApp</span>
-                    <span>Account no.</span>
-                    <span>Bank code</span>
-                    <span>Amount (₦)</span>
-                    <span aria-hidden />
-                  </div>
-                  {sheetRows().map((row, index) => (
-                    <div className="studio-sheet__row" role="row" key={index}>
-                      <input
-                        aria-label={`Name ${index + 1}`}
-                        placeholder="Ada Obi"
-                        value={row.name ?? ""}
-                        onChange={(e) => updateRowCell(index, "name", e.target.value)}
-                      />
-                      <input
-                        aria-label={`WhatsApp ${index + 1}`}
-                        placeholder="0803…"
-                        value={row.phone ?? ""}
-                        onChange={(e) => updateRowCell(index, "phone", e.target.value)}
-                      />
-                      <input
-                        aria-label={`Account number ${index + 1}`}
-                        placeholder="0123456789"
-                        value={row.account_number ?? ""}
-                        onChange={(e) =>
-                          updateRowCell(index, "account_number", e.target.value)
-                        }
-                      />
-                      <input
-                        aria-label={`Bank code ${index + 1}`}
-                        placeholder="058"
-                        value={row.bank_code ?? ""}
-                        onChange={(e) => updateRowCell(index, "bank_code", e.target.value)}
-                      />
-                      <input
-                        aria-label={`Amount ${index + 1}`}
-                        inputMode="decimal"
-                        placeholder="150000"
-                        value={row.amount ?? ""}
-                        onChange={(e) => updateRowCell(index, "amount", e.target.value)}
-                      />
-                      <button
-                        type="button"
-                        className="ghost-btn"
-                        aria-label={`Remove row ${index + 1}`}
-                        onClick={() => removeRow(index)}
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="muted studio-sheet__empty">
-                  No employees yet. Add your first row below.
-                </p>
-              )}
-              <button type="button" className="ghost-btn" onClick={addRow}>
-                + Add employee
-              </button>
+              <RosterTable
+                columns={[
+                  { key: "name", label: "Name", placeholder: "Ada Obi", width: "1.3fr" },
+                  { key: "phone", label: "WhatsApp", placeholder: "0803…", width: "1fr", inputMode: "tel" },
+                  { key: "account_number", label: "Account no.", placeholder: "0123456789", width: "1.2fr", inputMode: "numeric" },
+                  { key: "bank_code", label: "Bank code", placeholder: "058", width: "0.8fr" },
+                  { key: "amount", label: "Amount (₦)", placeholder: "150000", width: "1fr", inputMode: "decimal" },
+                ]}
+                rows={sheetRows()}
+                onChange={writeRows}
+                addLabel="+ Add employee"
+                emptyHint="No employees yet. Add your first row below (or paste a CSV)."
+              />
             </div>
           ) : null}
           {node.type === "event.scheduled" ? (

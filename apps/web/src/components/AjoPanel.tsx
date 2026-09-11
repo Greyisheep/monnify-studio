@@ -5,7 +5,14 @@
  */
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
 
 import {
   fetchAjoState,
@@ -13,9 +20,14 @@ import {
   simulateAjoContribution,
   type AjoStateDto,
 } from "@/lib/api";
+import { RosterTable, type RosterRow } from "./RosterTable";
 
 interface AjoPanelProps {
   artifactId: string;
+}
+
+export interface AjoPanelHandle {
+  addMember: () => void;
 }
 
 function naira(value: string): string {
@@ -24,11 +36,35 @@ function naira(value: string): string {
   return `NGN ${n.toLocaleString("en-NG", { minimumFractionDigits: 2 })}`;
 }
 
-export function AjoPanel({ artifactId }: AjoPanelProps) {
+export const AjoPanel = forwardRef<AjoPanelHandle, AjoPanelProps>(function AjoPanel(
+  { artifactId },
+  ref,
+) {
   const [state, setState] = useState<AjoStateDto | null>(null);
-  const [draft, setDraft] = useState("");
+  const [newMembers, setNewMembers] = useState<RosterRow[]>([]);
   const [saving, setSaving] = useState(false);
   const [simulating, setSimulating] = useState(false);
+  const addSectionRef = useRef<HTMLDivElement>(null);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      addMember() {
+        setNewMembers((rows) => [...rows, { name: "", whatsapp: "" }]);
+        window.requestAnimationFrame(() => {
+          addSectionRef.current?.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+          });
+          const inputs = addSectionRef.current?.querySelectorAll<HTMLInputElement>(
+            ".roster__row input",
+          );
+          inputs?.[inputs.length - 2]?.focus();
+        });
+      },
+    }),
+    [],
+  );
 
   const load = useCallback(async () => {
     const next = await fetchAjoState(artifactId);
@@ -43,21 +79,18 @@ export function AjoPanel({ artifactId }: AjoPanelProps) {
   }, [load]);
 
   const addMembers = async () => {
-    const parsed = draft
-      .split("\n")
-      .map((line) => {
-        const [name, whatsapp] = line.split(",").map((s) => s.trim());
-        return { name: name ?? "", whatsapp: whatsapp ?? "" };
-      })
+    const parsed = newMembers
+      .map((m) => ({ name: (m.name ?? "").trim(), whatsapp: (m.whatsapp ?? "").trim() }))
       .filter((m) => m.name.length > 0);
+    if (parsed.length === 0) return;
+    // Existing members are sent by name only; the backend keeps their hidden
+    // numbers (client never sees them, #234). New members carry their number.
     const existing = (state?.members ?? []).map((m) => ({ name: m.name }));
-    const merged = [...existing, ...parsed];
-    if (merged.length === 0) return;
     setSaving(true);
     try {
-      const next = await putAjoMembers(artifactId, merged);
+      const next = await putAjoMembers(artifactId, [...existing, ...parsed]);
       setState(next);
-      setDraft("");
+      setNewMembers([]);
     } finally {
       setSaving(false);
     }
@@ -157,20 +190,22 @@ export function AjoPanel({ artifactId }: AjoPanelProps) {
         </p>
       )}
 
-      <div className="biz-ajo__add">
-        <label htmlFor="ajo-members">Add members (one per line: name, WhatsApp)</label>
-        <textarea
-          id="ajo-members"
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          placeholder={"Ada, 08030000000\nBola, 08031111111"}
-          rows={3}
-          spellCheck={false}
+      <div className="biz-ajo__add" ref={addSectionRef}>
+        <label>Add members (or paste a list)</label>
+        <RosterTable
+          columns={[
+            { key: "name", label: "Name", placeholder: "Ada Obi", width: "1.3fr" },
+            { key: "whatsapp", label: "WhatsApp", placeholder: "0803…", width: "1fr", inputMode: "tel" },
+          ]}
+          rows={newMembers}
+          onChange={setNewMembers}
+          addLabel="+ Add member"
+          emptyHint="No new members yet. Add one below, or paste a name, number list."
         />
         <button
           type="button"
           className="biz-product-panel__cta"
-          disabled={saving || draft.trim().length === 0}
+          disabled={saving || newMembers.every((m) => !(m.name ?? "").trim())}
           onClick={() => void addMembers()}
         >
           {saving ? "Adding…" : "Add to rotation"}
@@ -178,4 +213,4 @@ export function AjoPanel({ artifactId }: AjoPanelProps) {
       </div>
     </div>
   );
-}
+});
