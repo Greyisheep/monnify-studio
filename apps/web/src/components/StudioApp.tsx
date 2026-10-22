@@ -283,8 +283,8 @@ function CanvasInner() {
       if (wa || em) {
         setLastContact({ whatsapp: wa, email: em });
         ir = {
-          ...currentIr,
-          nodes: currentIr.nodes.map((n) =>
+          ...ir,
+          nodes: ir.nodes.map((n) =>
             n.type.startsWith("app.notify")
               ? {
                   ...n,
